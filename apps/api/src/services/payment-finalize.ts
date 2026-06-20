@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@pos/db';
 import { logger } from '../logger.js';
 import { wsBus } from '../lib/ws-bus.js';
+import { applyOnPayment } from './loyalty.js';
+import { dispatch as dispatchReceipt } from './receipt-delivery.js';
 
 export type FinalizeProvider = 'CASH' | 'MIDTRANS' | 'XENDIT';
 export type FinalizeMethod = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET';
@@ -205,6 +207,44 @@ export async function finalizeOrderPayment(input: FinalizeInput): Promise<Finali
     },
     order.branchId,
   );
+
+  // Sprint 8.8 — loyalty earn hook. Defensive: loyalty is a downstream
+  // effect of the payment, never a precondition. Wrap in try/catch and
+  // log a warn if anything fails; the order is still considered paid.
+  try {
+    await applyOnPayment(order.id, order.customerId ?? null, order.totalCents, userId);
+  } catch (e) {
+    logger.warn(
+      { err: (e as Error).message, orderId: order.id, customerId: order.customerId },
+      'loyalty earn hook failed (non-fatal)',
+    );
+  }
+
+  // Sprint 8.9 — digital receipt hook. Defensive: delivery is a downstream
+  // effect of the payment, never a precondition. We kick off a non-blocking
+  // attempt if the order is linked to a customer that has a phone or
+  // email. Failures (incl. WA/SMTP not configured) only land in
+  // ReceiptDelivery rows; the order is still considered paid.
+  if (order.customerId) {
+    void (async () => {
+      try {
+        const customer = await prisma.customer.findUnique({
+          where: { id: order.customerId! },
+          select: { phone: true, email: true },
+        });
+        const channels: Array<'WHATSAPP' | 'EMAIL'> = [];
+        if (customer?.phone) channels.push('WHATSAPP');
+        if (customer?.email) channels.push('EMAIL');
+        if (channels.length === 0) return;
+        await dispatchReceipt(order.id, channels);
+      } catch (e) {
+        logger.warn(
+          { err: (e as Error).message, orderId: order.id },
+          'receipt delivery hook failed (non-fatal)',
+        );
+      }
+    })();
+  }
 
   return {
     order: result.updated as FinalizeResult['order'],

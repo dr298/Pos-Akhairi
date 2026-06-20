@@ -1,0 +1,161 @@
+{
+  "app": {
+    "name": "BKJ POS",
+    "loading": "Loading…",
+    "logout": "Sign out",
+    "active": "active",
+    "default": "default"
+  },
+  "nav": {
+    "order": "Order",
+    "history": "History",
+    "delivery": "Delivery",
+    "shift": "Shift",
+    "transfer": "Transfer",
+    "zreport": "Z-Report",
+    "discounts": "Discounts",
+    "reservations": "Reservations",
+    "channels": "Channels",
+    "chain": "Chain",
+    "display": "Display",
+    "prepsheets": "Prep Sheet",
+    "suppliers": "Suppliers",
+    "purchaseOrders": "Purchase Order",
+    "waste": "Waste Tracking",
+    "accountingExport": "Accounting Export"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "update": "Update",
+    "search": "Search",
+    "filter": "Filter",
+    "from": "From",
+    "to": "To",
+    "date": "Date",
+    "loading": "Loading…",
+    "noData": "No data yet",
+    "total": "Total",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisMonth": "This month",
+    "branch": "Branch",
+    "actions": "Actions",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "download": "Download",
+    "optional": "(optional)",
+    "all": "All",
+    "success": "Success",
+    "error": "Error",
+    "saving": "Saving…",
+    "deleting": "Deleting…"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "signin": "Sign in",
+    "invalidCredentials": "Wrong email or password",
+    "forgotPassword": "Forgot password?"
+  },
+  "waste": {
+    "title": "Waste Tracking",
+    "subtitle": "Log wasted food, expired ingredients, and damaged packaging",
+    "summary": {
+      "monthTotal": "This month total",
+      "count": "Entry count",
+      "topItems": "Top 5 wasted items",
+      "byReason": "Reason breakdown",
+      "byType": "By type",
+      "noData": "No waste data for this period"
+    },
+    "form": {
+      "type": "Type",
+      "typeFOOD": "Food",
+      "typeINGREDIENT": "Ingredient",
+      "typePACKAGING": "Packaging",
+      "item": "Item",
+      "selectItem": "Select an item…",
+      "searchItem": "Search menu or ingredient…",
+      "quantity": "Quantity",
+      "unit": "Unit",
+      "reason": "Reason",
+      "reasonPlaceholder": "e.g. expired, kitchen mistake, dropped",
+      "notes": "Notes",
+      "submit": "Log Waste",
+      "submitting": "Logging…",
+      "success": "Waste logged"
+    },
+    "reasons": {
+      "expired": "Expired",
+      "kitchenMistake": "Kitchen mistake",
+      "customerReturn": "Customer return",
+      "dropped": "Dropped / spilled",
+      "overproduction": "Over-production",
+      "spoiled": "Spoiled",
+      "other": "Other"
+    },
+    "list": {
+      "title": "Waste Log",
+      "empty": "No waste entries yet",
+      "headers": {
+        "date": "Date",
+        "type": "Type",
+        "item": "Item",
+        "qty": "Qty",
+        "cost": "Cost (IDR)",
+        "reason": "Reason",
+        "recordedBy": "Logged by",
+        "actions": "Actions"
+      }
+    }
+  },
+  "accountingExport": {
+    "title": "Accounting Export",
+    "subtitle": "Download sales & purchase journals for Jurnal, Accurate, or Mekari",
+    "section": {
+      "dateRange": "Date Range",
+      "format": "Format",
+      "journalType": "Journal Type"
+    },
+    "format": {
+      "JURNAL": "Jurnal (Mekari)",
+      "ACCURATE": "Accurate Online",
+      "MEKARI": "Mekari Accounting",
+      "GENERIC": "Generic CSV"
+    },
+    "journalType": {
+      "sales": "Sales Journal",
+      "purchase": "Purchase Journal"
+    },
+    "actions": {
+      "download": "Download CSV",
+      "downloading": "Preparing…"
+    },
+    "messages": {
+      "selectRange": "Select a date range",
+      "downloadSuccess": "File downloaded",
+      "downloadError": "Failed to download"
+    },
+    "info": {
+      "title": "Import Notes",
+      "generic": "The GENERIC format is our canonical export (English headers). Use it for ad-hoc uploads to other systems.",
+      "jurnal": "Jurnal by Mekari uses Indonesian headers with default 4-1-2 accounts (Penjualan, PPN Keluaran, Kas/Bank). You can remap accounts on the Jurnal import page.",
+      "accurate": "Accurate uses Indonesian headers in this order: Tanggal → No. Bukti → Keterangan → Debit → Kredit → Akun.",
+      "mekari": "Mekari (legacy) uses English headers + a Project column at the end."
+    }
+  },
+  "language": {
+    "label": "Language",
+    "id": "Bahasa Indonesia",
+    "en": "English"
+  }
+}

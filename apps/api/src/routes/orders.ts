@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@pos/db';
 import { AppEnv, requireAuth, requireRole, ok, fail } from '../middleware/auth.js';
 import { logger } from '../logger.js';
 import { computeDiscount } from './discounts.js';
+import { computePromo, type PromoLineItem, type PromoLike } from './promos.js';
 import { finalizeOrderPayment, restoreInventoryForOrder } from '../services/payment-finalize.js';
 import { wsBus } from '../lib/ws-bus.js';
 import { incCounter, observeHistogram } from '../middleware/metrics.js';
@@ -19,6 +21,14 @@ const orderItemSchema = z.object({
   modifiersJson: z.record(z.string(), z.unknown()).optional(),
 });
 
+// Sprint 8.6 — combo items. Each entry expands to one or more order
+// line items at the combo's set price.
+const orderComboItemSchema = z.object({
+  comboId: z.string().min(1),
+  quantity: z.number().int().positive().max(99),
+  notes: z.string().max(200).optional(),
+});
+
 const orderCreateSchema = z.object({
   type: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']).optional(),
   tableNumber: z.string().max(20).optional(),
@@ -27,8 +37,20 @@ const orderCreateSchema = z.object({
   shiftId: z.string().optional(),
   discountCode: z.string().min(1).max(50).optional(),
   discountId: z.string().optional(),
-  items: z.array(orderItemSchema).min(1),
-});
+  // Sprint 8.7 — promo engine code. Validated and applied during creation.
+  promoCode: z.string().min(1).max(50).optional(),
+  items: z.array(orderItemSchema).min(1).optional(),
+  // Sprint 8.6 — combo items (set meals). Expanded into line items.
+  comboItems: z.array(orderComboItemSchema).optional(),
+  // Sprint 8.8 — optional customer / member attach. When set, the loyalty
+  // service credits the customer's loyalty balance on payment. We
+  // accept but don't validate membership here — payment-finalize is
+  // defensive and will warn if the customer lookup fails.
+  customerId: z.string().min(1).max(50).optional(),
+}).refine(
+  (o) => (o.items && o.items.length > 0) || (o.comboItems && o.comboItems.length > 0),
+  { message: 'At least one item or combo is required' },
+);
 
 async function nextOrderNumber(branchId: string): Promise<string> {
   const today = new Date();
@@ -91,12 +113,18 @@ orderRoutes.post('/', async (c) => {
   }
   if (!user.branchId) return fail(c, 'NoBranch', 'User has no branch', 400);
 
-  const menuIds = parsed.data.items.map((i) => i.menuItemId);
-  const menuItems = await prisma.menuItem.findMany({
-    where: { id: { in: menuIds }, branchId: user.branchId, isActive: true },
-  });
+  const regularItems = parsed.data.items ?? [];
+  const comboItems = parsed.data.comboItems ?? [];
+
+  // Load menu items for the regular items.
+  const menuIds = regularItems.map((i) => i.menuItemId);
+  const menuItems = menuIds.length
+    ? await prisma.menuItem.findMany({
+        where: { id: { in: menuIds }, branchId: user.branchId, isActive: true },
+      })
+    : [];
   const menuMap = new Map(menuItems.map((m) => [m.id, m]));
-  for (const it of parsed.data.items) {
+  for (const it of regularItems) {
     if (!menuMap.has(it.menuItemId)) {
       return fail(c, 'MenuItemNotFound', `Menu item ${it.menuItemId} not in this branch`, 400);
     }
@@ -126,16 +154,26 @@ orderRoutes.post('/', async (c) => {
   const orderNumber = await nextOrderNumber(user.branchId);
   let subtotal = 0;
   let tax = 0;
-  const lineItems = parsed.data.items.map((it) => {
+  const lineItems: Array<{
+    menuItemId: string;
+    nameSnapshot: string;
+    priceCents: number;
+    quantity: number;
+    notes?: string;
+    modifiersJson?: unknown;
+    lineTotalCents: number;
+  }> = [];
+
+  // Build line items from regular menu items.
+  for (const it of regularItems) {
     const m = menuMap.get(it.menuItemId)!;
     const lineTotal = m.priceCents * it.quantity;
     subtotal += lineTotal;
     const rateBp = effectivePpnBp(m);
     if (rateBp > 0 && !branchPpnInclusive) {
-      // Exclusive: tax added on top, per-line floor.
       tax += Math.floor((lineTotal * rateBp) / 10000);
     }
-    return {
+    lineItems.push({
       menuItemId: m.id,
       nameSnapshot: m.name,
       priceCents: m.priceCents,
@@ -143,19 +181,79 @@ orderRoutes.post('/', async (c) => {
       notes: it.notes,
       modifiersJson: (it as any).modifiersJson ?? (it as any).modifiers ?? null,
       lineTotalCents: lineTotal,
-    };
-  });
+    });
+  }
+
+  // Sprint 8.6 — expand combo items into line items. Each combo becomes
+  // one synthetic line item priced at combo.priceCents. The "what's in
+  // the combo" detail is captured in the line notes for the kitchen.
+  if (comboItems.length > 0) {
+    const comboIds = Array.from(new Set(comboItems.map((ci) => ci.comboId)));
+    const combos = await prisma.combo.findMany({
+      where: { id: { in: comboIds }, branchId: user.branchId, isActive: true },
+      include: { items: true },
+    });
+    const comboMap = new Map(combos.map((cm) => [cm.id, cm]));
+    for (const ci of comboItems) {
+      const combo = comboMap.get(ci.comboId);
+      if (!combo) {
+        return fail(c, 'ComboNotFound', `Combo ${ci.comboId} not in this branch`, 400);
+      }
+      // Validity window
+      const now = new Date();
+      if (combo.validFrom && now < combo.validFrom) {
+        return fail(c, 'ComboNotYetValid', `Combo "${combo.name}" not yet valid`, 400);
+      }
+      if (combo.validUntil && now > combo.validUntil) {
+        return fail(c, 'ComboExpired', `Combo "${combo.name}" has expired`, 400);
+      }
+      // For tax purposes, use a representative menu item's tax rate (the first one).
+      // Combo price is the set price; PPN is computed on it at the same rate.
+      const firstMenuItemId = combo.items[0]?.menuItemId;
+      const firstMenu = firstMenuItemId ? menuMap.get(firstMenuItemId) : null;
+      // If we don't have the menu item in our preload, fetch it.
+      const repMenu =
+        firstMenu ??
+        (firstMenuItemId
+          ? await prisma.menuItem.findUnique({ where: { id: firstMenuItemId } })
+          : null);
+      const lineTotal = combo.priceCents * ci.quantity;
+      subtotal += lineTotal;
+      if (repMenu) {
+        const rateBp = effectivePpnBp(repMenu);
+        if (rateBp > 0 && !branchPpnInclusive) {
+          tax += Math.floor((lineTotal * rateBp) / 10000);
+        }
+      }
+      // Build a descriptive line item that links to the FIRST combo item
+      // (required — order_items.menuItemId is non-null in the schema).
+      // The combo's full contents are recorded in modifiersJson + notes.
+      const contentsText = combo.items
+        .map((cmi) => `${cmi.quantity}x[item:${cmi.menuItemId}]`)
+        .join(', ');
+      lineItems.push({
+        menuItemId: firstMenuItemId ?? repMenu?.id ?? combo.items[0]?.menuItemId ?? combo.id,
+        nameSnapshot: combo.name,
+        priceCents: combo.priceCents,
+        quantity: ci.quantity,
+        notes: ci.notes ?? `Combo: ${combo.name}`,
+        modifiersJson: { comboId: combo.id, contents: contentsText, isCombo: true } as unknown,
+        lineTotalCents: lineTotal,
+      });
+    }
+  }
 
   // Inclusive: tax already inside the price. Back-calculate from the
   // subtotal of PPN-bearing lines using the dominant rate.
   if (branchPpnInclusive && lineItems.length > 0) {
     let inclusiveSubtotal = 0;
     let maxRateBp = 0;
-    for (const it of parsed.data.items) {
-      const m = menuMap.get(it.menuItemId)!;
+    for (const li of lineItems) {
+      const m = menuMap.get(li.menuItemId);
+      if (!m) continue;
       const r = effectivePpnBp(m);
       if (r > 0) {
-        inclusiveSubtotal += m.priceCents * it.quantity;
+        inclusiveSubtotal += m.priceCents * li.quantity;
         if (r > maxRateBp) maxRateBp = r;
       }
     }
@@ -164,7 +262,9 @@ orderRoutes.post('/', async (c) => {
     }
   }
 
-  // Discount resolution (S2.5)
+  // Discount resolution (legacy S2.5). Either discountCode/discountId OR
+  // promoCode. If both, the legacy discount wins and the promo is logged
+  // and skipped (per coordination note).
   let discountId: string | null = null;
   let discountCents = 0;
   if (parsed.data.discountCode || parsed.data.discountId) {
@@ -183,10 +283,56 @@ orderRoutes.post('/', async (c) => {
     discountId = result.discountId!;
     discountCents = result.discountCents;
   }
+
+  // Sprint 8.7 — promo engine. Only applies if no legacy discount is set.
+  let promoId: string | null = null;
+  let promoUsedCount: number | null = null;
+  if (!discountId && parsed.data.promoCode) {
+    const promo = await prisma.promo.findFirst({
+      where: { code: parsed.data.promoCode, branchId: user.branchId },
+      include: { conditions: true, rewards: true },
+    });
+    // Build PromoLineItem view from lineItems for the engine.
+    const promoItems: PromoLineItem[] = lineItems.map((li) => {
+      const m = menuMap.get(li.menuItemId);
+      return {
+        menuItemId: li.menuItemId,
+        quantity: li.quantity,
+        unitPriceCents: li.priceCents,
+        categoryId: m?.categoryId,
+      };
+    });
+    const lookup = new Map<string, { name: string; categoryId?: string }>();
+    for (const li of lineItems) {
+      const m = menuMap.get(li.menuItemId);
+      if (m) lookup.set(m.id, { name: m.name, categoryId: m.categoryId });
+    }
+    const result = computePromo(
+      promo as PromoLike | null,
+      promoItems,
+      subtotal,
+      lookup,
+    );
+    if (!result.valid) {
+      return fail(c, 'PromoInvalid', result.reason || 'Promo not applicable', 400);
+    }
+    discountCents += result.discountCents;
+    if (promo) {
+      promoId = promo.id;
+      promoUsedCount = promo.usedCount + 1;
+    }
+    // Note: freeItems from BUNDLE/BUY_X_GET_Y are returned in the response
+    // via the order's notes / could be added as $0 line items by the
+    // caller later. For now we expose them in a side field on the response.
+  }
   // total = subtotal + tax - discount (clamp at 0)
   const total = Math.max(0, subtotal + tax - discountCents);
 
   const branchId = user.branchId!; // narrowed by the check above
+  // Prisma's typed `items.create` expects a relation-shape when using the
+  // "checked" form (e.g. { menuItem: { connect: ... } }) or a flat
+  // UncheckedCreate shape (just menuItemId). We use the latter since we
+  // have the ids already.
   const order = await prisma.$transaction(async (tx) => {
     const ord = await tx.order.create({
       data: {
@@ -198,13 +344,26 @@ orderRoutes.post('/', async (c) => {
         tableNumber: parsed.data.tableNumber,
         customerName: parsed.data.customerName,
         notes: parsed.data.notes,
+        // Sprint 8.8 — customer/member attach (optional). Persisted so
+        // payment-finalize can credit the customer on payment.
+        customerId: parsed.data.customerId,
         subtotalCents: subtotal,
         taxCents: tax,
         discountCents,
         ...(discountId ? { discountId } : {}),
         totalCents: total,
         openedById: user.id,
-        items: { create: lineItems },
+        items: {
+          create: lineItems.map((li) => ({
+            menuItemId: li.menuItemId,
+            nameSnapshot: li.nameSnapshot,
+            priceCents: li.priceCents,
+            quantity: li.quantity,
+            notes: li.notes,
+            modifiersJson: li.modifiersJson as Prisma.InputJsonValue | undefined,
+            lineTotalCents: li.lineTotalCents,
+          })),
+        },
       },
       include: { items: true, payments: true },
     });
@@ -214,11 +373,24 @@ orderRoutes.post('/', async (c) => {
         data: { usageCount: { increment: 1 } },
       });
     }
+    if (promoId && promoUsedCount !== null) {
+      await tx.promo.update({
+        where: { id: promoId },
+        data: { usedCount: promoUsedCount },
+      });
+    }
     return ord;
   });
 
   logger.info(
-    { orderId: order.id, orderNumber: order.orderNumber, total, discountCents },
+    {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      total,
+      discountCents,
+      promoCode: parsed.data.promoCode,
+      comboCount: comboItems.length,
+    },
     'order created'
   );
   // Sprint 7.5 — business metric
@@ -232,6 +404,11 @@ orderRoutes.post('/', async (c) => {
     total,
     { branchId: user.branchId ?? 'none' },
   );
+  if (comboItems.length > 0) {
+    incCounter('pos_combos_sold_total', 'Combos sold', {
+      branchId: user.branchId ?? 'none',
+    });
+  }
   wsBus.broadcast(
     {
       type: 'order.created',

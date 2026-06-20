@@ -101,6 +101,11 @@ menuRoutes.delete(
 const itemCreate = z.object({
   name: z.string().min(1).max(100),
   sku: z.string().min(1).max(50),
+  // Sprint 8.11 — optional barcode (numeric / alphanumeric up to 64 chars).
+  // Use the same regex family as a typical EAN-13/UPC-A: digits, hyphens, spaces.
+  // We deliberately don't enforce checksum — many shops use internal codes
+  // that aren't valid EAN, and the scanner already validates its own format.
+  barcode: z.string().min(1).max(64).optional(),
   priceCents: z.number().int().positive(),
   costCents: z.number().int().nonnegative().optional(),
   taxRateBp: z.number().int().min(0).max(10000).optional(),
@@ -169,6 +174,43 @@ menuRoutes.get('/items/:id', async (c) => {
   return ok(c, item);
 });
 
+// Sprint 8.11 — barcode lookup for handheld / Bluetooth scanners.
+// IMPORTANT: this route must be declared before `/items/:id` so the
+// static path doesn't get shadowed by the param route.
+menuRoutes.get('/items/by-barcode/:barcode', async (c) => {
+  const barcode = (c.req.param('barcode') || '').trim();
+  if (!barcode) {
+    return fail(c, 'ValidationError', 'barcode wajib diisi', 400);
+  }
+  if (barcode.length > 64) {
+    return fail(c, 'ValidationError', 'barcode terlalu panjang (maks 64 karakter)', 400);
+  }
+  const user = c.get('user');
+  const branchId = c.req.query('branchId') || user.branchId;
+  if (!branchId) {
+    return fail(c, 'NoBranch', 'User has no branch assigned', 400);
+  }
+  // Limit lookup to the user's active branch. The barcode is unique per
+  // branch (schema constraint `@@unique([branchId, barcode])`), so we
+  // can't accidentally match a different branch's item.
+  const item = await prisma.menuItem.findUnique({
+    where: { branchId_barcode: { branchId, barcode } },
+    include: {
+      category: true,
+      modifiers: { where: { isActive: true } },
+    },
+  });
+  if (!item) {
+    return fail(c, 'NotFound', `Item dengan barcode "${barcode}" tidak ditemukan`, 404);
+  }
+  // Cashiers only see active+available items; managers/owners see all
+  // matches (e.g. an inactive item with a known barcode for diagnostics).
+  if (user.role === 'CASHIER' && (!item.isActive || !item.isAvailable)) {
+    return fail(c, 'NotFound', `Item dengan barcode "${barcode}" tidak tersedia`, 404);
+  }
+  return ok(c, item);
+});
+
 menuRoutes.post(
   '/items',
   requireRole('OWNER', 'MANAGER'),
@@ -189,6 +231,16 @@ menuRoutes.post(
       where: { branchId_sku: { branchId: user.branchId, sku: parsed.data.sku } },
     });
     if (dup) return fail(c, 'SkuTaken', 'SKU already exists in this branch', 409);
+
+    // Sprint 8.11 — also reject a duplicate barcode within the branch.
+    if (parsed.data.barcode) {
+      const dupBarcode = await prisma.menuItem.findUnique({
+        where: { branchId_barcode: { branchId: user.branchId, barcode: parsed.data.barcode } },
+      });
+      if (dupBarcode) {
+        return fail(c, 'BarcodeTaken', 'Barcode sudah dipakai item lain di branch ini', 409);
+      }
+    }
 
     const { modifierIds, ...rest } = parsed.data;
     const item = await prisma.menuItem.create({
@@ -221,6 +273,17 @@ menuRoutes.patch(
     }
     const existing = await prisma.menuItem.findUnique({ where: { id } });
     if (!existing) return fail(c, 'NotFound', 'Item not found', 404);
+
+    // Sprint 8.11 — prevent collision with another item's barcode in the
+    // same branch. Empty string / null is allowed (clearing the field).
+    if (parsed.data.barcode && parsed.data.barcode !== existing.barcode) {
+      const dupBarcode = await prisma.menuItem.findUnique({
+        where: { branchId_barcode: { branchId: existing.branchId, barcode: parsed.data.barcode } },
+      });
+      if (dupBarcode && dupBarcode.id !== existing.id) {
+        return fail(c, 'BarcodeTaken', 'Barcode sudah dipakai item lain di branch ini', 409);
+      }
+    }
     const { modifierIds, ...rest } = parsed.data;
     const item = await prisma.menuItem.update({
       where: { id },

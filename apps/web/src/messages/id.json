@@ -1,0 +1,161 @@
+{
+  "app": {
+    "name": "BKJ POS",
+    "loading": "Memuat…",
+    "logout": "Keluar",
+    "active": "aktif",
+    "default": "default"
+  },
+  "nav": {
+    "order": "Order",
+    "history": "Riwayat",
+    "delivery": "Delivery",
+    "shift": "Shift",
+    "transfer": "Transfer",
+    "zreport": "Z-Report",
+    "discounts": "Diskon",
+    "reservations": "Reservasi",
+    "channels": "Channels",
+    "chain": "Chain",
+    "display": "Display",
+    "prepsheets": "Prep Sheet",
+    "suppliers": "Supplier",
+    "purchaseOrders": "Purchase Order",
+    "waste": "Waste Tracking",
+    "accountingExport": "Accounting Export"
+  },
+  "common": {
+    "save": "Simpan",
+    "cancel": "Batal",
+    "delete": "Hapus",
+    "edit": "Edit",
+    "create": "Buat",
+    "update": "Perbarui",
+    "search": "Cari",
+    "filter": "Filter",
+    "from": "Dari",
+    "to": "Ke",
+    "date": "Tanggal",
+    "loading": "Memuat…",
+    "noData": "Belum ada data",
+    "total": "Total",
+    "today": "Hari ini",
+    "yesterday": "Kemarin",
+    "thisMonth": "Bulan ini",
+    "branch": "Cabang",
+    "actions": "Aksi",
+    "yes": "Ya",
+    "no": "Tidak",
+    "back": "Kembali",
+    "next": "Berikutnya",
+    "previous": "Sebelumnya",
+    "download": "Unduh",
+    "optional": "(opsional)",
+    "all": "Semua",
+    "success": "Berhasil",
+    "error": "Gagal",
+    "saving": "Menyimpan…",
+    "deleting": "Menghapus…"
+  },
+  "auth": {
+    "login": "Masuk",
+    "logout": "Keluar",
+    "email": "Email",
+    "password": "Kata Sandi",
+    "signin": "Masuk",
+    "invalidCredentials": "Email atau kata sandi salah",
+    "forgotPassword": "Lupa kata sandi?"
+  },
+  "waste": {
+    "title": "Waste Tracking",
+    "subtitle": "Catat makanan terbuang, bahan kadaluarsa, dan kemasan rusak",
+    "summary": {
+      "monthTotal": "Total bulan ini",
+      "count": "Jumlah entri",
+      "topItems": "Top 5 item terbuang",
+      "byReason": "Distribusi alasan",
+      "byType": "Berdasarkan tipe",
+      "noData": "Belum ada data waste untuk periode ini"
+    },
+    "form": {
+      "type": "Tipe",
+      "typeFOOD": "Makanan",
+      "typeINGREDIENT": "Bahan",
+      "typePACKAGING": "Kemasan",
+      "item": "Item",
+      "selectItem": "Pilih item…",
+      "searchItem": "Cari menu atau bahan…",
+      "quantity": "Jumlah",
+      "unit": "Satuan",
+      "reason": "Alasan",
+      "reasonPlaceholder": "contoh: kadaluarsa, kekeliruan koki, jatuh",
+      "notes": "Catatan",
+      "submit": "Catat Waste",
+      "submitting": "Mencatat…",
+      "success": "Waste berhasil dicatat"
+    },
+    "reasons": {
+      "expired": "Kadaluarsa",
+      "kitchenMistake": "Kekeliruan koki",
+      "customerReturn": "Retur pelanggan",
+      "dropped": "Terjatuh / tumpah",
+      "overproduction": "Over-production",
+      "spoiled": "Busuk / rusak",
+      "other": "Lainnya"
+    },
+    "list": {
+      "title": "Riwayat Waste",
+      "empty": "Belum ada catatan waste",
+      "headers": {
+        "date": "Tanggal",
+        "type": "Tipe",
+        "item": "Item",
+        "qty": "Jumlah",
+        "cost": "Biaya (IDR)",
+        "reason": "Alasan",
+        "recordedBy": "Pencatat",
+        "actions": "Aksi"
+      }
+    }
+  },
+  "accountingExport": {
+    "title": "Export Akunting",
+    "subtitle": "Download jurnal penjualan & pembelian untuk Jurnal, Accurate, atau Mekari",
+    "section": {
+      "dateRange": "Rentang Tanggal",
+      "format": "Format",
+      "journalType": "Tipe Jurnal"
+    },
+    "format": {
+      "JURNAL": "Jurnal (Mekari)",
+      "ACCURATE": "Accurate Online",
+      "MEKARI": "Mekari Accounting",
+      "GENERIC": "Generic CSV"
+    },
+    "journalType": {
+      "sales": "Jurnal Penjualan",
+      "purchase": "Jurnal Pembelian"
+    },
+    "actions": {
+      "download": "Download CSV",
+      "downloading": "Menyiapkan…"
+    },
+    "messages": {
+      "selectRange": "Pilih rentang tanggal",
+      "downloadSuccess": "File berhasil diunduh",
+      "downloadError": "Gagal mengunduh file"
+    },
+    "info": {
+      "title": "Petunjuk Import",
+      "generic": "Format GENERIC adalah ekspor kanonikal kami (header English). Gunakan jika Anda ingin import manual ke sistem lain.",
+      "jurnal": "Format Jurnal by Mekari menggunakan header Indonesia dengan akun default 4-1-2 (Penjualan, PPN Keluaran, Kas/Bank). Anda bisa remap akun di halaman import Jurnal.",
+      "accurate": "Format Accurate menggunakan header Indonesia dengan urutan: Tanggal → No. Bukti → Keterangan → Debit → Kredit → Akun.",
+      "mekari": "Format Mekari (legacy) menggunakan header English + kolom Project di akhir."
+    }
+  },
+  "language": {
+    "label": "Bahasa",
+    "id": "Bahasa Indonesia",
+    "en": "English"
+  }
+}

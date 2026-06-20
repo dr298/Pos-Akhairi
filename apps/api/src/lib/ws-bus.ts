@@ -5,7 +5,15 @@
 import type { WSContext } from '../lib/ws.js';
 
 export interface OrderEvent {
-  type: 'order.created' | 'order.paid' | 'order.voided' | 'order.refunded' | 'day.closed';
+  type:
+    | 'order.created'
+    | 'order.paid'
+    | 'order.voided'
+    | 'order.refunded'
+    | 'day.closed'
+    | 'table.opened'
+    | 'table.closed'
+    | 'table.transferred';
   orderId?: string;
   orderNumber?: string;
   totalCents?: number;
@@ -14,6 +22,14 @@ export interface OrderEvent {
   dailyCloseId?: string;
   businessDate?: string;
   totals?: Record<string, number | string>;
+  // Sprint 9.3 — table events
+  tableId?: string;
+  tableNumber?: string;
+  sessionId?: string;
+  fromTableId?: string;
+  toTableId?: string;
+  fromNumber?: string;
+  toNumber?: string;
   at: number;
 }
 

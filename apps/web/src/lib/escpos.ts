@@ -70,9 +70,62 @@ export interface ReceiptData {
   footer?: string;
   /** Approximate line width in characters (32 for 58mm, 48 for 80mm). */
   width?: number;
+  /**
+   * Sprint 8.10 — prepend the cash-drawer kick (ESC/POS `\x1B\x70\x00\x19\x19`)
+   * to the print job. Defaults to true for CASH payments, false otherwise.
+   * You can also force ON with `drawerKick: true` for non-cash flows (e.g.
+   * mixed payment where the cashier hands change back from the drawer).
+   * `drawerKick: 'skip'` explicitly disables it even for CASH.
+   */
+  drawerKick?: boolean | 'skip';
+  /**
+   * Sprint 8.10 — pin selector. 2 (default) is the common RJ12 pin. 5 is
+   * for APG Vasario and some MMF drawers. Ignored if `drawerKick` resolves
+   * to false.
+   */
+  drawerPin?: 2 | 5;
 }
 
 const DEFAULT_WIDTH = 32;
+
+// Sprint 8.10 — the ESC/POS cash-drawer pulse. Mirrors the server-side
+// `apps/api/src/services/cash-drawer.ts` so the print job that opens the
+// drawer is consistent with the bytes the API returns from
+// POST /api/cash-drawer/kick.
+//
+//   ESC  p  0  25  25  →  0x1B 0x70 0x00 0x19 0x19
+//
+// Pin 2 (default) is correct for ~95% of RJ12 drawers (Epson TM-T20/T82,
+// Star TSP100, generic 58mm/80mm clones). Pin 5 is offered for the APG
+// Vasario and some MMF models.
+const DRAWER_KICK_PIN2 = new Uint8Array([0x1b, 0x70, 0x00, 0x19, 0x19]);
+const DRAWER_KICK_PIN5 = new Uint8Array([0x1b, 0x70, 0x01, 0x19, 0x19]);
+
+function isCashMethod(m: string | undefined | null): boolean {
+  if (!m) return false;
+  const u = m.toUpperCase();
+  return u === 'CASH' || u === 'TUNAI';
+}
+
+function prependDrawerKick(buf: Uint8Array, d: ReceiptData): Uint8Array {
+  let kick: Uint8Array | null = null;
+  // Pick the pin bytes. Pin 2 default; pin 5 is exposed for APG / MMF
+  // drawers. The `drawerPin` field overrides the default.
+  const pinBytes = d.drawerPin === 5 ? DRAWER_KICK_PIN5 : DRAWER_KICK_PIN2;
+  if (d.drawerKick === true) {
+    kick = pinBytes;
+  } else if (d.drawerKick === false || d.drawerKick === 'skip') {
+    kick = null;
+  } else {
+    // Auto: CASH only.
+    kick = isCashMethod(d.paymentMethod) ? pinBytes : null;
+  }
+  if (!kick) return buf;
+  const out = new Uint8Array(kick.length + buf.length);
+  out.set(kick, 0);
+  out.set(buf, kick.length);
+  return out;
+}
 
 export function buildReceipt(d: ReceiptData): Uint8Array {
   const w = d.width ?? DEFAULT_WIDTH;
@@ -163,7 +216,9 @@ export function buildReceipt(d: ReceiptData): Uint8Array {
   // Cut
   parts.push(CMD.CUT);
 
-  return bytes(...parts);
+  const buf = bytes(...parts);
+  // Sprint 8.10 — auto-prepend the cash-drawer pulse for CASH payments.
+  return prependDrawerKick(buf, d);
 }
 
 function formatIDRPlain(cents: number): string {

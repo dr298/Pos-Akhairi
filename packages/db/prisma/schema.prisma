@@ -34,6 +34,7 @@ enum OrderType {
   DINE_IN
   TAKEAWAY
   DELIVERY
+  KIOSK
 }
 
 enum PaymentMethod {
@@ -97,6 +98,14 @@ model User {
   transfersSent       StockTransfer[]    @relation("TransferSent")
   transfersReceived   StockTransfer[]    @relation("TransferReceived")
 
+  // Sprint 9.5
+  purchaseOrdersCreated  PurchaseOrder[] @relation("POCreated")
+  purchaseOrdersApproved PurchaseOrder[] @relation("POApproved")
+  prepSheetsGenerated    PrepSheet[]     @relation("PrepSheetGenerated")
+
+  // Sprint 9.9
+  wasteRecorded          WasteEntry[]    @relation("WasteRecorded")
+
   @@index([branchId])
   @@index([role])
   @@map("users")
@@ -134,6 +143,17 @@ model Branch {
   userAccess        UserBranchAccess[]
   transfersFrom     StockTransfer[]    @relation("TransferFrom")
   transfersTo       StockTransfer[]    @relation("TransferTo")
+
+  // Sprint 8.6 + 8.7
+  combos            Combo[]
+  promos            Promo[]
+
+  // Sprint 9.5
+  suppliers         Supplier[]
+  purchaseOrders    PurchaseOrder[]
+
+  // Sprint 9.6
+  prepSheets        PrepSheet[]
 
   @@map("branches")
 }
@@ -185,6 +205,10 @@ model MenuItem {
   categoryId  String       @map("category_id")
   category    MenuCategory @relation(fields: [categoryId], references: [id])
   sku         String
+  // Sprint 8.11 — optional barcode for handheld/Bluetooth scanner lookup.
+  // Unique per branch so two branches can use the same barcode, but
+  // the same branch can't have two items sharing one code.
+  barcode     String?      @map("barcode")
   name        String
   description String?
   priceCents  Int          @map("price_cents")
@@ -206,6 +230,7 @@ model MenuItem {
   orderItems OrderItem[]
 
   @@unique([branchId, sku])
+  @@unique([branchId, barcode])
   @@index([categoryId])
   @@index([branchId, isActive])
   @@map("menu_items")
@@ -282,6 +307,10 @@ model Order {
   refundReason    String?   @map("refund_reason")
   refundMethod    String?   @map("refund_method") // CASH | ORIGINAL
   refundPaymentId String?   @map("refund_payment_id")
+
+  // Sprint 8.8 — customer/member attach. Optional. When set, the loyalty
+  // service credits the customer's loyalty balance on payment.
+  customerId      String?   @map("customer_id")
 
   items         OrderItem[]
   payments      Payment[]
@@ -685,4 +714,625 @@ model ErrorEvent {
   @@index([severity, createdAt])
   @@index([route, createdAt])
   @@map("error_events")
+}
+
+// ─── Sprint 8.6 — Combo / Set meal ───────────────────────────────────────────
+
+// A Combo is a fixed-price bundle of menu items (e.g. "Paket A: Nasi Goreng +
+// Es Teh + Kerupuk"). It is branch-scoped, with a defined price that overrides
+// the sum of items. Items are stored in ComboItem with optional per-item price
+// override (e.g. upgrade to a more expensive item).
+model Combo {
+  id          String   @id @default(cuid())
+  branchId    String   @map("branch_id")
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  // Set price in cents — what the customer pays for this combo.
+  // If 0, the price is computed as the sum of items.
+  priceCents  Int      @map("price_cents")
+  imageUrl    String?  @map("image_url")
+  isActive    Boolean  @default(true) @map("is_active")
+  validFrom   DateTime? @map("valid_from")
+  validUntil  DateTime? @map("valid_until")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items ComboItem[]
+
+  @@index([branchId, isActive])
+  @@map("combos")
+}
+
+// One slot in a combo. e.g. "1x Nasi Goreng (qty=1) with optional price
+// override if the customer chooses Nasi Goreng Spesial instead of Regular".
+model ComboItem {
+  id                 String   @id @default(cuid())
+  comboId            String   @map("combo_id")
+  combo              Combo    @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  menuItemId         String   @map("menu_item_id")
+  // Quantity of this menu item in the combo (default 1).
+  quantity           Int      @default(1)
+  // Optional price override for this slot. If null, the menu item's normal
+  // price is used when computing combo cost (only relevant if combo.priceCents
+  // is 0). Display-only when combo.priceCents > 0.
+  overridesPriceCents Int?    @map("overrides_price_cents")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([comboId])
+  @@map("combo_items")
+}
+
+// ─── Sprint 8.7 — Promo engine (flexible discount system) ────────────────────
+
+// PromoType determines how the reward is computed at apply time.
+//   PERCENT     — percentage off subtotal (percentBp: 1100 = 11%)
+//   AMOUNT      — fixed cents off subtotal (valueCents)
+//   BUY_X_GET_Y — buy N of a condition item, get M of a reward item free
+//   BUNDLE      — combo-like: when ALL conditions satisfied, apply reward
+enum PromoType {
+  PERCENT
+  AMOUNT
+  BUY_X_GET_Y
+  BUNDLE
+}
+
+model Promo {
+  id                    String    @id @default(cuid())
+  branchId              String    @map("branch_id")
+  branch                Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  code                  String    @unique
+  name                  String
+  type                  PromoType
+  // AMOUNT type: fixed cents off.
+  valueCents            Int?      @map("value_cents")
+  // PERCENT type: basis points (1100 = 11%). Cap at 10000 (100%).
+  percentBp             Int?      @map("percent_bp")
+  // Optional: minimum subtotal in cents required to apply.
+  minSubtotalCents      Int       @default(0) @map("min_subtotal_cents")
+  // Optional: cap the discount amount (for PERCENT type). null = no cap.
+  maxDiscountCents      Int?      @map("max_discount_cents")
+  // Validity window. validFrom defaults to now() if omitted on create.
+  validFrom             DateTime  @default(now()) @map("valid_from")
+  validUntil            DateTime  @map("valid_until")
+  // Optional usage limit. null = unlimited.
+  usageLimit            Int?      @map("usage_limit")
+  usedCount             Int       @default(0) @map("used_count")
+  isActive              Boolean   @default(true) @map("is_active")
+  // When true, the order must be linked to a member to apply. Reserved for a
+  // future members feature; not enforced yet but stored.
+  requiresMember        Boolean   @default(false) @map("requires_member")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  conditions PromoCondition[]
+  rewards    PromoReward[]
+
+  @@index([branchId, isActive])
+  @@index([code])
+  @@map("promos")
+}
+
+// A condition that must be satisfied for a promo to apply. Multiple
+// conditions are AND-ed. A condition with no menuItemId and no categoryId
+// is a "global" condition (just minQuantity applies to the whole cart).
+model PromoCondition {
+  id          String  @id @default(cuid())
+  promoId     String  @map("promo_id")
+  promo       Promo   @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  // Either a specific menuItemId or a categoryId (or neither for "cart-level").
+  menuItemId  String? @map("menu_item_id")
+  categoryId  String? @map("category_id")
+  // Minimum quantity in the cart for this item/category (default 1).
+  minQuantity Int     @default(1) @map("min_quantity")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([promoId])
+  @@map("promo_conditions")
+}
+
+// The reward given when all conditions of a promo are satisfied.
+// Exactly one of (discountPercentBp | discountCents | freeMenuItemId) is set
+// per promo type, but we allow multiple rewards for BUNDLE.
+model PromoReward {
+  id                String  @id @default(cuid())
+  promoId           String  @map("promo_id")
+  promo             Promo   @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  // BUY_X_GET_Y: free menu item (e.g. "buy 2 burgers, get 1 free drink")
+  freeMenuItemId    String? @map("free_menu_item_id")
+  freeQuantity      Int     @default(1) @map("free_quantity")
+  // PERCENT (when promo has multiple percentage rewards or BUNDLE)
+  discountPercentBp Int?    @map("discount_percent_bp")
+  // AMOUNT (cents)
+  discountCents     Int?    @map("discount_cents")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([promoId])
+  @@map("promo_rewards")
+}
+
+// ─── Sprint 8.8 — Customer / Member + Loyalty ────────────────────────────────
+
+// LoyaltyTransactionType: EARN (paid order), REDEEM (used at checkout),
+// ADJUST (manual adjust by manager), BONUS (signup / birthday / campaign).
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  ADJUST
+  BONUS
+}
+
+// A customer / member. Optionally scoped to a branch. Phone/email are the
+// canonical identifiers; either one is required on create. Points and
+// visit metrics are kept up-to-date by the loyalty service. totalSpentCents
+// uses BigInt to match the Order convention and avoid overflow on long-lived
+// chains.
+model Customer {
+  id              String    @id @default(cuid())
+  // Optional branch scoping. When null, the customer is chain-wide (any
+  // branch can attach orders / look up). When set, the customer is local
+  // to that branch and lookup is constrained to that branch.
+  branchId        String?   @map("branch_id")
+  phone           String?
+  email           String?
+  name            String?
+  birthday        DateTime?
+  address         String?
+  notes           String?
+  loyaltyPoints   Int       @default(0) @map("loyalty_points")
+  totalSpentCents BigInt    @default(0) @map("total_spent_cents")
+  visitCount      Int       @default(0) @map("visit_count")
+  lastVisitAt     DateTime? @map("last_visit_at")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  loyaltyTransactions LoyaltyTransaction[]
+
+  @@index([branchId, phone])
+  @@index([phone])
+  @@index([email])
+  @@map("customers")
+}
+
+// Branch-level loyalty configuration. pointsPerRupiah is the earn rate
+// (1 point per rupiah by default; or per 100 rupiahs — see earn formula
+// in services/loyalty.ts). rupiahPerPoint is the redeem rate: how many
+// rupiahs of discount one point is worth.
+model LoyaltyConfig {
+  id                  String   @id @default(cuid())
+  branchId            String   @unique @map("branch_id")
+  // EARN: points = floor((amountCents / 100) * pointsPerRupiah).
+  // Default 1 means 1 point per 100 rupiah of paid amount.
+  pointsPerRupiah     Int      @default(1) @map("points_per_rupiah")
+  // REDEEM: discount cents = points * rupiahPerPoint.
+  // Default 100 means 1 point = Rp 100 of discount.
+  rupiahPerPoint      Int      @default(100) @map("rupiah_per_point")
+  // Minimum points required to redeem.
+  minRedeemPoints     Int      @default(100) @map("min_redeem_points")
+  // Points granted on signup.
+  signupBonusPoints   Int      @default(0) @map("signup_bonus_points")
+  // Points granted on the customer's birthday month (best-effort, not enforced yet).
+  birthdayBonusPoints Int      @default(0) @map("birthday_bonus_points")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("loyalty_configs")
+}
+
+// Immutable ledger of every point movement. Customer balance is the sum of
+// pointsDelta across all transactions for that customer.
+model LoyaltyTransaction {
+  id           String                 @id @default(cuid())
+  customerId   String                 @map("customer_id")
+  customer     Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId      String?                @map("order_id")
+  type         LoyaltyTransactionType
+  // Positive for EARN/BONUS, negative for REDEEM/ADJUST (when delta is
+  // subtractive). ADJUST supports any sign.
+  pointsDelta  Int                    @map("points_delta")
+  // Optional context — e.g. the order's totalCents for EARN, or the
+  // rupiahPerPoint config snapshot for REDEEM.
+  amountCents  Int?                   @map("amount_cents")
+  notes        String?
+  createdById  String?                @map("created_by_id")
+  createdAt    DateTime               @default(now()) @map("created_at")
+
+  @@index([customerId, createdAt])
+  @@map("loyalty_transactions")
+}
+
+// ─── Sprint 8.9 — Digital Receipt (WhatsApp / Email) ────────────────────────
+
+// Channel on which a digital receipt was (or will be) delivered. PRINT is
+// reserved for future use (e.g. thermal printer ack) — Sprint 8.9 only
+// actually sends via WHATSAPP and EMAIL.
+enum ReceiptChannel {
+  WHATSAPP
+  EMAIL
+  PRINT
+}
+
+// Status of a single delivery attempt. PENDING is created up-front (e.g. on
+// payment-finalize); SENT/FAILED is set by the dispatch service after the
+// provider responds. Failures are kept on the row (failureReason) for
+// support + retry workflows.
+enum ReceiptDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// One row per delivery attempt. The (orderId, channel) pair is not unique —
+// a cashier may send the same order's receipt via WhatsApp several times;
+// each attempt is a new row for the delivery history.
+model ReceiptDelivery {
+  id            String                @id @default(cuid())
+  orderId       String                @map("order_id")
+  channel       ReceiptChannel
+  // E.164 phone (e.g. "+6281234567890") for WHATSAPP, or RFC-5322 address
+  // for EMAIL. For PRINT this is a printer id / station name.
+  target        String
+  status        ReceiptDeliveryStatus @default(PENDING)
+  // Timestamp at which the provider confirmed delivery (SENT). Null
+  // for PENDING/FAILED.
+  sentAt        DateTime?             @map("sent_at")
+  // Free-form reason for FAILED status. For WA/SMTP misconfiguration we
+  // stash the literal "WhatsApp not configured" / "SMTP not configured".
+  failureReason String?               @map("failure_reason")
+  // Provider response payload (truncated). Useful for support + audit.
+  payloadJson   Json?                 @map("payload_json")
+  createdAt     DateTime              @default(now()) @map("created_at")
+
+  @@index([orderId])
+  @@index([status])
+  @@index([orderId, channel])
+  @@map("receipt_deliveries")
+}
+
+// ─── Sprint 9.1 — Self-Order Kiosk ──────────────────────────────────────────
+
+// A kiosk session is a temporary "cart" the customer builds on a self-order
+// kiosk (fullscreen, no auth, no shift). Once the customer hits "Bayar di
+// Kasir" (or similar), the session is converted into a real Order with
+// type=KIOSK and status=OPEN, and the cashier scans the QR / types the
+// order number to claim & pay. Sessions that go idle expire and are
+// marked ABANDONED by a background job.
+model KioskSession {
+  id              String   @id @default(cuid())
+  branchId        String   @map("branch_id")
+  // Cart items stored as JSON. Shape:
+  // { items: Array<{ id: string, menuItemId: string, name: string,
+  //                  priceCents: number, quantity: number, notes?: string,
+  //                  lineTotalCents: number }> }
+  itemsJson       Json     @default("{\"items\":[]}") @map("items_json")
+  status          String   @default("ACTIVE") // ACTIVE | CHECKED_OUT | ABANDONED
+  // Set when the session is converted to a real Order.
+  createdOrderId  String?  @map("created_order_id")
+  lastActivityAt  DateTime @default(now()) @map("last_activity_at")
+  expiresAt       DateTime @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([expiresAt])
+  @@index([branchId, status])
+  @@map("kiosk_sessions")
+}
+
+// ─── Sprint 9.3 — Waiter Handheld (Table Management) ──────────────────────
+
+// A table on the floor. Branch-scoped. Unique (branchId, number) so two
+// branches can have a "1" table each. positionX/positionY are an optional
+// floor-map layout (0..100 normalized). The `status` is the *current*
+// operational state — derived from the active TableSession for live state
+// but stored on the row so list queries don't need to join sessions.
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  CLEANING
+}
+
+model Table {
+  id        String      @id @default(cuid())
+  branchId  String      @map("branch_id")
+  number    String
+  capacity  Int         @default(4)
+  area      String? // e.g. "Indoor", "Outdoor", "VIP"
+  status    TableStatus @default(AVAILABLE)
+  positionX Int?        @map("position_x")
+  positionY Int?        @map("position_y")
+  isActive  Boolean     @default(true) @map("is_active")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  sessions TableSession[]
+
+  @@unique([branchId, number])
+  @@index([branchId, status])
+  @@map("tables")
+}
+
+// A session represents one seating on a table. When the waiter "opens"
+// a table, a session is created and (optionally) an OPEN Order is attached.
+// When the customer pays and the table is "closed", the session is closed
+// (closedAt is set) but the order can remain PAID for reporting.
+enum TableSessionStatus {
+  OPEN
+  CLOSED
+}
+
+model TableSession {
+  id            String            @id @default(cuid())
+  tableId       String            @map("table_id")
+  table         Table             @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  openedAt      DateTime          @default(now()) @map("opened_at")
+  closedAt      DateTime?         @map("closed_at")
+  // The Order attached to this session (created when the table is opened).
+  // Stored as a free string id (not a Prisma relation) so we don't change
+  // the existing Order model — Sprint 9.3 is additive only.
+  orderId       String?           @map("order_id")
+  partySize     Int               @map("party_size")
+  serverUserId  String?           @map("server_user_id")
+  status        TableSessionStatus @default(OPEN)
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@index([tableId, status])
+  @@index([status])
+  @@index([orderId])
+  @@map("table_sessions")
+}
+
+// ─── Sprint 9.4 — Menu Engineering Matrix (BCG) ────────────────────────────
+
+// A snapshot of menu engineering analysis for a period. Computed from
+// paid OrderItems in [periodStart, periodEnd], aggregated per menu item.
+// The full breakdown is stored in itemsJson (one row per menu item with
+// popularity/margin/quadrant classification) and totalsJson (period totals).
+//
+// Quadrants (BCG):
+//   STAR      (Bintang)    — high popularity, high margin contribution
+//   PLOWHORSE (Kuda)       — high popularity, low margin contribution
+//   PUZZLE    (Teka-teki)  — low popularity,  high margin contribution
+//   DOG       (Anjing)     — low popularity,  low margin contribution
+model MenuEngineeringSnapshot {
+  id           String   @id @default(cuid())
+  branchId     String   @map("branch_id")
+  periodStart  DateTime @map("period_start")
+  periodEnd    DateTime @map("period_end")
+  generatedAt  DateTime @default(now()) @map("generated_at")
+  // Array of items, see type docs in apps/api/src/routes/menu-engineering.ts:
+  //   { menuItemId, name, totalQty, totalRevenueCents, totalCostCents,
+  //     marginCents, popularityPct, marginPct, quadrant }
+  itemsJson    Json     @map("items_json")
+  // { totalOrders, totalItems, totalRevenueCents, totalCostCents,
+  //   totalMarginCents, medianPopularityPct, medianMarginPct }
+  totalsJson   Json     @map("totals_json")
+  createdById  String?  @map("created_by_id")
+
+  @@index([branchId, periodStart])
+  @@index([branchId, generatedAt])
+  @@map("menu_engineering_snapshots")
+}
+
+// ─── Sprint 9.2 — Table Reservations ────────────────────────────────────────
+
+// Status lifecycle:
+//   BOOKED     — initial state when a reservation is created
+//   SEATED     — customer arrived and was seated (optionally linked to an open Order)
+//   COMPLETED  — customer paid and left
+//   CANCELLED  — reservation cancelled (reason stored in notes)
+//   NO_SHOW    — customer didn't show up
+enum ReservationStatus {
+  BOOKED
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  branchId        String            @map("branch_id")
+  // Optional: link to a registered customer (member) for the reservation
+  customerId      String?           @map("customer_id")
+  // Customer contact (required — for SMS/WhatsApp confirmations even if not a member)
+  customerName    String            @map("customer_name")
+  customerPhone   String            @map("customer_phone")
+  partySize       Int               @map("party_size")
+  reservedAt      DateTime          @map("reserved_at")
+  durationMinutes Int               @default(90) @map("duration_minutes")
+  // Optional: table number / name (e.g. "VIP-1", "5", "Outdoor-3")
+  tableNumber     String?           @map("table_number")
+  status          ReservationStatus @default(BOOKED)
+  // Free-form notes (allergies, occasion, special request, cancel reason, etc.)
+  notes           String?
+  // Optional: link to the Order that was created when the guest was seated.
+  orderId         String?           @map("order_id")
+  // Who created the reservation (cashier / manager / owner).
+  createdById     String?           @map("created_by_id")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@index([branchId, reservedAt])
+  @@index([status])
+  @@index([branchId, status, reservedAt])
+  @@map("reservations")
+}
+
+// ─── Sprint 9.5 — Suppliers & Purchase Orders ───────────────────────────────
+
+// A supplier (vendor) the branch sources inventory from. Branch-scoped
+// so two branches can independently maintain their own supplier list.
+// isActive=false hides from pickers but keeps historical PO references valid.
+model Supplier {
+  id          String   @id @default(cuid())
+  branchId    String   @map("branch_id")
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  name        String
+  contactName String?  @map("contact_name")
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  purchaseOrders PurchaseOrder[]
+
+  @@index([branchId, isActive])
+  @@map("suppliers")
+}
+
+// Status lifecycle:
+//   DRAFT      — created, not yet sent
+//   SENT       — sent to supplier, awaiting delivery
+//   PARTIAL    — received some items (at least one PO item with qtyReceived > 0
+//                but not all items fully received)
+//   RECEIVED   — all items fully received
+//   CANCELLED  — cancelled (only allowed from DRAFT or SENT)
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+// Header for a purchase order. poNumber is a human-friendly identifier
+// generated by the API as `PO-YYYYMMDD-NNNN` (NNNN = sequence per day,
+// per branch). All money is integer cents (IDR).
+model PurchaseOrder {
+  id            String              @id @default(cuid())
+  branchId      String              @map("branch_id")
+  branch        Branch              @relation(fields: [branchId], references: [id])
+  poNumber      String              @map("po_number")
+  supplierId    String              @map("supplier_id")
+  supplier      Supplier            @relation(fields: [supplierId], references: [id])
+  status        PurchaseOrderStatus @default(DRAFT)
+  // BigInt because a busy restaurant can easily have totals > 2^31 cents
+  // (~Rp 21 billion). Most rows are well below that, but we use BigInt to
+  // keep the door open for chain-wide rollups without overflow.
+  subtotalCents BigInt              @map("subtotal_cents")
+  totalCents    BigInt              @map("total_cents")
+  expectedAt    DateTime?           @map("expected_at")
+  notes         String?
+  createdById   String              @map("created_by_id")
+  createdBy     User                @relation("POCreated", fields: [createdById], references: [id])
+  approvedById  String?             @map("approved_by_id")
+  approvedBy    User?               @relation("POApproved", fields: [approvedById], references: [id])
+  receivedAt    DateTime?           @map("received_at")
+  cancelledAt   DateTime?           @map("cancelled_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  items PurchaseOrderItem[]
+
+  @@unique([branchId, poNumber])
+  @@index([branchId, status])
+  @@index([supplierId])
+  @@index([branchId, createdAt])
+  @@map("purchase_orders")
+}
+
+// One line item on a PO. inventoryItemId references the local branch
+// inventory item. qtyOrdered is in the inventory item's unit; for v1
+// we store it as Int (whole units) which is the common case for
+// restaurant PO's (cases, kg in whole kg, etc.). qtyReceived tracks
+// how many units have physically arrived so far.
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String   @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventoryItemId String   @map("inventory_item_id")
+  // Stored as String to be forward-compatible with decimal quantities
+  // (e.g. 1.5 kg of beef) without forcing a schema migration later.
+  // The API coerces to/from numbers on input.
+  qtyOrdered      String   @map("qty_ordered")
+  qtyReceived     Int      @default(0) @map("qty_received")
+  unitCostCents   Int      @map("unit_cost_cents")
+  notes           String?
+
+  @@index([purchaseOrderId])
+  @@index([inventoryItemId])
+  @@map("purchase_order_items")
+}
+
+// ─── Sprint 9.6 — Prep Sheets (Kitchen Prep Guidance) ───────────────────────
+
+// A snapshot of "what to prep today" based on past N days of paid orders.
+// itemsJson holds the per-menu-item recommendation. The PDF/printable
+// version is rendered client-side in the web UI.
+model PrepSheet {
+  id            String   @id @default(cuid())
+  branchId      String   @map("branch_id")
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  date          DateTime @db.Date
+  lookbackDays  Int      @map("lookback_days")
+  // Array of { menuItemId, name, categoryId?, categoryName?,
+  //   avgQtyPerDay, dayOfWeekFactor, recommendedQty, last7DayQty }
+  itemsJson     Json     @map("items_json")
+  generatedAt   DateTime @default(now()) @map("generated_at")
+  generatedById String   @map("generated_by_id")
+  generatedBy   User     @relation("PrepSheetGenerated", fields: [generatedById], references: [id])
+  notes         String?
+
+  @@index([branchId, date])
+  @@map("prep_sheets")
+}
+
+// ─── Sprint 9.9 — Waste Tracking ───────────────────────────────────────────
+
+// Type of waste entry. FOOD = prepared dishes thrown away (kitchen mistakes,
+// customer returns, expired prepared food). INGREDIENT = raw materials wasted
+// (spoiled, dropped, expired). PACKAGING = cups/lids/containers wasted.
+enum WasteType {
+  FOOD
+  INGREDIENT
+  PACKAGING
+}
+
+// Soft-delete state. ACTIVE is a normal entry; DELETED is removed from
+// default queries but kept in the DB for audit. Anything else is reserved
+// for future use.
+enum WasteStatus {
+  ACTIVE
+  DELETED
+}
+
+// Records one waste event. Either `menuItemId` (FOOD) or `inventoryItemId`
+// (INGREDIENT/PACKAGING) should be set — both null is allowed for free-form
+// notes (e.g. "trash full, cleared by staff") but the UI nudges to pick one.
+// Total cost is in cents (IDR). The `recordedById` is the user who logged
+// the event; their role at the time of recording is what enforces the
+// CASHIER+ create rule on the API.
+model WasteEntry {
+  id              String      @id @default(cuid())
+  branchId        String      @map("branch_id")
+  type            WasteType
+  status          WasteStatus @default(ACTIVE)
+  menuItemId      String?     @map("menu_item_id")
+  inventoryItemId String?     @map("inventory_item_id")
+  // Quantity wasted. Stored as Decimal(12,4) to support both discrete
+  // counts (1 cup, 2 plates) and measured amounts (0.5 kg beef).
+  quantity        Decimal     @db.Decimal(12, 4)
+  unitCostCents   Int?        @map("unit_cost_cents")
+  totalCostCents  Int?        @map("total_cost_cents")
+  // Free-form reason ("kitchen mistake", "customer return", "expired",
+  // "dropped on floor", etc). Indexed in the summary breakdown query.
+  reason          String?
+  recordedById    String      @map("recorded_by_id")
+  recordedBy      User        @relation("WasteRecorded", fields: [recordedById], references: [id])
+  recordedAt      DateTime    @default(now()) @map("recorded_at")
+  notes           String?
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  @@index([branchId, recordedAt])
+  @@index([branchId, status, recordedAt])
+  @@index([type])
+  @@map("waste_entries")
 }

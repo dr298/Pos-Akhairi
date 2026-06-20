@@ -136,6 +136,8 @@ export interface MenuItem {
   isAvailable: boolean;
   imageUrl?: string | null;
   sku?: string;
+  // Sprint 8.11 — optional barcode for scanner lookup.
+  barcode?: string | null;
   category?: Category;
   modifiers?: Modifier[];
 }
@@ -245,6 +247,139 @@ export interface DiscountValidation {
   discountCents: number;
   newSubtotalCents: number;
   reason?: string;
+}
+
+// ─── Sprint 8.6 — Combos ───────────────────────────────────────────────────
+
+export interface ComboItem {
+  id: string;
+  comboId: string;
+  menuItemId: string;
+  quantity: number;
+  overridesPriceCents: number | null;
+  // Server enriches with menuItem summary when present
+  menuItem?: { id: string; name: string; priceCents: number } | null;
+}
+
+export interface Combo {
+  id: string;
+  branchId: string;
+  name: string;
+  description: string | null;
+  priceCents: number;
+  imageUrl: string | null;
+  isActive: boolean;
+  validFrom: string | null;
+  validUntil: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: ComboItem[];
+}
+
+export interface ComboPriceBreakdown {
+  comboId: string;
+  comboName: string;
+  comboPriceCents: number;
+  itemsTotalCents: number;
+  savingsCents: number;
+  items: Array<{
+    menuItemId: string;
+    name: string;
+    quantity: number;
+    unitPriceCents: number;
+    lineTotalCents: number;
+  }>;
+}
+
+// ─── Sprint 8.7 — Promos ───────────────────────────────────────────────────
+
+export type PromoType = 'PERCENT' | 'AMOUNT' | 'BUY_X_GET_Y' | 'BUNDLE';
+
+export interface PromoCondition {
+  id: string;
+  promoId: string;
+  menuItemId: string | null;
+  categoryId: string | null;
+  minQuantity: number;
+}
+
+export interface PromoReward {
+  id: string;
+  promoId: string;
+  freeMenuItemId: string | null;
+  freeQuantity: number;
+  discountPercentBp: number | null;
+  discountCents: number | null;
+}
+
+export interface Promo {
+  id: string;
+  branchId: string;
+  code: string;
+  name: string;
+  type: PromoType;
+  valueCents: number | null;
+  percentBp: number | null;
+  minSubtotalCents: number;
+  maxDiscountCents: number | null;
+  validFrom: string;
+  validUntil: string;
+  usageLimit: number | null;
+  usedCount: number;
+  isActive: boolean;
+  requiresMember: boolean;
+  createdAt: string;
+  updatedAt: string;
+  conditions: PromoCondition[];
+  rewards: PromoReward[];
+}
+
+export interface PromoValidation {
+  valid: boolean;
+  promoId?: string;
+  name?: string;
+  discountCents: number;
+  freeItems: Array<{ menuItemId: string; name?: string; quantity: number }>;
+  reason?: string;
+}
+
+// ─── Sprint 8.8 — Customers / Members ──────────────────────────────────────
+
+export interface Customer {
+  id: string;
+  branchId: string | null;
+  phone: string | null;
+  email: string | null;
+  name: string | null;
+  birthday: string | null;
+  address: string | null;
+  notes: string | null;
+  loyaltyPoints: number;
+  // JS-side it's a string (Prisma BigInt). UI just displays formatted.
+  totalSpentCents: string | number;
+  visitCount: number;
+  lastVisitAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LoyaltyTransactionType = 'EARN' | 'REDEEM' | 'ADJUST' | 'BONUS';
+
+export interface LoyaltyTransaction {
+  id: string;
+  customerId: string;
+  orderId: string | null;
+  type: LoyaltyTransactionType;
+  pointsDelta: number;
+  amountCents: number | null;
+  notes: string | null;
+  createdById: string | null;
+  createdAt: string;
+}
+
+export interface CustomerDetail extends Customer {
+  loyaltyTransactions: LoyaltyTransaction[];
 }
 
 export type PaymentProviderName = 'CASH' | 'MIDTRANS' | 'XENDIT';
@@ -509,6 +644,15 @@ export const api = {
     const tail = qs.toString();
     return request<{ data: MenuItem[] }>(`/api/menu/items${tail ? `?${tail}` : ''}`);
   },
+  // Sprint 8.11 — barcode lookup (used by handheld / Bluetooth scanners).
+  // The route is /api/menu/items/by-barcode/:barcode. We percent-encode
+  // the barcode in case it contains characters like `/` or whitespace.
+  getMenuItemByBarcode: (barcode: string, branchId?: string) => {
+    const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
+    return request<{ data: MenuItem }>(
+      `/api/menu/items/by-barcode/${encodeURIComponent(barcode)}${q}`,
+    );
+  },
   createMenuItem: (payload: any) =>
     request<{ data: MenuItem }>('/api/menu/items', {
       method: 'POST',
@@ -539,6 +683,7 @@ export const api = {
     items: { menuItemId: string; quantity: number; modifiers?: { modifierId: string }[]; notes?: string }[];
     tableNumber?: string | null;
     customerName?: string | null;
+    customerId?: string | null;
     notes?: string | null;
     discountCode?: string | null;
   }) =>
@@ -761,6 +906,1021 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+
+  // Sprint 8.6 — Combos (set meals)
+  listCombos: (params?: { branchId?: string; includeInactive?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.includeInactive) q.set('includeInactive', 'true');
+    const qs = q.toString();
+    return request<{ data: Combo[] }>(`/api/combos${qs ? `?${qs}` : ''}`);
+  },
+  getComboPrice: (id: string) =>
+    request<{ data: ComboPriceBreakdown }>(`/api/combos/${id}/price`),
+  createCombo: (payload: {
+    name: string;
+    description?: string;
+    priceCents: number;
+    imageUrl?: string;
+    validFrom?: string;
+    validUntil?: string;
+    isActive?: boolean;
+    items: Array<{
+      menuItemId: string;
+      quantity: number;
+      overridesPriceCents?: number | null;
+    }>;
+  }) =>
+    request<{ data: Combo }>('/api/combos', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateCombo: (
+    id: string,
+    payload: Partial<{
+      name: string;
+      description: string;
+      priceCents: number;
+      imageUrl: string;
+      validFrom: string | null;
+      validUntil: string | null;
+      isActive: boolean;
+      items: Array<{
+        menuItemId: string;
+        quantity: number;
+        overridesPriceCents?: number | null;
+      }>;
+    }>,
+  ) =>
+    request<{ data: Combo }>(`/api/combos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteCombo: (id: string) =>
+    request<{ data: Combo }>(`/api/combos/${id}`, { method: 'DELETE' }),
+
+  // Sprint 8.7 — Promos
+  listPromos: (params?: { branchId?: string; isActive?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.isActive) q.set('isActive', 'true');
+    const qs = q.toString();
+    return request<{ data: Promo[] }>(`/api/promos${qs ? `?${qs}` : ''}`);
+  },
+  validatePromo: (payload: {
+    code: string;
+    branchId?: string;
+    items: Array<{ menuItemId: string; quantity: number; unitPriceCents: number }>;
+    memberId?: string;
+  }) =>
+    request<{ data: PromoValidation }>('/api/promos/validate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  applyPromo: (payload: {
+    code: string;
+    branchId?: string;
+    items: Array<{ menuItemId: string; quantity: number; unitPriceCents: number }>;
+    memberId?: string;
+    orderId: string;
+  }) =>
+    request<{ data: { order: Order; promo: PromoValidation } }>('/api/promos/apply', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  createPromo: (payload: {
+    code: string;
+    name: string;
+    type: PromoType;
+    valueCents?: number;
+    percentBp?: number;
+    minSubtotalCents?: number;
+    maxDiscountCents?: number | null;
+    validFrom?: string;
+    validUntil: string;
+    usageLimit?: number | null;
+    isActive?: boolean;
+    requiresMember?: boolean;
+    conditions?: Array<{
+      menuItemId?: string;
+      categoryId?: string;
+      minQuantity?: number;
+    }>;
+    rewards: Array<{
+      freeMenuItemId?: string;
+      freeQuantity?: number;
+      discountPercentBp?: number;
+      discountCents?: number;
+    }>;
+  }) =>
+    request<{ data: Promo }>('/api/promos', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updatePromo: (
+    id: string,
+    payload: Partial<{
+      name: string;
+      valueCents: number;
+      percentBp: number;
+      minSubtotalCents: number;
+      maxDiscountCents: number | null;
+      validFrom: string | null;
+      validUntil: string;
+      usageLimit: number | null;
+      isActive: boolean;
+      requiresMember: boolean;
+      conditions: Array<{
+        menuItemId?: string;
+        categoryId?: string;
+        minQuantity?: number;
+      }>;
+      rewards: Array<{
+        freeMenuItemId?: string;
+        freeQuantity?: number;
+        discountPercentBp?: number;
+        discountCents?: number;
+      }>;
+    }>,
+  ) =>
+    request<{ data: Promo }>(`/api/promos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deletePromo: (id: string) =>
+    request<{ data: Promo }>(`/api/promos/${id}`, { method: 'DELETE' }),
+
+  // Sprint 8.8 — Customers / Members
+  listCustomers: (params?: { search?: string; branchId?: string; includeInactive?: boolean; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.includeInactive) q.set('includeInactive', 'true');
+    if (params?.limit) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    return request<{ data: Customer[] }>(`/api/customers${qs ? `?${qs}` : ''}`);
+  },
+  getCustomer: (id: string, txLimit?: number) => {
+    const q = txLimit ? `?txLimit=${txLimit}` : '';
+    return request<{ data: CustomerDetail }>(`/api/customers/${id}${q}`);
+  },
+  createCustomer: (payload: {
+    name?: string;
+    phone?: string;
+    email?: string;
+    birthday?: string;
+    address?: string;
+    notes?: string;
+    branchId?: string;
+  }) =>
+    request<{ data: Customer }>('/api/customers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateCustomer: (
+    id: string,
+    payload: Partial<{
+      name: string;
+      phone: string;
+      email: string | null;
+      birthday: string | null;
+      address: string | null;
+      notes: string | null;
+      isActive: boolean;
+    }>,
+  ) =>
+    request<{ data: Customer }>(`/api/customers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  lookupCustomer: (phone: string, branchId?: string) =>
+    request<{ data: Customer | null }>('/api/customers/lookup', {
+      method: 'POST',
+      body: JSON.stringify({ phone, branchId }),
+    }),
+  getCustomerBalance: (id: string) =>
+    request<{ data: { customerId: string; points: number; updatedAt: string | null } }>(
+      `/api/customers/${id}/balance`,
+    ),
+  adjustCustomerLoyalty: (id: string, payload: { delta: number; notes: string }) =>
+    request<{
+      data: { customerId: string; points: number; transactionId: string; newBalance: number };
+    }>(`/api/customers/${id}/loyalty`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  redeemCustomerPoints: (id: string, payload: { points: number; orderId?: string; notes?: string }) =>
+    request<{
+      data: { customerId: string; points: number; discountCents: number; transactionId: string };
+    }>(`/api/customers/${id}/redeem`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  // Sprint 8.9 — Digital receipt (WhatsApp / Email)
+  listReceipts: (orderId: string) =>
+    request<{
+      data: Array<{
+        id: string;
+        orderId: string;
+        channel: 'WHATSAPP' | 'EMAIL' | 'PRINT';
+        target: string;
+        status: 'PENDING' | 'SENT' | 'FAILED';
+        sentAt: string | null;
+        failureReason: string | null;
+        createdAt: string;
+      }>;
+    }>(`/api/receipts/${orderId}`),
+  sendReceipt: (payload: {
+    orderId: string;
+    channels: Array<'WHATSAPP' | 'EMAIL' | 'PRINT'>;
+    target?: { whatsapp?: string; email?: string };
+  }) =>
+    request<{
+      data: {
+        deliveries: Array<{
+          id: string;
+          channel: 'WHATSAPP' | 'EMAIL' | 'PRINT';
+          target: string;
+          status: 'PENDING' | 'SENT' | 'FAILED';
+          error?: string;
+        }>;
+      };
+    }>('/api/receipts/send', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  previewReceiptText: (orderId: string) =>
+    fetch(`${API_URL}/api/receipts/preview/${orderId}?format=text`, {
+      credentials: 'include',
+    }).then((r) => r.text()),
+  previewReceiptHtml: (orderId: string) =>
+    fetch(`${API_URL}/api/receipts/preview/${orderId}?format=html`, {
+      credentials: 'include',
+    }).then((r) => r.text()),
+
+  // Sprint 8.10 — cash drawer kick. The route returns the ESC/POS bytes
+  // (base64) plus a hex dump. Most callers will not need the bytes on
+  // the client — they can be triggered directly via the printer's BLE
+  // characteristic. The API is mainly useful as a "fallback" transport
+  // for browsers that can't open Web Serial / Web USB.
+  kickCashDrawer: (payload?: { drawerPin?: 2 | 5; onTime?: number; offTime?: number; force?: boolean }) =>
+    request<{
+      data: {
+        bytesBase64: string;
+        length: number;
+        drawerPin: 2 | 5;
+        onTime: number;
+        offTime: number;
+        hex: string;
+      };
+    }>('/api/cash-drawer/kick', {
+      method: 'POST',
+      body: JSON.stringify(payload ?? { force: true }),
+    }),
+  getCashDrawerInfo: () =>
+    request<{
+      data: {
+        pins: Array<2 | 5>;
+        defaultPin: 2 | 5;
+        pulseUnitMs: 2;
+        defaultOnTime: number;
+        defaultOffTime: number;
+        minPulse: number;
+        maxPulse: number;
+        escposSequence: string;
+        transportOptions: Array<{ kind: string; label: string }>;
+      };
+    }>('/api/cash-drawer/info'),
+
+  // ─── Sprint 9.1 — Self-Order Kiosk (PUBLIC) ─────────────────────────────
+  // The kiosk page calls these directly via fetch() because the kiosk is
+  // a public page and we don't want to bake the API_URL into the kiosk
+  // bundle. See apps/web/src/app/kiosk/page.tsx for the fetch wrappers.
+
+  // ─── Sprint 9.2 — Reservations (auth) ──────────────────────────────────
+  listReservations: (params?: { branchId?: string; date?: string; status?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.date) q.set('date', params.date);
+    if (params?.status) q.set('status', params.status);
+    const qs = q.toString();
+    return request<{ data: Reservation[] }>(`/api/reservations${qs ? `?${qs}` : ''}`);
+  },
+  getReservation: (id: string) =>
+    request<{ data: Reservation }>(`/api/reservations/${id}`),
+  getReservationAvailability: (params: { branchId?: string; date: string; partySize: number }) => {
+    const q = new URLSearchParams();
+    if (params.branchId) q.set('branchId', params.branchId);
+    q.set('date', params.date);
+    q.set('partySize', String(params.partySize));
+    return request<{
+      data: {
+        branchId: string;
+        date: string;
+        partySize: number;
+        slotMinutes: number;
+        durationMinutes: number;
+        slots: string[];
+      };
+    }>(`/api/reservations/availability?${q.toString()}`);
+  },
+  createReservation: (payload: {
+    branchId: string;
+    customerName: string;
+    customerPhone: string;
+    partySize: number;
+    reservedAt: string;
+    durationMinutes?: number;
+    tableNumber?: string;
+    notes?: string;
+    customerId?: string;
+  }) =>
+    request<{ data: Reservation }>('/api/reservations', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateReservation: (id: string, payload: Partial<{
+    customerName: string;
+    customerPhone: string;
+    partySize: number;
+    reservedAt: string;
+    durationMinutes: number;
+    tableNumber: string | null;
+    notes: string | null;
+  }>) =>
+    request<{ data: Reservation }>(`/api/reservations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  seatReservation: (id: string, payload: { tableNumber?: string; orderId?: string } = {}) =>
+    request<{ data: Reservation }>(`/api/reservations/${id}/seat`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  cancelReservation: (id: string, reason: string) =>
+    request<{ data: Reservation }>(`/api/reservations/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  noShowReservation: (id: string) =>
+    request<{ data: Reservation }>(`/api/reservations/${id}/no-show`, {
+      method: 'POST',
+    }),
+
+  // ─── Sprint 9.3 — Tables (waiter handheld) ─────────────────────────────
+  listTables: (params?: { branchId?: string; status?: string; includeInactive?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.status) q.set('status', params.status);
+    if (params?.includeInactive) q.set('includeInactive', 'true');
+    const qs = q.toString();
+    return request<{ data: RestaurantTable[] }>(`/api/tables${qs ? `?${qs}` : ''}`);
+  },
+  getTable: (id: string) =>
+    request<{ data: RestaurantTableDetail }>(`/api/tables/${id}`),
+  createTable: (payload: {
+    branchId: string;
+    number: string;
+    capacity?: number;
+    area?: string;
+    positionX?: number;
+    positionY?: number;
+  }) =>
+    request<{ data: RestaurantTable }>('/api/tables', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateTable: (
+    id: string,
+    payload: Partial<{
+      number: string;
+      capacity: number;
+      area: string | null;
+      positionX: number | null;
+      positionY: number | null;
+      status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING';
+      isActive: boolean;
+    }>,
+  ) =>
+    request<{ data: RestaurantTable }>(`/api/tables/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  openTable: (
+    id: string,
+    payload: {
+      partySize: number;
+      serverUserId?: string;
+      items?: { menuItemId: string; quantity: number; notes?: string }[];
+      customerName?: string;
+      notes?: string;
+    },
+  ) =>
+    request<{
+      data: {
+        table: RestaurantTable;
+        session: TableSession;
+        order: Order;
+      };
+    }>(`/api/tables/${id}/open`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  closeTable: (id: string) =>
+    request<{ data: { table: RestaurantTable; session: TableSession } }>(
+      `/api/tables/${id}/close`,
+      { method: 'POST' },
+    ),
+  transferTable: (id: string, toTableId: string) =>
+    request<{
+      data: { session: TableSession; fromTable: RestaurantTable; toTable: RestaurantTable };
+    }>(`/api/tables/${id}/transfer`, {
+      method: 'POST',
+      body: JSON.stringify({ toTableId }),
+    }),
+
+  // ─── Sprint 9.4 — Menu engineering (BCG matrix) ────────────────────────
+  createMenuEngineeringSnapshot: (payload: {
+    branchId: string;
+    periodStart: string;
+    periodEnd: string;
+  }) =>
+    request<{ data: MenuEngineeringSnapshotDetail }>('/api/menu-engineering/snapshot', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  listMenuEngineeringSnapshots: (params?: { branchId?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.limit) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    return request<{ data: MenuEngineeringSnapshot[] }>(
+      `/api/menu-engineering/snapshots${qs ? `?${qs}` : ''}`,
+    );
+  },
+  getMenuEngineeringSnapshot: (id: string) =>
+    request<{ data: MenuEngineeringSnapshotDetail }>(
+      `/api/menu-engineering/snapshots/${id}`,
+    ),
+
+  // Sprint 9.5 — Suppliers
+  listSuppliers: (params?: {
+    branchId?: string;
+    includeInactive?: boolean;
+    search?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.includeInactive) q.set('includeInactive', 'true');
+    if (params?.search) q.set('search', params.search);
+    const qs = q.toString();
+    return request<{ data: { suppliers: Supplier[] } }>(
+      `/api/suppliers${qs ? `?${qs}` : ''}`,
+    );
+  },
+  createSupplier: (payload: {
+    branchId: string;
+    name: string;
+    contactName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+    notes?: string | null;
+    isActive?: boolean;
+  }) =>
+    request<{ data: { supplier: Supplier } }>('/api/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateSupplier: (
+    id: string,
+    payload: {
+      name?: string;
+      contactName?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      address?: string | null;
+      notes?: string | null;
+      isActive?: boolean;
+    },
+  ) =>
+    request<{ data: { supplier: Supplier } }>(`/api/suppliers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  // Sprint 9.5 — Purchase Orders
+  listPurchaseOrders: (params?: {
+    branchId?: string;
+    status?: PurchaseOrderStatus;
+    supplierId?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.status) q.set('status', params.status);
+    if (params?.supplierId) q.set('supplierId', params.supplierId);
+    const qs = q.toString();
+    return request<{ data: { purchaseOrders: PurchaseOrder[] } }>(
+      `/api/purchase-orders${qs ? `?${qs}` : ''}`,
+    );
+  },
+  getPurchaseOrder: (id: string) =>
+    request<{ data: { purchaseOrder: PurchaseOrderDetail } }>(
+      `/api/purchase-orders/${id}`,
+    ),
+  createPurchaseOrder: (payload: {
+    branchId: string;
+    supplierId: string;
+    notes?: string | null;
+    expectedAt?: string | null;
+    items: Array<{
+      inventoryItemId: string;
+      qtyOrdered: number;
+      unitCostCents: number;
+      notes?: string | null;
+    }>;
+  }) =>
+    request<{ data: { purchaseOrder: PurchaseOrder } }>(
+      '/api/purchase-orders',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  updatePurchaseOrder: (
+    id: string,
+    payload: {
+      notes?: string | null;
+      expectedAt?: string | null;
+      items?: Array<{
+        inventoryItemId: string;
+        qtyOrdered: number;
+        unitCostCents: number;
+        notes?: string | null;
+      }>;
+    },
+  ) =>
+    request<{ data: { purchaseOrder: PurchaseOrder } }>(
+      `/api/purchase-orders/${id}`,
+      { method: 'PATCH', body: JSON.stringify(payload) },
+    ),
+  sendPurchaseOrder: (id: string) =>
+    request<{ data: { purchaseOrder: PurchaseOrder } }>(
+      `/api/purchase-orders/${id}/send`,
+      { method: 'POST' },
+    ),
+  receivePurchaseOrder: (
+    id: string,
+    items: Array<{ poItemId: string; qtyReceived: number }>,
+  ) =>
+    request<{ data: { purchaseOrder: PurchaseOrder } }>(
+      `/api/purchase-orders/${id}/receive`,
+      { method: 'POST', body: JSON.stringify({ items }) },
+    ),
+  cancelPurchaseOrder: (id: string) =>
+    request<{ data: { purchaseOrder: PurchaseOrder } }>(
+      `/api/purchase-orders/${id}/cancel`,
+      { method: 'POST' },
+    ),
+
+  // Sprint 9.6 — Prep Sheets
+  generatePrepSheet: (payload: {
+    branchId: string;
+    date: string;
+    lookbackDays?: number;
+    notes?: string | null;
+  }) =>
+    request<{
+      data: PrepSheetDetail;
+    }>('/api/prep-sheets/generate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  listPrepSheets: (params?: { branchId?: string; date?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.date) q.set('date', params.date);
+    const qs = q.toString();
+    return request<{ data: { prepSheets: PrepSheet[] } }>(
+      `/api/prep-sheets${qs ? `?${qs}` : ''}`,
+    );
+  },
+  getPrepSheet: (id: string) =>
+    request<{ data: PrepSheetDetail }>(`/api/prep-sheets/${id}`),
+
+  // Sprint 9.7 — Accounting export
+  // The export endpoints return CSV (text/csv) — not JSON. We expose a
+  // separate helper that returns the raw Response so the page can read the
+  // blob + Content-Disposition for the file download. We don't wrap it in
+  // the JSON envelope.
+  downloadAccountingExport: async (
+    journalType: 'sales' | 'purchase',
+    params: { branchId: string; from: string; to: string; format: 'JURNAL' | 'ACCURATE' | 'MEKARI' | 'GENERIC' },
+  ): Promise<Response> => {
+    const qs = new URLSearchParams();
+    qs.set('branchId', params.branchId);
+    qs.set('from', params.from);
+    qs.set('to', params.to);
+    qs.set('format', params.format);
+    return fetch(
+      `${API_URL}/api/accounting-export/${journalType}-journal.csv?${qs.toString()}`,
+      { method: 'GET', credentials: 'include' },
+    );
+  },
+
+  // Sprint 9.9 — Waste tracking
+  // Note: this fetches CSV at /api/accounting-export/:type-journal.csv.
+  // The fetch wrapper can't parse non-JSON, so we use raw fetch above.
+  listWaste: (params?: {
+    branchId?: string;
+    from?: string;
+    to?: string;
+    type?: 'FOOD' | 'INGREDIENT' | 'PACKAGING';
+    limit?: number;
+    includeDeleted?: boolean;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.branchId) q.set('branchId', params.branchId);
+    if (params?.from) q.set('from', params.from);
+    if (params?.to) q.set('to', params.to);
+    if (params?.type) q.set('type', params.type);
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.includeDeleted) q.set('includeDeleted', 'true');
+    const qs = q.toString();
+    return request<{ data: { entries: WasteEntry[]; count: number } }>(
+      `/api/waste${qs ? `?${qs}` : ''}`,
+    );
+  },
+  getWasteSummary: (params: { branchId: string; days?: number }) => {
+    const q = new URLSearchParams();
+    q.set('branchId', params.branchId);
+    if (params.days) q.set('days', String(params.days));
+    return request<{ data: WasteSummary }>(`/api/waste/summary?${q.toString()}`);
+  },
+  createWaste: (payload: {
+    branchId: string;
+    type: 'FOOD' | 'INGREDIENT' | 'PACKAGING';
+    menuItemId?: string | null;
+    inventoryItemId?: string | null;
+    quantity: number;
+    unitCostCents?: number | null;
+    totalCostCents?: number | null;
+    reason?: string | null;
+    notes?: string | null;
+    recordedAt?: string | null;
+  }) =>
+    request<{ data: { entry: WasteEntry } }>('/api/waste', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateWaste: (
+    id: string,
+    payload: Partial<{
+      type: 'FOOD' | 'INGREDIENT' | 'PACKAGING';
+      menuItemId: string | null;
+      inventoryItemId: string | null;
+      quantity: number;
+      unitCostCents: number | null;
+      totalCostCents: number | null;
+      reason: string | null;
+      notes: string | null;
+      recordedAt: string | null;
+    }>,
+  ) =>
+    request<{ data: { entry: WasteEntry } }>(`/api/waste/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteWaste: (id: string) =>
+    request<{ data: { entry: WasteEntry } }>(`/api/waste/${id}`, { method: 'DELETE' }),
 };
 
 export { API_URL };
+
+// ─── Sprint 9.2 — Reservation types ────────────────────────────────────────
+
+export type ReservationStatus = 'BOOKED' | 'SEATED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+
+export interface Reservation {
+  id: string;
+  branchId: string;
+  customerId: string | null;
+  customerName: string;
+  customerPhone: string;
+  partySize: number;
+  reservedAt: string;
+  durationMinutes: number;
+  tableNumber: string | null;
+  status: ReservationStatus;
+  notes: string | null;
+  orderId: string | null;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Sprint 9.1 — Kiosk public types ───────────────────────────────────────
+
+export interface KioskCartItem {
+  id: string;
+  menuItemId: string;
+  name: string;
+  priceCents: number;
+  quantity: number;
+  notes?: string;
+  lineTotalCents: number;
+}
+
+export interface KioskCart {
+  items: KioskCartItem[];
+}
+
+export interface KioskMenuCategory {
+  id: string;
+  name: string;
+  sortOrder: number;
+  items: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    priceCents: number;
+    imageUrl: string | null;
+    categoryId: string;
+  }>;
+}
+
+export interface KioskMenuResponse {
+  branch: Branch;
+  categories: KioskMenuCategory[];
+}
+
+export interface KioskOrderSummary {
+  id: string;
+  orderNumber: string;
+  type: 'KIOSK';
+  status: string;
+  subtotalCents: number;
+  taxCents: number;
+  totalCents: number;
+  openedAt: string;
+  closedAt: string | null;
+  items: Array<{
+    id: string;
+    nameSnapshot: string;
+    quantity: number;
+    lineTotalCents: number;
+  }>;
+}
+
+// ─── Sprint 9.3 — Tables (waiter handheld) ───────────────────────────────
+
+export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING';
+export type TableSessionStatus = 'OPEN' | 'CLOSED';
+
+export interface RestaurantTable {
+  id: string;
+  branchId: string;
+  number: string;
+  capacity: number;
+  area: string | null;
+  status: TableStatus;
+  positionX: number | null;
+  positionY: number | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  currentSession: TableSession | null;
+  currentOrder: Order | null;
+}
+
+export interface RestaurantTableDetail extends RestaurantTable {
+  sessions: TableSession[];
+}
+
+export interface TableSession {
+  id: string;
+  tableId: string;
+  openedAt: string;
+  closedAt: string | null;
+  orderId: string | null;
+  partySize: number;
+  serverUserId: string | null;
+  status: TableSessionStatus;
+  createdAt: string;
+}
+
+// ─── Sprint 9.4 — Menu engineering (BCG matrix) ──────────────────────────
+
+export type MenuEngineeringQuadrant = 'STAR' | 'PLOWHORSE' | 'PUZZLE' | 'DOG';
+
+export interface MenuEngineeringItem {
+  menuItemId: string;
+  name: string;
+  totalQty: number;
+  totalRevenueCents: number;
+  totalCostCents: number;
+  marginCents: number;
+  popularityPct: number;
+  marginPct: number;
+  quadrant: MenuEngineeringQuadrant;
+}
+
+export interface MenuEngineeringTotals {
+  totalOrders: number;
+  totalItems: number;
+  totalRevenueCents: number;
+  totalCostCents: number;
+  totalMarginCents: number;
+  medianPopularityPct: number;
+  medianMarginPct: number;
+  itemCount: number;
+}
+
+export interface MenuEngineeringSnapshot {
+  id: string;
+  branchId: string;
+  periodStart: string;
+  periodEnd: string;
+  generatedAt: string;
+  createdById: string | null;
+  itemsJson: MenuEngineeringItem[];
+  totalsJson: MenuEngineeringTotals;
+}
+
+export interface MenuEngineeringSnapshotDetail extends MenuEngineeringSnapshot {
+  items: MenuEngineeringItem[];
+  totals: MenuEngineeringTotals;
+}
+
+// ─── Sprint 9.5 — Suppliers & Purchase Orders ──────────────────────────────
+
+export interface Supplier {
+  id: string;
+  branchId: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PurchaseOrderStatus =
+  | 'DRAFT'
+  | 'SENT'
+  | 'PARTIAL'
+  | 'RECEIVED'
+  | 'CANCELLED';
+
+export interface PurchaseOrderItem {
+  id: string;
+  purchaseOrderId: string;
+  inventoryItemId: string;
+  // qtyOrdered comes back as a number after the API coerces the String
+  // column; older code can still pass a number on input.
+  qtyOrdered: number;
+  qtyReceived: number;
+  unitCostCents: number;
+  notes: string | null;
+  // Server-enriched inventory item summary (detail view)
+  inventoryItem?: {
+    id: string;
+    sku: string;
+    name: string;
+    unit: string;
+    costPerUnit: string | number;
+  } | null;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  branchId: string;
+  poNumber: string;
+  supplierId: string;
+  // API serializes BigInt as string
+  subtotalCents: string;
+  totalCents: string;
+  status: PurchaseOrderStatus;
+  expectedAt: string | null;
+  notes: string | null;
+  createdById: string;
+  approvedById: string | null;
+  receivedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Optional relations (detail view includes more; list view uses lighter ones)
+  supplier?: {
+    id: string;
+    name: string;
+    contactName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  } | null;
+  createdBy?: { id: string; name: string } | null;
+  approvedBy?: { id: string; name: string } | null;
+  items?: PurchaseOrderItem[];
+  _count?: { items: number };
+}
+
+export interface PurchaseOrderDetail extends PurchaseOrder {
+  items: PurchaseOrderItem[];
+  supplier: NonNullable<PurchaseOrder['supplier']>;
+}
+
+// ─── Sprint 9.6 — Prep Sheets ─────────────────────────────────────────────
+
+export interface PrepSheetItem {
+  menuItemId: string;
+  name: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  avgQtyPerDay: number;
+  dayOfWeekFactor: number;
+  recommendedQty: number;
+  last7DayQty: number;
+}
+
+export interface PrepSheet {
+  id: string;
+  branchId: string;
+  date: string;
+  lookbackDays: number;
+  generatedAt: string;
+  generatedById: string;
+  notes: string | null;
+  // The API returns itemsJson as an opaque Json — we keep it loosely typed
+  // so the same shape works whether or not the detail view is requested.
+  itemsJson: PrepSheetItem[] | unknown;
+}
+
+export interface PrepSheetDetail extends PrepSheet {
+  itemsJson: PrepSheetItem[];
+  items: PrepSheetItem[];
+}
+
+// ─── Sprint 9.7 — Accounting export types ─────────────────────────────────
+
+export type AccountingFormat = 'JURNAL' | 'ACCURATE' | 'MEKARI' | 'GENERIC';
+export type AccountingJournalType = 'sales' | 'purchase';
+
+// ─── Sprint 9.9 — Waste tracking types ────────────────────────────────────
+
+export type WasteType = 'FOOD' | 'INGREDIENT' | 'PACKAGING';
+export type WasteStatus = 'ACTIVE' | 'DELETED';
+
+export interface WasteEntry {
+  id: string;
+  branchId: string;
+  type: WasteType;
+  status: WasteStatus;
+  menuItemId: string | null;
+  inventoryItemId: string | null;
+  // Prisma Decimal → string in the JSON
+  quantity: string;
+  unitCostCents: number | null;
+  totalCostCents: number | null;
+  reason: string | null;
+  recordedById: string;
+  recordedAt: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Server-enriched on list responses
+  recordedBy?: { id: string; name: string; role: string } | null;
+  menuItem?: { id: string; name: string; sku: string } | null;
+  inventoryItem?: { id: string; name: string; sku: string; unit: string } | null;
+}
+
+export interface WasteSummaryByType {
+  count: number;
+  costCents: number;
+}
+
+export interface WasteSummaryTopItem {
+  key: string;
+  name: string;
+  type: WasteType;
+  count: number;
+  costCents: number;
+}
+
+export interface WasteSummaryByReason {
+  reason: string;
+  count: number;
+  costCents: number;
+}
+
+export interface WasteSummary {
+  periodDays: number;
+  from: string;
+  to: string;
+  branchId: string;
+  totalCount: number;
+  totalCostCents: number;
+  byType: { FOOD: WasteSummaryByType; INGREDIENT: WasteSummaryByType; PACKAGING: WasteSummaryByType };
+  topItems: WasteSummaryTopItem[];
+  byReason: WasteSummaryByReason[];
+}
+

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { LanguageSwitcher } from '@/components/Layout/LanguageSwitcher';
 import { cn } from '@/lib/utils';
 
 const NAV: { href: string; label: string; match: (p: string) => boolean; managerOnly?: boolean; ownerOnly?: boolean }[] = [
@@ -16,6 +17,7 @@ const NAV: { href: string; label: string; match: (p: string) => boolean; manager
   { href: '/pos/transfers', label: 'Transfer', match: (p) => p.startsWith('/pos/transfers'), managerOnly: true },
   { href: '/pos/z-report', label: 'Z-Report', match: (p) => p.startsWith('/pos/z-report'), managerOnly: true },
   { href: '/pos/discounts', label: 'Diskon', match: (p) => p.startsWith('/pos/discounts'), managerOnly: true },
+  { href: '/pos/reservations', label: 'Reservasi', match: (p) => p.startsWith('/pos/reservations') },
   { href: '/pos/channels', label: 'Channels', match: (p) => p.startsWith('/pos/channels'), managerOnly: true },
   { href: '/pos/chain', label: 'Chain', match: (p) => p.startsWith('/pos/chain'), ownerOnly: true },
   { href: '/display', label: 'Display', match: () => false },
@@ -172,6 +174,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
+            <LanguageSwitcher />
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm tabular-nums text-neutral-200">
                 {now ? formatTime(now) : '--:--:--'}
