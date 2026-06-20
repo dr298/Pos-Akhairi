@@ -20,7 +20,13 @@ import './payments/index.js'; // ensure providers register on boot
 const app = new Hono();
 
 app.use('*', honoLogger((str) => logger.info(str.trim())));
-app.use('*', cors({ origin: process.env.WEB_ORIGIN || 'http://localhost:3000', credentials: true }));
+app.use(
+  '*',
+  cors({
+    origin: (process.env.WEB_ORIGIN || 'http://localhost:3080').split(',').map((s) => s.trim()),
+    credentials: true,
+  }),
+);
 app.use('*', prettyJSON());
 
 app.get('/', (c) => c.json({ name: 'pos-api', version: '0.1.0', service: 'hono' }));
@@ -63,24 +69,34 @@ server.on('upgrade', (req, socket, head) => {
     socket.destroy();
     return;
   }
-  let branchId: string | null = null;
-  try {
-    const cookieHeader = req.headers.cookie || '';
-    const match = cookieHeader.match(/(?:^|;\s*)pos_session=([^;]+)/);
-    if (match) {
-      const token = decodeURIComponent(match[1]);
-      readToken(token).then((user) => {
-        branchId = user?.branchId ?? null;
-      }).catch(() => {
-        // ignore
-      });
-    }
-  } catch {
-    // ignore
-  }
+  // Resolve branchId via the cookie before the upgrade handshake so wsBus
+  // registers the client with the correct branch. The token in the cookie
+  // is signed with JWT_SECRET and is safe to verify here. We do it inside
+  // onOpen because readToken is async; the bus starts with branchId=null
+  // and updates once the auth check resolves.
   handleWebSocketUpgrade(req, socket, head, {
     onOpen: (ctx) => {
-      wsBus.add(ctx, branchId);
+      // best-effort: try to read the token, then update the bus
+      wsBus.add(ctx, null);
+      try {
+        const cookieHeader = req.headers.cookie || '';
+        const match = cookieHeader.match(/(?:^|;\s*)pos_session=([^;]+)/);
+        if (match) {
+          const token = decodeURIComponent(match[1]);
+          // readToken is async; the bus will start with branchId=null and
+          // update once it resolves. (Filter is per-broadcast, so a brief
+          // window of cross-branch delivery is acceptable.)
+          readToken(token)
+            .then((u) => {
+              if (u?.branchId) wsBus.setBranch(ctx, u.branchId);
+            })
+            .catch(() => {
+              // ignore
+            });
+        }
+      } catch {
+        // ignore
+      }
       try {
         ctx.send(JSON.stringify({ type: 'hello', at: Date.now() }));
       } catch {

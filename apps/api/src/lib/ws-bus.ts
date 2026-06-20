@@ -23,6 +23,12 @@ class WSBus {
     this.branchIndex.set(ctx, branchId);
   }
 
+  setBranch(ctx: WSContext, branchId: string | null) {
+    if (this.clients.has(ctx)) {
+      this.branchIndex.set(ctx, branchId);
+    }
+  }
+
   remove(ctx: WSContext) {
     this.clients.delete(ctx);
     this.branchIndex.delete(ctx);
