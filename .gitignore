@@ -1,0 +1,23 @@
+node_modules
+dist
+.next
+out
+build
+coverage
+.env
+.env.local
+*.log
+.DS_Store
+.turbo
+.pnpm-store
+
+# Prisma
+packages/db/prisma/migrations/.cache
+
+# IDE
+.vscode
+.idea
+
+# Docker
+postgres-data
+redis-data

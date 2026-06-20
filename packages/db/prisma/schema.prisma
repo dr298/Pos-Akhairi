@@ -1,0 +1,310 @@
+// Prisma 7.8 schema (Sprint 0)
+// Note: Prisma 7.x introduces a new schema syntax. We use the stable 5.x-style
+// syntax that Prisma 7 still accepts, with explicit @@map/@@id where useful.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  CASHIER
+  KITCHEN
+}
+
+enum OrderStatus {
+  OPEN
+  SENT_TO_KDS
+  IN_PROGRESS
+  READY
+  SERVED
+  PAID
+  CANCELLED
+  VOIDED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+  DEBIT
+  CREDIT
+  EWALLET
+  PENDING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum InventoryMovementType {
+  PURCHASE
+  USAGE
+  WASTE
+  ADJUSTMENT
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  name          String
+  role          UserRole @default(CASHIER)
+  branchId      String?  @map("branch_id")
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  shifts        Shift[]
+  ordersOpened  Order[]   @relation("OrderOpenedBy")
+  ordersClosed  Order[]   @relation("OrderClosedBy")
+
+  @@index([branchId])
+  @@index([role])
+  @@map("users")
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String?
+  city      String?
+  phone     String?
+  timezone  String   @default("Asia/Jakarta")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users      User[]
+  orders     Order[]
+  shifts     Shift[]
+  menuItems  MenuItem[]
+  inventory  InventoryItem[]
+
+  @@map("branches")
+}
+
+model MenuCategory {
+  id        String   @id @default(cuid())
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items     MenuItem[]
+
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id           String   @id @default(cuid())
+  branchId     String   @map("branch_id")
+  branch       Branch   @relation(fields: [branchId], references: [id])
+  categoryId   String   @map("category_id")
+  category     MenuCategory @relation(fields: [categoryId], references: [id])
+  sku          String
+  name         String
+  description  String?
+  priceCents   Int      @map("price_cents")
+  costCents    Int      @default(0) @map("cost_cents")
+  taxRateBp    Int      @default(1100) @map("tax_rate_bp") // basis points: 1100 = 11%
+  isActive     Boolean  @default(true) @map("is_active")
+  isAvailable  Boolean  @default(true) @map("is_available")
+  imageUrl     String?  @map("image_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  modifiers    Modifier[]
+  recipes      Recipe[]
+  orderItems   OrderItem[]
+
+  @@unique([branchId, sku])
+  @@index([categoryId])
+  @@index([branchId, isActive])
+  @@map("menu_items")
+}
+
+model Modifier {
+  id          String   @id @default(cuid())
+  menuItemId  String   @map("menu_item_id")
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name        String
+  priceDeltaCents Int @default(0) @map("price_delta_cents")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([menuItemId])
+  @@map("modifiers")
+}
+
+model Recipe {
+  id              String   @id @default(cuid())
+  menuItemId      String   @map("menu_item_id")
+  menuItem        MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  inventoryItemId String   @map("inventory_item_id")
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  quantity        Decimal  @db.Decimal(12, 4)
+  unit            String
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([menuItemId, inventoryItemId])
+  @@index([inventoryItemId])
+  @@map("recipes")
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  branchId      String      @map("branch_id")
+  branch        Branch      @relation(fields: [branchId], references: [id])
+  shiftId       String?     @map("shift_id")
+  shift         Shift?      @relation(fields: [shiftId], references: [id])
+  orderNumber   String      @map("order_number")
+  type          OrderType   @default(DINE_IN)
+  status        OrderStatus @default(OPEN)
+  tableNumber   String?     @map("table_number")
+  customerName  String?     @map("customer_name")
+  notes         String?
+  subtotalCents Int         @default(0) @map("subtotal_cents")
+  taxCents      Int         @default(0) @map("tax_cents")
+  discountCents Int         @default(0) @map("discount_cents")
+  totalCents    Int         @default(0) @map("total_cents")
+  openedById    String      @map("opened_by_id")
+  openedBy      User        @relation("OrderOpenedBy", fields: [openedById], references: [id])
+  closedById    String?     @map("closed_by_id")
+  closedBy      User?       @relation("OrderClosedBy", fields: [closedById], references: [id])
+  openedAt      DateTime    @default(now()) @map("opened_at")
+  closedAt      DateTime?   @map("closed_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  items         OrderItem[]
+  payments      Payment[]
+
+  @@unique([branchId, orderNumber])
+  @@index([status])
+  @@index([branchId, openedAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String   @map("order_id")
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId      String   @map("menu_item_id")
+  menuItem        MenuItem @relation(fields: [menuItemId], references: [id])
+  nameSnapshot    String   @map("name_snapshot")
+  priceCents      Int      @map("price_cents")
+  quantity        Int      @default(1)
+  notes           String?
+  status          OrderStatus @default(OPEN)
+  modifiersJson   Json?    @map("modifiers_json")
+  lineTotalCents  Int      @map("line_total_cents")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@map("order_items")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String        @map("order_id")
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method        PaymentMethod @default(PENDING)
+  status        PaymentStatus @default(PENDING)
+  amountCents   Int           @map("amount_cents")
+  reference     String?
+  providerRaw   Json?         @map("provider_raw")
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
+}
+
+model Shift {
+  id            String      @id @default(cuid())
+  branchId      String      @map("branch_id")
+  branch        Branch      @relation(fields: [branchId], references: [id])
+  userId        String      @map("user_id")
+  user          User        @relation(fields: [userId], references: [id])
+  status        ShiftStatus @default(OPEN)
+  openingCents  Int         @default(0) @map("opening_cents")
+  closingCents  Int?        @map("closing_cents")
+  expectedCents Int?        @map("expected_cents")
+  varianceCents Int?        @map("variance_cents")
+  openedAt      DateTime    @default(now()) @map("opened_at")
+  closedAt      DateTime?   @map("closed_at")
+  notes         String?
+
+  orders        Order[]
+
+  @@index([branchId, status])
+  @@index([userId])
+  @@map("shifts")
+}
+
+model InventoryItem {
+  id           String   @id @default(cuid())
+  branchId     String   @map("branch_id")
+  branch       Branch   @relation(fields: [branchId], references: [id])
+  sku          String
+  name         String
+  unit         String
+  quantity     Decimal  @default(0) @db.Decimal(12, 4)
+  reorderPoint Decimal  @default(0) @db.Decimal(12, 4) @map("reorder_point")
+  costPerUnit  Decimal  @default(0) @db.Decimal(12, 4) @map("cost_per_unit")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  logs         InventoryLog[]
+  recipes      Recipe[]
+
+  @@unique([branchId, sku])
+  @@index([branchId, isActive])
+  @@map("inventory_items")
+}
+
+model InventoryLog {
+  id              String                @id @default(cuid())
+  inventoryItemId String                @map("inventory_item_id")
+  inventoryItem   InventoryItem         @relation(fields: [inventoryItemId], references: [id])
+  type            InventoryMovementType
+  quantity        Decimal               @db.Decimal(12, 4)
+  unitCostCents   Int?                  @map("unit_cost_cents")
+  reason          String?
+  reference       String?
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  @@index([inventoryItemId, createdAt])
+  @@map("inventory_logs")
+}
