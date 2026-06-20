@@ -308,6 +308,341 @@ ${orders
   return fail(c, 'ValidationError', "format must be 'csv' or 'pdf' (or 'html')", 400);
 });
 
+// Sprint 5.7 — Z-report (full end-of-day report per branch).
+// Includes every section a manager needs to reconcile the day: gross/net
+// sales, void/refund, tax, payment method breakdown, order types, top
+// items, category breakdown, hourly chart, and shift drawer reconciliation.
+reportRoutes.get('/z-report', async (c) => {
+  const user = c.get('user');
+  const date = c.req.query('date') || new Date().toISOString().slice(0, 10);
+  const branchId = c.req.query('branchId') || user.branchId;
+  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail(c, 'ValidationError', 'Invalid date', 400);
+
+  const cacheKey = `zreport:${branchId}:${date}`;
+  const cached = cacheGet<any>(cacheKey);
+  if (cached) return ok(c, { ...cached, cached: true });
+
+  const { start, end } = dayRange(date);
+
+  // Parallel aggregates. We fetch flat rows for breakdowns (orderType,
+  // channel, item, category) and aggregate counts/sums separately.
+  const [
+    paidAgg,
+    voidAgg,
+    refundAgg,
+    voidRefunds,
+    payments,
+    paidItemsRaw,
+    shifts,
+    branch,
+    dailyClose,
+  ] = await Promise.all([
+    prisma.order.aggregate({
+      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      _count: { _all: true },
+      _sum: { subtotalCents: true, discountCents: true, taxCents: true, totalCents: true },
+    }),
+    prisma.order.aggregate({
+      where: { branchId, status: 'VOIDED', voidedAt: { gte: start, lte: end } },
+      _count: { _all: true },
+      _sum: { totalCents: true },
+    }),
+    prisma.order.aggregate({
+      where: { branchId, status: 'REFUNDED', refundedAt: { gte: start, lte: end } },
+      _count: { _all: true },
+      _sum: { totalCents: true },
+    }),
+    prisma.order.findMany({
+      where: {
+        branchId,
+        status: { in: ['VOIDED', 'REFUNDED'] },
+        OR: [
+          { voidedAt: { gte: start, lte: end } },
+          { refundedAt: { gte: start, lte: end } },
+        ],
+      },
+      select: { id: true, orderNumber: true, status: true, totalCents: true, voidedAt: true, refundedAt: true },
+      orderBy: [{ voidedAt: 'desc' }, { refundedAt: 'desc' }],
+    }),
+    prisma.payment.groupBy({
+      by: ['method'],
+      where: { status: 'PAID', paidAt: { gte: start, lte: end }, order: { branchId } },
+      _sum: { amountCents: true },
+      _count: { _all: true },
+    }),
+    // All items in PAID orders for top items + category + hourly
+    prisma.orderItem.findMany({
+      where: { order: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } } },
+      select: {
+        menuItemId: true,
+        nameSnapshot: true,
+        quantity: true,
+        lineTotalCents: true,
+        orderId: true,
+        order: { select: { type: true, totalCents: true, closedAt: true } },
+      },
+    }),
+    prisma.shift.findMany({
+      where: { branchId, openedAt: { gte: start, lte: end } },
+      select: {
+        id: true, userId: true, status: true,
+        openingCents: true, closingCents: true, expectedCents: true, varianceCents: true,
+        openedAt: true, closedAt: true,
+        user: { select: { name: true } },
+      },
+      orderBy: { openedAt: 'asc' },
+    }),
+    prisma.branch.findUnique({ where: { id: branchId }, select: { id: true, code: true, name: true, city: true, timezone: true } }),
+    prisma.dailyClose.findFirst({ where: { branchId, businessDate: start } }),
+  ]);
+
+  // Menu map for category breakdown
+  const menuIds = Array.from(new Set(paidItemsRaw.map((i) => i.menuItemId)));
+  const menus = await prisma.menuItem.findMany({
+    where: { id: { in: menuIds } },
+    select: { id: true, name: true, categoryId: true, category: { select: { name: true } } },
+  });
+  const menuMap = new Map(menus.map((m) => [m.id, m]));
+
+  // Top items (top 20)
+  const itemAggMap = new Map<string, { name: string; qty: number; revenueCents: number }>();
+  for (const it of paidItemsRaw) {
+    const cur = itemAggMap.get(it.menuItemId) || {
+      name: it.nameSnapshot || menuMap.get(it.menuItemId)?.name || '(unknown)',
+      qty: 0,
+      revenueCents: 0,
+    };
+    cur.qty += it.quantity;
+    cur.revenueCents += it.lineTotalCents;
+    itemAggMap.set(it.menuItemId, cur);
+  }
+  const topItems = Array.from(itemAggMap.entries())
+    .map(([menuItemId, v]) => ({ menuItemId, ...v }))
+    .sort((a, b) => b.revenueCents - a.revenueCents)
+    .slice(0, 20);
+
+  // Category breakdown — join each item with its menu's category
+  const catAgg = new Map<string, { name: string; qty: number; revenueCents: number }>();
+  for (const it of paidItemsRaw) {
+    const m = menuMap.get(it.menuItemId);
+    const catId = m?.categoryId || '__none__';
+    const cat = m?.category;
+    const cur = catAgg.get(catId) || { name: cat?.name || '(uncategorized)', qty: 0, revenueCents: 0 };
+    cur.qty += it.quantity;
+    cur.revenueCents += it.lineTotalCents;
+    catAgg.set(catId, cur);
+  }
+  const categoryBreakdown = Array.from(catAgg.entries())
+    .map(([categoryId, v]) => ({ categoryId, ...v }))
+    .sort((a, b) => b.revenueCents - a.revenueCents);
+
+  // Hourly breakdown (UTC hours; client reformats with branch timezone).
+  // Use orderId from the item to count each order once.
+  const hourly = Array.from({ length: 24 }, (_, h) => ({ hour: h, orders: 0, revenueCents: 0 }));
+  const orderHourSeen = new Set<string>();
+  for (const it of paidItemsRaw) {
+    const closed = it.order.closedAt;
+    if (!closed) continue;
+    const h = closed.getUTCHours();
+    hourly[h].revenueCents += it.lineTotalCents;
+    const k = `${h}|${it.orderId}`;
+    if (!orderHourSeen.has(k)) {
+      orderHourSeen.add(k);
+      hourly[h].orders += 1;
+    }
+  }
+
+  // Payment method breakdown
+  const paymentBreakdown: Record<string, { count: number; amountCents: number }> = {};
+  for (const p of payments) {
+    paymentBreakdown[p.method] = {
+      count: p._count._all,
+      amountCents: p._sum.amountCents ?? 0,
+    };
+  }
+
+  // Order type breakdown. Channel breakdown needs the separate ChannelOrder
+  // join (one-to-many) so we fetch those rows too.
+  const [channelOrderRows] = await Promise.all([
+    prisma.channelOrder.findMany({
+      where: { order: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } } },
+      select: { orderId: true, channel: true, order: { select: { totalCents: true } } },
+    }),
+  ]);
+
+  const orderTypeBreakdown: Record<string, { count: number; revenueCents: number }> = {};
+  const seenOrderType = new Set<string>();
+  for (const it of paidItemsRaw) {
+    const ot = it.order.type;
+    if (!seenOrderType.has(it.orderId)) {
+      seenOrderType.add(it.orderId);
+      const t = orderTypeBreakdown[ot] || { count: 0, revenueCents: 0 };
+      t.count += 1;
+      t.revenueCents += it.order.totalCents;
+      orderTypeBreakdown[ot] = t;
+    }
+  }
+  const channelBreakdown: Record<string, { count: number; revenueCents: number }> = {
+    POS: { count: 0, revenueCents: 0 },
+  };
+  // Orders that have a ChannelOrder link are external aggregator orders
+  const externalOrderIds = new Set(channelOrderRows.map((c) => c.orderId));
+  // Walk channelOrderRows to populate per-channel
+  for (const c of channelOrderRows) {
+    if (!c.order) continue;
+    const cur = channelBreakdown[c.channel] || { count: 0, revenueCents: 0 };
+    cur.count += 1;
+    cur.revenueCents += c.order.totalCents;
+    channelBreakdown[c.channel] = cur;
+  }
+  // POS = paid orders that are NOT external (walk paidItemsRaw)
+  for (const it of paidItemsRaw) {
+    if (externalOrderIds.has(it.orderId)) continue;
+    const cur = channelBreakdown.POS!;
+    cur.count += 1;
+    cur.revenueCents += it.order.totalCents;
+  }
+
+  // Shift cash reconciliation (use openingCents/closingCents/expectedCents/varianceCents)
+  const shiftReconciliation = shifts.map((s) => ({
+    shiftId: s.id,
+    cashier: s.user.name,
+    openedAt: s.openedAt,
+    closedAt: s.closedAt,
+    status: s.status,
+    openingCents: s.openingCents,
+    closingCents: s.closingCents,
+    expectedCents: s.expectedCents,
+    varianceCents: s.varianceCents,
+  }));
+
+  // Void/refund log
+  const voidRefundLog = voidRefunds.map((o) => ({
+    orderId: o.id,
+    orderNumber: o.orderNumber,
+    status: o.status,
+    totalCents: o.totalCents,
+    occurredAt: (o.voidedAt || o.refundedAt)?.toISOString() ?? null,
+  }));
+
+  const grossCents = paidAgg._sum.subtotalCents ?? 0;
+  const discountCents = paidAgg._sum.discountCents ?? 0;
+  const taxCents = paidAgg._sum.taxCents ?? 0;
+  const netCents = paidAgg._sum.totalCents ?? 0;
+
+  const result = {
+    date,
+    branchId,
+    branch,
+    summary: {
+      grossCents,
+      discountCents,
+      taxCents,
+      netCents,
+      paidOrders: paidAgg._count._all,
+      voidedOrders: voidAgg._count._all,
+      voidedCents: voidAgg._sum.totalCents ?? 0,
+      refundedOrders: refundAgg._count._all,
+      refundedCents: refundAgg._sum.totalCents ?? 0,
+      avgTicketCents: paidAgg._count._all > 0 ? Math.round(netCents / paidAgg._count._all) : 0,
+    },
+    paymentBreakdown,
+    orderTypeBreakdown,
+    channelBreakdown,
+    topItems,
+    categoryBreakdown,
+    hourly,
+    shiftReconciliation,
+    voidRefundLog,
+    dailyClose: dailyClose
+      ? {
+          status: dailyClose.status,
+          grossCents: dailyClose.grossCents,
+          netCents: dailyClose.netCents,
+          closedAt: dailyClose.createdAt,
+        }
+      : null,
+    generatedAt: new Date().toISOString(),
+  };
+  cacheSet(cacheKey, result, 60_000);
+  return ok(c, result);
+});
+
+// Sprint 5.7 — Z-report CSV export
+reportRoutes.get('/z-report/export.csv', async (c) => {
+  const user = c.get('user');
+  const date = c.req.query('date') || new Date().toISOString().slice(0, 10);
+  const branchId = c.req.query('branchId') || user.branchId;
+  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
+
+  const { start, end } = dayRange(date);
+  const [branch, paidAgg, voidAgg, refundAgg, payments, orderItems] = await Promise.all([
+    prisma.branch.findUnique({ where: { id: branchId }, select: { name: true, code: true } }),
+    prisma.order.aggregate({
+      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      _count: { _all: true },
+      _sum: { subtotalCents: true, discountCents: true, taxCents: true, totalCents: true },
+    }),
+    prisma.order.aggregate({
+      where: { branchId, status: 'VOIDED', voidedAt: { gte: start, lte: end } },
+      _count: { _all: true },
+      _sum: { totalCents: true },
+    }),
+    prisma.order.aggregate({
+      where: { branchId, status: 'REFUNDED', refundedAt: { gte: start, lte: end } },
+      _count: { _all: true },
+      _sum: { totalCents: true },
+    }),
+    prisma.payment.groupBy({
+      by: ['method'],
+      where: { status: 'PAID', paidAt: { gte: start, lte: end }, order: { branchId } },
+      _sum: { amountCents: true },
+      _count: { _all: true },
+    }),
+    prisma.orderItem.groupBy({
+      by: ['menuItemId'],
+      where: { order: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } } },
+      _sum: { lineTotalCents: true, quantity: true },
+    }),
+  ]);
+
+  const menuMap = new Map(
+    (
+      await prisma.menuItem.findMany({
+        where: { id: { in: orderItems.map((o) => o.menuItemId) } },
+        select: { id: true, name: true },
+      })
+    ).map((m) => [m.id, m.name])
+  );
+
+  const rows: (string | number)[][] = [];
+  rows.push([`Z-Report — ${date}`]);
+  rows.push([`Branch: ${branch?.name || ''} (${branch?.code || ''})`]);
+  rows.push([]);
+  rows.push(['SECTION', 'METRIC', 'VALUE_CENTS', 'COUNT']);
+  rows.push(['Summary', 'Gross', paidAgg._sum.subtotalCents ?? 0, '']);
+  rows.push(['Summary', 'Discount', paidAgg._sum.discountCents ?? 0, '']);
+  rows.push(['Summary', 'Tax (PPN)', paidAgg._sum.taxCents ?? 0, '']);
+  rows.push(['Summary', 'Net Sales', paidAgg._sum.totalCents ?? 0, paidAgg._count._all]);
+  rows.push(['Summary', 'Voided', voidAgg._sum.totalCents ?? 0, voidAgg._count._all]);
+  rows.push(['Summary', 'Refunded', refundAgg._sum.totalCents ?? 0, refundAgg._count._all]);
+  rows.push([]);
+  rows.push(['Payment', 'Method', 'Amount', 'Count']);
+  for (const p of payments) {
+    rows.push(['Payment', p.method, p._sum.amountCents ?? 0, p._count._all]);
+  }
+  rows.push([]);
+  rows.push(['Items', 'Name', 'Qty', 'Revenue']);
+  for (const i of orderItems
+    .map((i) => ({ name: menuMap.get(i.menuItemId) || '(unknown)', qty: i._sum.quantity ?? 0, rev: i._sum.lineTotalCents ?? 0 }))
+    .sort((a, b) => b.rev - a.rev)) {
+    rows.push(['Items', i.name, i.qty, i.rev]);
+  }
+
+  return csvResponse(c, `z-report-${date}.csv`, rows);
+});
+
 // Sprint 4.4: chain report (OWNER only, aggregates across all branches)
 reportRoutes.get('/chain', requireRole('OWNER'), async (c) => {
   const date = c.req.query('date') ?? new Date().toISOString().slice(0, 10);

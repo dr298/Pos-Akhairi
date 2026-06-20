@@ -91,6 +91,12 @@ model User {
   ordersVoided   Order[] @relation("OrderVoidedBy")
   ordersRefunded Order[] @relation("OrderRefundedBy")
 
+  // Sprint 5.5
+  branchAccess        UserBranchAccess[]
+  transfersCreated    StockTransfer[]    @relation("TransferCreated")
+  transfersSent       StockTransfer[]    @relation("TransferSent")
+  transfersReceived   StockTransfer[]    @relation("TransferReceived")
+
   @@index([branchId])
   @@index([role])
   @@map("users")
@@ -118,6 +124,11 @@ model Branch {
   channelOrders     ChannelOrder[]
   dailyCloses       DailyClose[]
   commissionReports CommissionReport[]
+
+  // Sprint 5
+  userAccess        UserBranchAccess[]
+  transfersFrom     StockTransfer[]    @relation("TransferFrom")
+  transfersTo       StockTransfer[]    @relation("TransferTo")
 
   @@map("branches")
 }
@@ -401,8 +412,9 @@ model InventoryItem {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  logs    InventoryLog[]
-  recipes Recipe[]
+  logs        InventoryLog[]
+  recipes     Recipe[]
+  transfers   StockTransferItem[]
 
   @@unique([branchId, sku])
   @@index([branchId, isActive])
@@ -459,6 +471,70 @@ enum Channel {
   GRABFOOD
   SHOPEEFOOD
   MANUAL // phone / WhatsApp / in-person
+}
+
+// Sprint 5.5 — multi-branch user access
+model UserBranchAccess {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  branchId  String   @map("branch_id")
+  role      UserRole @default(CASHIER) // role scoped to this branch (OWNER might be MANAGER at another)
+  isDefault Boolean  @default(false) @map("is_default")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, branchId])
+  @@index([branchId])
+  @@map("user_branch_access")
+}
+
+// Sprint 5.2 — stock transfer between branches
+enum StockTransferStatus {
+  DRAFT
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+model StockTransfer {
+  id            String             @id @default(cuid())
+  fromBranchId  String             @map("from_branch_id")
+  toBranchId    String             @map("to_branch_id")
+  status        StockTransferStatus @default(DRAFT)
+  notes         String?
+  createdById   String             @map("created_by_id")
+  sentById      String?            @map("sent_by_id")
+  receivedById  String?            @map("received_by_id")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  sentAt        DateTime?          @map("sent_at")
+  receivedAt    DateTime?          @map("received_at")
+  cancelledAt   DateTime?          @map("cancelled_at")
+
+  fromBranch Branch                @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranch   Branch                @relation("TransferTo", fields: [toBranchId], references: [id])
+  createdBy  User                  @relation("TransferCreated", fields: [createdById], references: [id])
+  sentBy     User?                 @relation("TransferSent", fields: [sentById], references: [id])
+  receivedBy User?                 @relation("TransferReceived", fields: [receivedById], references: [id])
+  items      StockTransferItem[]
+
+  @@index([fromBranchId])
+  @@index([toBranchId])
+  @@index([status])
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id                String        @id @default(cuid())
+  transferId        String        @map("transfer_id")
+  inventoryItemId   String        @map("inventory_item_id")
+  qtyTransferred    Int           @map("qty_transferred")
+  qtyReceived       Int?          @map("qty_received")
+  transfer          StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  inventoryItem     InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([transferId])
+  @@map("stock_transfer_items")
 }
 
 enum ChannelOrderStatus {

@@ -88,6 +88,14 @@ export interface User {
   role: Role;
   branchId: string;
   branch?: Branch;
+  // Sprint 5.5b — list of all branches the user can switch to.
+  // Length === 1 means no switcher UI; > 1 shows the dropdown.
+  branchAccess?: Array<{
+    branchId: string;
+    role: Role;
+    isDefault: boolean;
+    branch: Branch;
+  }>;
 }
 
 export interface AuthResponse {
@@ -425,6 +433,45 @@ export interface ChannelAnalyticsSummary {
   daily: ChannelAnalyticsDaily[];
 }
 
+// Sprint 5.2 — Stock transfers
+export type StockTransferStatus = 'DRAFT' | 'IN_TRANSIT' | 'RECEIVED' | 'CANCELLED';
+
+export interface StockTransferItem {
+  id: string;
+  transferId: string;
+  inventoryItemId: string;
+  qtyTransferred: number;
+  qtyReceived: number | null;
+  inventoryItem?: {
+    id: string;
+    sku: string;
+    name: string;
+    unit: string;
+    branchId?: string;
+  };
+}
+
+export interface StockTransfer {
+  id: string;
+  fromBranchId: string;
+  toBranchId: string;
+  status: StockTransferStatus;
+  notes: string | null;
+  createdById: string;
+  sentById: string | null;
+  receivedById: string | null;
+  createdAt: string;
+  sentAt: string | null;
+  receivedAt: string | null;
+  cancelledAt: string | null;
+  fromBranch?: { id: string; code: string; name: string };
+  toBranch?: { id: string; code: string; name: string };
+  createdBy?: { name: string };
+  sentBy?: { name: string };
+  receivedBy?: { name: string };
+  items: StockTransferItem[];
+}
+
 // ─── Endpoints ───────────────────────────────────────────────────────────────
 
 export const api = {
@@ -436,6 +483,12 @@ export const api = {
     }),
   me: () => request<AuthResponse>('/api/auth/me'),
   logout: () => request<{ ok?: boolean }>('/api/auth/logout', { method: 'POST' }),
+  // Sprint 5.5b — switch active branch (sets pos_branch cookie server-side)
+  switchBranch: (branchId: string) =>
+    request<{ ok: boolean; branchId: string; role: Role }>('/api/auth/me/branch', {
+      method: 'POST',
+      body: JSON.stringify({ branchId }),
+    }),
 
   // Menu
   getCategories: () => request<{ data: Category[] }>('/api/menu/categories'),
@@ -616,6 +669,38 @@ export const api = {
     request<{ data: ChannelAnalyticsSummary }>(
       `/api/channel-analytics/summary?days=${days}`,
     ),
+
+  // Sprint 5.2 — Stock transfers
+  listTransfers: (params?: { status?: string; branchId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.set('status', params.status);
+    if (params?.branchId) q.set('branchId', params.branchId);
+    const qs = q.toString();
+    return request<{ data: { transfers: StockTransfer[] } }>(
+      `/api/transfers${qs ? `?${qs}` : ''}`,
+    );
+  },
+  getTransfer: (id: string) =>
+    request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}`),
+  createTransfer: (payload: {
+    fromBranchId: string;
+    toBranchId: string;
+    notes?: string;
+    items: Array<{ inventoryItemId: string; qtyTransferred: number }>;
+  }) =>
+    request<{ data: { transfer: StockTransfer } }>('/api/transfers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  sendTransfer: (id: string) =>
+    request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}/send`, { method: 'POST' }),
+  receiveTransfer: (id: string, items?: Array<{ transferItemId: string; qtyReceived: number }>) =>
+    request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}/receive`, {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }),
+  cancelTransfer: (id: string) =>
+    request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}/cancel`, { method: 'POST' }),
 };
 
 export { API_URL };

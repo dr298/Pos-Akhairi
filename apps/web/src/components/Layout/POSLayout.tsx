@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,8 @@ const NAV: { href: string; label: string; match: (p: string) => boolean; manager
   { href: '/pos/history', label: 'Riwayat', match: (p) => p.startsWith('/pos/history') },
   { href: '/pos/delivery', label: 'Delivery', match: (p) => p.startsWith('/pos/delivery') },
   { href: '/pos/shift', label: 'Shift', match: (p) => p.startsWith('/pos/shift') },
+  { href: '/pos/transfers', label: 'Transfer', match: (p) => p.startsWith('/pos/transfers'), managerOnly: true },
+  { href: '/pos/z-report', label: 'Z-Report', match: (p) => p.startsWith('/pos/z-report'), managerOnly: true },
   { href: '/pos/discounts', label: 'Diskon', match: (p) => p.startsWith('/pos/discounts'), managerOnly: true },
   { href: '/pos/channels', label: 'Channels', match: (p) => p.startsWith('/pos/channels'), managerOnly: true },
   { href: '/pos/chain', label: 'Chain', match: (p) => p.startsWith('/pos/chain'), ownerOnly: true },
@@ -28,10 +30,13 @@ function formatDate(d: Date): string {
 }
 
 export function POSLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, switchBranch } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [now, setNow] = useState<Date | null>(null);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const switcherRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setNow(new Date());
@@ -45,6 +50,18 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
     }
   }, [loading, user, router]);
 
+  // Click-outside to close branch switcher
+  useEffect(() => {
+    if (!switcherOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setSwitcherOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [switcherOpen]);
+
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-neutral-300 text-sm">
@@ -52,6 +69,28 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
+  const accessList = user.branchAccess ?? [];
+  const canSwitch = accessList.length > 1;
+
+  const onSwitch = async (branchId: string) => {
+    if (branchId === user.branchId) {
+      setSwitcherOpen(false);
+      return;
+    }
+    setSwitching(true);
+    try {
+      await switchBranch(branchId);
+      setSwitcherOpen(false);
+      // Reload to flush any cached data tied to the old branch
+      router.refresh();
+    } catch (e) {
+      console.error('Branch switch failed:', e);
+      alert('Gagal pindah branch. Coba lagi.');
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100">
@@ -62,10 +101,55 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
               🍜 BKJ POS
             </Link>
             <span className="text-neutral-500 hidden sm:inline">·</span>
-            <div className="hidden sm:flex flex-col min-w-0">
-              <span className="text-sm text-neutral-200 truncate">{user.branch?.name ?? 'Branch'}</span>
-              <span className="text-[10px] text-neutral-500 truncate">{user.branch?.code}</span>
-            </div>
+            {canSwitch ? (
+              <div className="relative" ref={switcherRef}>
+                <button
+                  type="button"
+                  onClick={() => setSwitcherOpen((v) => !v)}
+                  className="hidden sm:flex flex-col items-start min-w-0 px-2 py-0.5 rounded hover:bg-neutral-800 transition-colors"
+                >
+                  <span className="text-sm text-neutral-200 truncate flex items-center gap-1">
+                    {user.branch?.name ?? 'Branch'}
+                    <span className="text-[10px] text-neutral-500">▼</span>
+                  </span>
+                  <span className="text-[10px] text-neutral-500 truncate">
+                    {user.branch?.code} · klik untuk pindah
+                  </span>
+                </button>
+                {switcherOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-40 min-w-[220px] bg-neutral-900 border border-neutral-700 rounded-md shadow-lg py-1">
+                    {accessList.map((a) => (
+                      <button
+                        key={a.branchId}
+                        type="button"
+                        disabled={switching}
+                        onClick={() => onSwitch(a.branchId)}
+                        className={cn(
+                          'w-full text-left px-3 py-2 text-sm hover:bg-neutral-800 disabled:opacity-50 flex items-center justify-between gap-2',
+                          a.branchId === user.branchId && 'bg-neutral-800/50',
+                        )}
+                      >
+                        <span className="truncate">
+                          <span className="block text-neutral-100">{a.branch.name}</span>
+                          <span className="block text-[10px] text-neutral-500">
+                            {a.branch.code} · {a.role}
+                            {a.isDefault ? ' · default' : ''}
+                          </span>
+                        </span>
+                        {a.branchId === user.branchId && (
+                          <span className="text-[10px] text-red-400">aktif</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="hidden sm:flex flex-col min-w-0">
+                <span className="text-sm text-neutral-200 truncate">{user.branch?.name ?? 'Branch'}</span>
+                <span className="text-[10px] text-neutral-500 truncate">{user.branch?.code}</span>
+              </div>
+            )}
           </div>
           <nav className="hidden md:flex items-center gap-1">
             {NAV.filter((n) => {
