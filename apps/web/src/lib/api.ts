@@ -79,6 +79,11 @@ export interface Branch {
   phone?: string | null;
   timezone?: string;
   isActive?: boolean;
+  // Sprint 5.6 — branch-level PPN config (basis points: 1100 = 11%).
+  // ppnPercent = 0 means no PPN (use per-item taxRateBp only).
+  // ppnInclusive = true means tax is already included in the price.
+  ppnPercent?: number;
+  ppnInclusive?: boolean;
 }
 
 export interface User {
@@ -123,6 +128,10 @@ export interface MenuItem {
   costCents?: number;
   categoryId: string;
   taxRateBp?: number;
+  // Sprint 5.6 — opt-in flag: when true, use branch.ppnPercent as
+  // the tax rate (instead of per-item taxRateBp). Lets branches
+  // override PPN centrally per tax-authority config.
+  useBranchPpn?: boolean;
   isActive: boolean;
   isAvailable: boolean;
   imageUrl?: string | null;
@@ -492,7 +501,24 @@ export const api = {
 
   // Menu
   getCategories: () => request<{ data: Category[] }>('/api/menu/categories'),
-  getMenuItems: () => request<{ data: MenuItem[] }>('/api/menu/items'),
+  getMenuItems: (params?: { branchId?: string; category?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.branchId) qs.set('branchId', params.branchId);
+    if (params?.category) qs.set('category', params.category);
+    if (params?.search) qs.set('search', params.search);
+    const tail = qs.toString();
+    return request<{ data: MenuItem[] }>(`/api/menu/items${tail ? `?${tail}` : ''}`);
+  },
+  createMenuItem: (payload: any) =>
+    request<{ data: MenuItem }>('/api/menu/items', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateMenuItem: (id: string, payload: any) =>
+    request<{ data: MenuItem }>(`/api/menu/items/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
 
   // Shifts
   getCurrentShift: () => request<{ data: Shift | null }>('/api/shifts/current'),
@@ -701,6 +727,40 @@ export const api = {
     }),
   cancelTransfer: (id: string) =>
     request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}/cancel`, { method: 'POST' }),
+
+  // Sprint 5.4 — bulk copy menu between branches with per-SKU price override
+  cloneMenu: (payload: {
+    sourceBranchId: string;
+    targetBranchId: string;
+    priceOverrides?: Record<string, { priceCents?: number; costCents?: number }>;
+    skipExisting?: boolean;
+  }) =>
+    request<{ data: { sourceBranchId: string; targetBranchId: string; created: number; updated: number; skipped: number } }>(
+      '/api/menu/clone',
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+
+  // Sprint 5.6 — branches (list + PPN config)
+  listBranches: () =>
+    request<{ data: { branches: Branch[] } }>('/api/branches'),
+  getBranch: (id: string) =>
+    request<{ data: { branch: Branch } }>(`/api/branches/${id}`),
+  updateBranchPpn: (
+    id: string,
+    payload: { ppnPercent: number; ppnInclusive?: boolean },
+  ) =>
+    request<{ data: { branch: Branch } }>(`/api/branches/${id}/ppn`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  updateBranch: (
+    id: string,
+    payload: { name?: string; address?: string | null; city?: string | null; phone?: string | null; timezone?: string },
+  ) =>
+    request<{ data: { branch: Branch } }>(`/api/branches/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export { API_URL };

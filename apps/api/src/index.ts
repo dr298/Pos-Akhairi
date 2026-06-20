@@ -19,6 +19,7 @@ import { webhookRoutes } from './routes/webhooks.js';
 import { dailyCloseRoutes } from './routes/daily-close.js';
 import { commissionRoutes } from './routes/commissions.js';
 import { transferRoutes } from './routes/transfers.js';
+import { branchRoutes } from './routes/branches.js';
 import { startChannelPoller } from './services/channel-poller.js';
 import { handleWebSocketUpgrade } from './lib/ws.js';
 import { wsBus } from './lib/ws-bus.js';
@@ -54,6 +55,7 @@ app.route('/api/webhooks', webhookRoutes);
 app.route('/api/daily-close', dailyCloseRoutes);
 app.route('/api/commissions', commissionRoutes);
 app.route('/api/transfers', transferRoutes);
+app.route('/api/branches', branchRoutes);
 
 app.notFound((c) => c.json({ error: 'Not Found', path: c.req.path }, 404));
 app.onError((err, c) => {

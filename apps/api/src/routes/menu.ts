@@ -280,3 +280,119 @@ menuRoutes.post(
     return ok(c, item);
   }
 );
+
+// ---------- Sprint 5.4 — bulk-copy menu between branches ----------
+
+const cloneSchema = z.object({
+  sourceBranchId: z.string().min(1),
+  targetBranchId: z.string().min(1),
+  // Optional per-SKU price override. If absent, use source price as-is.
+  // Map: sourceSku -> { priceCents?: number, costCents?: number }
+  // If map is empty, all items use source prices.
+  priceOverrides: z.record(z.string(), z.object({
+    priceCents: z.number().int().positive().optional(),
+    costCents: z.number().int().nonnegative().optional(),
+  })).optional(),
+  // If true, skip items that already exist in target branch (by SKU).
+  // If false (default), overwrite target's price/cost with source/override.
+  skipExisting: z.boolean().optional(),
+});
+
+menuRoutes.post(
+  '/clone',
+  requireRole('OWNER', 'MANAGER'),
+  async (c) => {
+    const user = c.get('user');
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = cloneSchema.safeParse(body);
+    if (!parsed.success) {
+      return fail(c, 'ValidationError', parsed.error.message, 400);
+    }
+    const { sourceBranchId, targetBranchId, priceOverrides = {}, skipExisting = false } = parsed.data;
+    if (sourceBranchId === targetBranchId) {
+      return fail(c, 'ValidationError', 'source and target branch must differ', 400);
+    }
+    // Verify user has access to both branches
+    const access = user.branchAccess || [];
+    const hasSrc = access.some((a) => a.branchId === sourceBranchId);
+    const hasTgt = access.some((a) => a.branchId === targetBranchId);
+    if (!hasSrc || !hasTgt) {
+      return fail(c, 'NoAccess', 'No access to one of the branches', 403);
+    }
+    // Verify branches exist
+    const [src, tgt] = await Promise.all([
+      prisma.branch.findUnique({ where: { id: sourceBranchId } }),
+      prisma.branch.findUnique({ where: { id: targetBranchId } }),
+    ]);
+    if (!src || !tgt) return fail(c, 'NotFound', 'Branch not found', 404);
+    // Also copy categories from source to target if missing (by name)
+    const srcCats = await prisma.menuCategory.findMany({
+      where: { items: { some: { branchId: sourceBranchId, isActive: true } } },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const tgtCats = await prisma.menuCategory.findMany({});
+    const tgtCatByName = new Map(tgtCats.map((c) => [c.name, c]));
+    const catIdMap = new Map<string, string>();
+    for (const sc of srcCats) {
+      let tc = tgtCatByName.get(sc.name);
+      if (!tc) {
+        tc = await prisma.menuCategory.create({
+          data: { name: sc.name, sortOrder: sc.sortOrder, isActive: sc.isActive },
+        });
+      }
+      catIdMap.set(sc.id, tc.id);
+    }
+    // Copy active items
+    const srcItems = await prisma.menuItem.findMany({
+      where: { branchId: sourceBranchId, isActive: true },
+      include: { modifiers: true },
+    });
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    for (const it of srcItems) {
+      const override = priceOverrides[it.sku];
+      const priceCents = override?.priceCents ?? it.priceCents;
+      const costCents = override?.costCents ?? it.costCents;
+      const newCatId = catIdMap.get(it.categoryId);
+      if (!newCatId) continue;
+      const existing = await prisma.menuItem.findUnique({
+        where: { branchId_sku: { branchId: targetBranchId, sku: it.sku } },
+      });
+      if (existing) {
+        if (skipExisting) {
+          skipped++;
+          continue;
+        }
+        await prisma.menuItem.update({
+          where: { id: existing.id },
+          data: { priceCents, costCents, isAvailable: it.isAvailable },
+        });
+        updated++;
+      } else {
+        await prisma.menuItem.create({
+          data: {
+            branchId: targetBranchId,
+            categoryId: newCatId,
+            sku: it.sku,
+            name: it.name,
+            description: it.description,
+            priceCents,
+            costCents,
+            taxRateBp: it.taxRateBp,
+            useBranchPpn: it.useBranchPpn,
+            isActive: it.isActive,
+            isAvailable: it.isAvailable,
+            imageUrl: it.imageUrl,
+          },
+        });
+        created++;
+      }
+    }
+    logger.info(
+      { actor: user.id, sourceBranchId, targetBranchId, created, updated, skipped },
+      'menu cloned between branches',
+    );
+    return ok(c, { sourceBranchId, targetBranchId, created, updated, skipped });
+  }
+);

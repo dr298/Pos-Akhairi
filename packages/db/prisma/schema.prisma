@@ -111,6 +111,11 @@ model Branch {
   phone     String?
   timezone  String   @default("Asia/Jakarta")
   isActive  Boolean  @default(true) @map("is_active")
+  // Sprint 5.6 — branch-level PPN configuration. 0 means no PPN
+  // (use per-item taxRateBp only). Non-zero means apply this rate
+  // to any item that has taxRateBp = 0 AND useBranchPpn = true.
+  ppnPercent     Int     @default(0) @map("ppn_percent") // basis points: 1100 = 11%
+  ppnInclusive   Boolean @default(false) @map("ppn_inclusive") // true: tax included in price
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -185,6 +190,11 @@ model MenuItem {
   priceCents  Int          @map("price_cents")
   costCents   Int          @default(0) @map("cost_cents")
   taxRateBp   Int          @default(1100) @map("tax_rate_bp") // basis points: 1100 = 11%
+  // Sprint 5.6 — opt-in to use branch.ppnPercent instead of per-item rate.
+  // Useful for "PPN-free" items (e.g. basic takeaway packaging) or
+  // "follow branch default" items (e.g. items where tax should match
+  // the local tax authority config per branch).
+  useBranchPpn Boolean     @default(false) @map("use_branch_ppn")
   isActive    Boolean      @default(true) @map("is_active")
   isAvailable Boolean      @default(true) @map("is_available")
   imageUrl    String?      @map("image_url")

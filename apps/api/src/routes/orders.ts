@@ -101,6 +101,20 @@ orderRoutes.post('/', async (c) => {
     }
   }
 
+  // Sprint 5.6 — load branch PPN config for fallback + inclusive flag
+  const branchCfg = await prisma.branch.findUnique({
+    where: { id: user.branchId },
+    select: { ppnPercent: true, ppnInclusive: true },
+  });
+  const branchPpnBp = branchCfg?.ppnPercent ?? 0;
+  const branchPpnInclusive = branchCfg?.ppnInclusive ?? false;
+  function effectivePpnBp(m: { taxRateBp: number; useBranchPpn: boolean }): number {
+    if (m.taxRateBp > 0 && !m.useBranchPpn) return m.taxRateBp;
+    if (m.taxRateBp > 0 && m.useBranchPpn) return m.taxRateBp; // explicit per-item rate wins
+    if (branchPpnBp > 0 && m.useBranchPpn) return branchPpnBp;
+    return 0; // no PPN
+  }
+
   // Optionally attach to active shift
   let shiftId = parsed.data.shiftId;
   if (!shiftId) {
@@ -115,18 +129,39 @@ orderRoutes.post('/', async (c) => {
     const m = menuMap.get(it.menuItemId)!;
     const lineTotal = m.priceCents * it.quantity;
     subtotal += lineTotal;
-    // tax per line: floor(lineTotal * rateBp / 10000)
-    tax += Math.floor((lineTotal * m.taxRateBp) / 10000);
+    const rateBp = effectivePpnBp(m);
+    if (rateBp > 0 && !branchPpnInclusive) {
+      // Exclusive: tax added on top, per-line floor.
+      tax += Math.floor((lineTotal * rateBp) / 10000);
+    }
     return {
       menuItemId: m.id,
       nameSnapshot: m.name,
       priceCents: m.priceCents,
       quantity: it.quantity,
       notes: it.notes,
-      modifiersJson: it.modifiersJson as any,
+      modifiersJson: (it as any).modifiersJson ?? (it as any).modifiers ?? null,
       lineTotalCents: lineTotal,
     };
   });
+
+  // Inclusive: tax already inside the price. Back-calculate from the
+  // subtotal of PPN-bearing lines using the dominant rate.
+  if (branchPpnInclusive && lineItems.length > 0) {
+    let inclusiveSubtotal = 0;
+    let maxRateBp = 0;
+    for (const it of parsed.data.items) {
+      const m = menuMap.get(it.menuItemId)!;
+      const r = effectivePpnBp(m);
+      if (r > 0) {
+        inclusiveSubtotal += m.priceCents * it.quantity;
+        if (r > maxRateBp) maxRateBp = r;
+      }
+    }
+    if (maxRateBp > 0 && inclusiveSubtotal > 0) {
+      tax = inclusiveSubtotal - Math.floor((inclusiveSubtotal * 10000) / (10000 + maxRateBp));
+    }
+  }
 
   // Discount resolution (S2.5)
   let discountId: string | null = null;
