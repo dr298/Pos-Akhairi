@@ -124,6 +124,57 @@ async function main() {
   }
   console.log(`[seed] inventory: ${invData.length} items`);
 
+  // 6. Discounts (S2.5)
+  const discountsData = [
+    {
+      code: 'WELCOME10',
+      name: 'Welcome 10% off',
+      type: 'PERCENTAGE' as const,
+      value: 10, // 10%
+      minOrderCents: 3000000, // Rp 30,000
+      maxDiscountCents: 500000, // cap at Rp 5,000
+      validFrom: null,
+      validUntil: null,
+      usageLimit: null as number | null,
+    },
+    {
+      code: 'HEMAT5K',
+      name: 'Hemat Rp 5,000',
+      type: 'FIXED' as const,
+      value: 500000, // Rp 5,000 in cents
+      minOrderCents: 5000000, // Rp 50,000
+      maxDiscountCents: null as number | null,
+      validFrom: null,
+      validUntil: null,
+      usageLimit: null as number | null,
+    },
+  ];
+  for (const d of discountsData) {
+    await prisma.discount.upsert({
+      where: { code: d.code },
+      update: {
+        name: d.name,
+        type: d.type,
+        value: d.value,
+        minOrderCents: d.minOrderCents,
+        maxDiscountCents: d.maxDiscountCents,
+        isActive: true,
+      },
+      create: {
+        branchId: branch.id,
+        code: d.code,
+        name: d.name,
+        type: d.type,
+        value: d.value,
+        minOrderCents: d.minOrderCents,
+        maxDiscountCents: d.maxDiscountCents,
+        usageLimit: d.usageLimit,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`[seed] discounts: ${discountsData.length} items`);
+
   console.log('[seed] done');
 }
 

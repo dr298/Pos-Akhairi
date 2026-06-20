@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { prisma } from '@pos/db';
 import { AppEnv, requireAuth, requireRole, ok, fail } from '../middleware/auth.js';
 import { logger } from '../logger.js';
+import { computeDiscount } from './discounts.js';
+import { finalizeOrderPayment, restoreInventoryForOrder } from '../services/payment-finalize.js';
 
 export const orderRoutes = new Hono<AppEnv>();
 
@@ -21,6 +23,8 @@ const orderCreateSchema = z.object({
   customerName: z.string().max(100).optional(),
   notes: z.string().max(500).optional(),
   shiftId: z.string().optional(),
+  discountCode: z.string().min(1).max(50).optional(),
+  discountId: z.string().optional(),
   items: z.array(orderItemSchema).min(1),
 });
 
@@ -122,31 +126,68 @@ orderRoutes.post('/', async (c) => {
       lineTotalCents: lineTotal,
     };
   });
-  const total = subtotal + tax;
 
-  const order = await prisma.order.create({
-    data: {
-      branchId: user.branchId,
-      shiftId: shiftId ?? null,
-      orderNumber,
-      type: (parsed.data.type as any) ?? 'DINE_IN',
-      status: 'OPEN',
-      tableNumber: parsed.data.tableNumber,
-      customerName: parsed.data.customerName,
-      notes: parsed.data.notes,
-      subtotalCents: subtotal,
-      taxCents: tax,
-      totalCents: total,
-      openedById: user.id,
-      items: { create: lineItems },
-    },
-    include: { items: true, payments: true },
+  // Discount resolution (S2.5)
+  let discountId: string | null = null;
+  let discountCents = 0;
+  if (parsed.data.discountCode || parsed.data.discountId) {
+    const d = await prisma.discount.findFirst({
+      where: {
+        branchId: user.branchId,
+        ...(parsed.data.discountId
+          ? { id: parsed.data.discountId }
+          : { code: parsed.data.discountCode! }),
+      },
+    });
+    const result = computeDiscount(d, subtotal);
+    if (!result.valid) {
+      return fail(c, 'DiscountInvalid', result.reason || 'Discount not applicable', 400);
+    }
+    discountId = result.discountId!;
+    discountCents = result.discountCents;
+  }
+  // total = subtotal + tax - discount (clamp at 0)
+  const total = Math.max(0, subtotal + tax - discountCents);
+
+  const branchId = user.branchId!; // narrowed by the check above
+  const order = await prisma.$transaction(async (tx) => {
+    const ord = await tx.order.create({
+      data: {
+        branchId,
+        shiftId: shiftId ?? undefined,
+        orderNumber,
+        type: (parsed.data.type as any) ?? 'DINE_IN',
+        status: 'OPEN',
+        tableNumber: parsed.data.tableNumber,
+        customerName: parsed.data.customerName,
+        notes: parsed.data.notes,
+        subtotalCents: subtotal,
+        taxCents: tax,
+        discountCents,
+        ...(discountId ? { discountId } : {}),
+        totalCents: total,
+        openedById: user.id,
+        items: { create: lineItems },
+      },
+      include: { items: true, payments: true },
+    });
+    if (discountId) {
+      await tx.discount.update({
+        where: { id: discountId },
+        data: { usageCount: { increment: 1 } },
+      });
+    }
+    return ord;
   });
-  logger.info({ orderId: order.id, orderNumber: order.orderNumber, total }, 'order created');
+
+  logger.info(
+    { orderId: order.id, orderNumber: order.orderNumber, total, discountCents },
+    'order created'
+  );
   return ok(c, order, 201);
 });
 
-// S1.5 — pay-cash
+// S1.5 — pay-cash (refactored S2.2 to use finalizeOrderPayment for inventory deduction)
 const payCashSchema = z.object({
   amountGiven: z.number().int().positive(),
 });
@@ -163,7 +204,7 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
 
   const order = await prisma.order.findUnique({ where: { id }, include: { payments: true } });
   if (!order) return fail(c, 'NotFound', 'Order not found', 404);
-  if (order.status === 'PAID' || order.status === 'CANCELLED' || order.status === 'VOIDED') {
+  if (order.status === 'PAID' || order.status === 'CANCELLED' || order.status === 'VOIDED' || order.status === 'REFUNDED') {
     return fail(c, 'OrderClosed', `Order is ${order.status}`, 409);
   }
   if (amountGiven < order.totalCents) {
@@ -177,43 +218,155 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
   const changeCents = amountGiven - order.totalCents;
   const externalId = `CASH-${order.id}-${Math.random().toString(36).slice(2, 10)}`;
 
-  // TODO Sprint 2.3: decrement inventory via recipe in the same transaction
-  const updated = await prisma.$transaction(async (tx) => {
-    const payment = await tx.payment.create({
-      data: {
-        orderId: order.id,
+  try {
+    const finalized = await finalizeOrderPayment({
+      orderId: order.id,
+      userId: user.id,
+      payment: {
         provider: 'CASH',
         method: 'CASH',
-        status: 'PAID',
+        externalId,
         amountCents: order.totalCents,
-        reference: externalId,
-        providerRaw: {
-          method: 'CASH',
-          amountGiven,
-          changeCents,
-          cashierId: user.id,
-        } as any,
-        paidAt: new Date(),
+      },
+      providerRaw: {
+        method: 'CASH',
+        amountGiven,
+        changeCents,
+        cashierId: user.id,
       },
     });
-    const ord = await tx.order.update({
-      where: { id: order.id },
-      data: { status: 'PAID', closedAt: new Date() },
+    return ok(c, {
+      order: finalized.order,
+      payment: finalized.payment,
+      changeCents,
+      amountGiven,
+      lowStockAlerts: finalized.lowStockAlerts,
+    });
+  } catch (e: any) {
+    logger.error({ err: e, orderId: id }, 'pay-cash finalize failed');
+    return fail(c, 'FinalizeFailed', e?.message || 'Payment finalization failed', 500);
+  }
+});
+
+// S2.4 — void an OPEN order
+const voidSchema = z.object({
+  reason: z.string().min(1).max(500),
+});
+
+orderRoutes.post('/:id/void', requireRole('OWNER', 'MANAGER'), async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = voidSchema.safeParse(body);
+  if (!parsed.success) {
+    return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
+  }
+  const { reason } = parsed.data;
+
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) return fail(c, 'NotFound', 'Order not found', 404);
+  if (order.status !== 'OPEN') {
+    return fail(c, 'OrderNotVoidable', `Only OPEN orders can be voided (current: ${order.status})`, 409);
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const o = await tx.order.update({
+      where: { id },
+      data: {
+        status: 'VOIDED',
+        voidedAt: new Date(),
+        voidedById: user.id,
+        voidReason: reason,
+      },
       include: { items: true, payments: true },
     });
-    return { ord, payment };
+    return o;
   });
 
-  // Emit order.paid event (Sprint 2 will hook to WebSocket)
-  logger.info(
-    { orderId: order.id, changeCents, paymentId: updated.payment.id },
-    'event: order.paid'
-  );
+  logger.info({ orderId: id, reason, by: user.id }, 'order voided');
+  return ok(c, updated);
+});
 
-  return ok(c, {
-    order: updated.ord,
-    payment: updated.payment,
-    changeCents,
-    amountGiven,
+// S2.4 — refund a PAID order
+const refundSchema = z.object({
+  reason: z.string().min(1).max(500),
+  refundMethod: z.enum(['CASH', 'ORIGINAL']).default('CASH'),
+});
+
+orderRoutes.post('/:id/refund', requireRole('OWNER', 'MANAGER'), async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = refundSchema.safeParse(body);
+  if (!parsed.success) {
+    return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
+  }
+  const { reason, refundMethod } = parsed.data;
+
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: { payments: true },
   });
+  if (!order) return fail(c, 'NotFound', 'Order not found', 404);
+  if (order.status !== 'PAID') {
+    return fail(c, 'OrderNotRefundable', `Only PAID orders can be refunded (current: ${order.status})`, 409);
+  }
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      let refundPaymentId: string | null = null;
+      if (refundMethod === 'CASH') {
+        const ref = `REFUND-${id}-${Math.random().toString(36).slice(2, 10)}`;
+        const refundPayment = await tx.payment.create({
+          data: {
+            orderId: id,
+            provider: 'CASH',
+            method: 'CASH',
+            status: 'PAID',
+            amountCents: -order.totalCents,
+            reference: ref,
+            providerRaw: { refund: true, method: 'CASH', cashierId: user.id } as any,
+            paidAt: new Date(),
+          },
+        });
+        refundPaymentId = refundPayment.id;
+      } else {
+        // Mark the original payment as REFUNDED
+        const original = order.payments.find((p) => p.status === 'PAID');
+        if (original) {
+          await tx.payment.update({
+            where: { id: original.id },
+            data: { status: 'REFUNDED' },
+          });
+          refundPaymentId = original.id;
+        }
+      }
+      return tx.order.update({
+        where: { id },
+        data: {
+          status: 'REFUNDED',
+          refundedAt: new Date(),
+          refundedById: user.id,
+          refundReason: reason,
+          refundMethod,
+          refundPaymentId,
+        },
+        include: { items: true, payments: true },
+      });
+    });
+
+    // Restore inventory outside the main transaction so a stock
+    // restoration failure doesn't roll back the refund itself.
+    try {
+      await restoreInventoryForOrder(id);
+    } catch (e) {
+      logger.warn({ err: e, orderId: id }, 'inventory restore failed (non-fatal)');
+    }
+
+    logger.info({ orderId: id, refundMethod, by: user.id }, 'order refunded');
+    return ok(c, updated);
+  } catch (e: any) {
+    logger.error({ err: e, orderId: id }, 'refund failed');
+    return fail(c, 'RefundFailed', e?.message || 'Refund failed', 500);
+  }
 });

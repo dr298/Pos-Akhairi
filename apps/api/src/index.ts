@@ -11,6 +11,7 @@ import { paymentRoutes } from './routes/payments.js';
 import { orderRoutes } from './routes/orders.js';
 import { shiftRoutes } from './routes/shifts.js';
 import { reportRoutes } from './routes/reports.js';
+import { discountRoutes } from './routes/discounts.js';
 import './payments/index.js'; // ensure providers register on boot
 
 const app = new Hono();
@@ -28,6 +29,7 @@ app.route('/api/payments', paymentRoutes);
 app.route('/api/orders', orderRoutes);
 app.route('/api/shifts', shiftRoutes);
 app.route('/api/reports', reportRoutes);
+app.route('/api/discounts', discountRoutes);
 
 app.notFound((c) => c.json({ error: 'Not Found', path: c.req.path }, 404));
 app.onError((err, c) => {

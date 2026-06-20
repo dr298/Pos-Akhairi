@@ -80,7 +80,13 @@ export function ok<T>(c: Context, data: T, status: 200 | 201 | 202 | 204 = 200) 
   return c.json({ data }, status as any);
 }
 
-export function fail(c: Context, error: string, message: string, status: 400 | 401 | 403 | 404 | 409 | 500 = 400, details?: unknown) {
+export function fail(
+  c: Context,
+  error: string,
+  message: string,
+  status: 400 | 401 | 402 | 403 | 404 | 409 | 500 | 502 = 400,
+  details?: unknown
+) {
   return c.json({ error, message, ...(details !== undefined ? { details } : {}) }, status as any);
 }
 

@@ -27,6 +27,7 @@ enum OrderStatus {
   PAID
   CANCELLED
   VOIDED
+  REFUNDED
 }
 
 enum OrderType {
@@ -49,6 +50,13 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+  EXPIRED
+  CANCELLED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
 }
 
 enum ShiftStatus {
@@ -80,6 +88,8 @@ model User {
   shifts        Shift[]
   ordersOpened  Order[]   @relation("OrderOpenedBy")
   ordersClosed  Order[]   @relation("OrderClosedBy")
+  ordersVoided  Order[]   @relation("OrderVoidedBy")
+  ordersRefunded Order[]  @relation("OrderRefundedBy")
 
   @@index([branchId])
   @@index([role])
@@ -103,6 +113,7 @@ model Branch {
   shifts     Shift[]
   menuItems  MenuItem[]
   inventory  InventoryItem[]
+  discounts  Discount[]
 
   @@map("branches")
 }
@@ -201,6 +212,24 @@ model Order {
   openedAt      DateTime    @default(now()) @map("opened_at")
   closedAt      DateTime?   @map("closed_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  // Discount (S2.5)
+  discountId    String?     @map("discount_id")
+  discount      Discount?   @relation(fields: [discountId], references: [id])
+
+  // Void (S2.4)
+  voidedAt      DateTime?   @map("voided_at")
+  voidedById    String?     @map("voided_by_id")
+  voidedBy      User?       @relation("OrderVoidedBy", fields: [voidedById], references: [id])
+  voidReason    String?     @map("void_reason")
+
+  // Refund (S2.4)
+  refundedAt        DateTime?  @map("refunded_at")
+  refundedById      String?    @map("refunded_by_id")
+  refundedBy        User?      @relation("OrderRefundedBy", fields: [refundedById], references: [id])
+  refundReason      String?    @map("refund_reason")
+  refundMethod      String?    @map("refund_method")  // CASH | ORIGINAL
+  refundPaymentId   String?    @map("refund_payment_id")
 
   items         OrderItem[]
   payments      Payment[]
@@ -308,4 +337,31 @@ model InventoryLog {
 
   @@index([inventoryItemId, createdAt])
   @@map("inventory_logs")
+}
+
+model Discount {
+  id               String       @id @default(cuid())
+  branchId         String       @map("branch_id")
+  branch           Branch       @relation(fields: [branchId], references: [id])
+  code             String?      @unique
+  name             String
+  type             DiscountType
+  // For PERCENTAGE: value is 0-100 (integer percent).
+  // For FIXED: value is cents.
+  value            Int
+  minOrderCents    Int          @default(0) @map("min_order_cents")
+  maxDiscountCents Int?         @map("max_discount_cents")
+  validFrom        DateTime?    @map("valid_from")
+  validUntil       DateTime?    @map("valid_until")
+  usageLimit       Int?         @map("usage_limit")
+  usageCount       Int          @default(0) @map("usage_count")
+  isActive         Boolean      @default(true) @map("is_active")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  orders           Order[]
+
+  @@index([branchId, isActive])
+  @@index([code])
+  @@map("discounts")
 }
