@@ -6,6 +6,7 @@ import { logger } from '../logger.js';
 import { computeDiscount } from './discounts.js';
 import { finalizeOrderPayment, restoreInventoryForOrder } from '../services/payment-finalize.js';
 import { wsBus } from '../lib/ws-bus.js';
+import { incCounter, observeHistogram } from '../middleware/metrics.js';
 
 export const orderRoutes = new Hono<AppEnv>();
 
@@ -220,6 +221,17 @@ orderRoutes.post('/', async (c) => {
     { orderId: order.id, orderNumber: order.orderNumber, total, discountCents },
     'order created'
   );
+  // Sprint 7.5 — business metric
+  incCounter('pos_orders_created_total', 'Total orders created', {
+    branchId: user.branchId ?? 'none',
+    type: order.type,
+  });
+  observeHistogram(
+    'pos_order_subtotal_cents',
+    'Order subtotal in cents',
+    total,
+    { branchId: user.branchId ?? 'none' },
+  );
   wsBus.broadcast(
     {
       type: 'order.created',
@@ -282,6 +294,18 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
         changeCents,
         cashierId: user.id,
       },
+    });
+    // Sprint 7.5 — payment metric
+    const orderRow = finalized.order as unknown as { paidAt?: Date | null; createdAt: Date };
+    const paidAt = orderRow.paidAt ?? finalized.order.updatedAt;
+    const prepMs = paidAt.getTime() - orderRow.createdAt.getTime();
+    incCounter('pos_payments_completed_total', 'Total payments completed', {
+      branchId: user.branchId ?? 'none',
+      method: 'CASH',
+    });
+    observeHistogram('pos_payment_latency_ms', 'Time from order open to paid (ms)', prepMs, {
+      branchId: user.branchId ?? 'none',
+      method: 'CASH',
     });
     return ok(c, {
       order: finalized.order,

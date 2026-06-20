@@ -24,11 +24,20 @@ import { startChannelPoller } from './services/channel-poller.js';
 import { handleWebSocketUpgrade } from './lib/ws.js';
 import { wsBus } from './lib/ws-bus.js';
 import { readToken } from './middleware/auth.js';
+import { requestContext } from './middleware/request-context.js';
+import { rateLimit, rateLimitAuth } from './middleware/rate-limit.js';
+import { securityHeaders } from './middleware/security-headers.js';
+import { metricsMiddleware, incCounter, observeHistogram } from './middleware/metrics.js';
+import { errorRoutes } from './routes/errors.js';
+import { metricsRoutes } from './routes/metrics.js';
 import './payments/index.js'; // ensure providers register on boot
 
 const app = new Hono();
 
-app.use('*', honoLogger((str) => logger.info(str.trim())));
+app.use('*', requestContext());
+app.use('*', securityHeaders());
+app.use('*', metricsMiddleware());
+app.use('*', rateLimit());
 app.use(
   '*',
   cors({
@@ -56,6 +65,8 @@ app.route('/api/daily-close', dailyCloseRoutes);
 app.route('/api/commissions', commissionRoutes);
 app.route('/api/transfers', transferRoutes);
 app.route('/api/branches', branchRoutes);
+app.route('/api/errors', errorRoutes);
+app.route('/api/metrics', metricsRoutes);
 
 app.notFound((c) => c.json({ error: 'Not Found', path: c.req.path }, 404));
 app.onError((err, c) => {

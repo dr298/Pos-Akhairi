@@ -290,6 +290,7 @@ model Order {
   @@unique([branchId, orderNumber])
   @@index([status])
   @@index([branchId, openedAt])
+  @@index([openedAt])
   @@map("orders")
 }
 
@@ -311,6 +312,7 @@ model OrderItem {
 
   @@index([orderId])
   @@index([menuItemId])
+  @@index([createdAt])
   @@map("order_items")
 }
 
@@ -330,6 +332,8 @@ model Payment {
 
   @@index([orderId])
   @@index([status])
+  @@index([status, paidAt])
+  @@index([paidAt])
   @@map("payments")
 }
 
@@ -648,4 +652,37 @@ model ChannelOrderEvent {
 
   @@index([channelOrderId, createdAt])
   @@map("channel_order_events")
+}
+
+// Sprint 7.2 — Self-hosted error tracking.
+// Every unhandled exception in the API writes one row here. Owners
+// can query via /api/errors (sprint 7.2 follow-up UI). Self-hosted —
+// no Sentry dep, no third-party data leak.
+model ErrorEvent {
+  id          String   @id @default(cuid())
+  // Severity: ERROR | WARN | FATAL
+  severity    String   @default("ERROR")
+  // Source: API | WORKER | WEBHOOK
+  source      String   @default("API")
+  // Request correlation
+  requestId   String?  @map("request_id")
+  // Route: e.g. POST /api/orders
+  route       String?
+  method      String?
+  statusCode  Int?     @map("status_code")
+  // Auth context (if any)
+  userId      String?  @map("user_id")
+  branchId    String?  @map("branch_id")
+  // Error details
+  message     String
+  stack       String?
+  // Arbitrary context (headers, body, etc — sanitized)
+  context     Json?
+  // When this happened
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([severity, createdAt])
+  @@index([route, createdAt])
+  @@map("error_events")
 }

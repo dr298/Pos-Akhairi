@@ -3,23 +3,46 @@ import { prisma } from '@pos/db';
 
 export const healthRoutes = new Hono();
 
-healthRoutes.get('/', async (c) => {
-  return c.json({
+const START_TIME = Date.now();
+
+healthRoutes.get('/', (c) =>
+  c.json({
     status: 'ok',
     service: 'pos-api',
     version: '0.1.0',
+    uptimeSec: Math.floor((Date.now() - START_TIME) / 1000),
     timestamp: new Date().toISOString(),
-  });
-});
+  }),
+);
 
-healthRoutes.get('/live', (c) => c.json({ status: 'ok', ts: Date.now() }));
+// Liveness — process is alive. Cheap. No deps. No rate limit.
+healthRoutes.get('/live', (c) =>
+  c.json({ status: 'ok', ts: Date.now(), uptimeSec: Math.floor((Date.now() - START_TIME) / 1000) }),
+);
 
+// Readiness — process can serve. Probes DB with timeout.
 healthRoutes.get('/ready', async (c) => {
+  const checks: Record<string, { ok: boolean; ms?: number; error?: string }> = {};
+  let allOk = true;
+
+  const dbStart = Date.now();
   try {
-    // ping db
-    await prisma.$queryRaw`SELECT 1`;
-    return c.json({ status: 'ready', db: 'up' });
-  } catch (e: any) {
-    return c.json({ status: 'not-ready', db: 'down', error: e?.message }, 503);
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_, rej) => setTimeout(() => rej(new Error('db timeout')), 2000)),
+    ]);
+    checks.db = { ok: true, ms: Date.now() - dbStart };
+  } catch (e) {
+    allOk = false;
+    checks.db = { ok: false, error: (e as Error).message, ms: Date.now() - dbStart };
   }
+
+  return c.json(
+    {
+      status: allOk ? 'ready' : 'not-ready',
+      checks,
+      uptimeSec: Math.floor((Date.now() - START_TIME) / 1000),
+    },
+    allOk ? 200 : 503,
+  );
 });

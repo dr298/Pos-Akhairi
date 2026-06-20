@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '@pos/db';
 import { logger } from '../logger.js';
+import { rateLimitAuth } from '../middleware/rate-limit.js';
 
 const COOKIE_NAME = 'pos_session';
 const BRANCH_COOKIE_NAME = 'pos_branch';
@@ -37,6 +38,11 @@ async function readToken(token: string): Promise<Record<string, unknown> | null>
 }
 
 export const authRoutes = new Hono();
+
+// Sprint 7.8 — Tighter rate limit on auth (brute-force protection)
+// Applied to login + refresh. 20 attempts / minute / IP.
+authRoutes.use('/login', rateLimitAuth());
+authRoutes.use('/refresh', rateLimitAuth());
 
 authRoutes.post('/login', async (c) => {
   const body = await c.req.json().catch(() => ({}));
