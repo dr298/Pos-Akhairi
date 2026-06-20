@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { logger as honoLogger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { cors } from 'hono/cors';
-import { serve } from '@hono/node-server';
+import { createAdaptorServer } from '@hono/node-server';
 import { logger } from './logger.js';
 import { healthRoutes } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
@@ -12,6 +12,9 @@ import { orderRoutes } from './routes/orders.js';
 import { shiftRoutes } from './routes/shifts.js';
 import { reportRoutes } from './routes/reports.js';
 import { discountRoutes } from './routes/discounts.js';
+import { handleWebSocketUpgrade } from './lib/ws.js';
+import { wsBus } from './lib/ws-bus.js';
+import { readToken } from './middleware/auth.js';
 import './payments/index.js'; // ensure providers register on boot
 
 const app = new Hono();
@@ -40,8 +43,72 @@ app.onError((err, c) => {
 const port = Number(process.env.API_PORT || 8787);
 const host = process.env.API_HOST || '0.0.0.0';
 
-serve({ fetch: app.fetch, port, hostname: host }, (info) => {
-  logger.info({ port: info.port, host: info.address }, 'pos-api listening');
+const server = createAdaptorServer({
+  fetch: app.fetch,
+  port,
+  hostname: host,
+});
+
+// WebSocket upgrade: clients connect to /ws. Auth is best-effort — we read
+// the pos_session cookie from the upgrade request so we can scope events to
+// the user's branch. Unauthenticated clients still receive events for the
+// default branch (useful for the /display page).
+server.on('upgrade', (req, socket, head) => {
+  if (!req.url) {
+    socket.destroy();
+    return;
+  }
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  if (url.pathname !== '/ws') {
+    socket.destroy();
+    return;
+  }
+  let branchId: string | null = null;
+  try {
+    const cookieHeader = req.headers.cookie || '';
+    const match = cookieHeader.match(/(?:^|;\s*)pos_session=([^;]+)/);
+    if (match) {
+      const token = decodeURIComponent(match[1]);
+      readToken(token).then((user) => {
+        branchId = user?.branchId ?? null;
+      }).catch(() => {
+        // ignore
+      });
+    }
+  } catch {
+    // ignore
+  }
+  handleWebSocketUpgrade(req, socket, head, {
+    onOpen: (ctx) => {
+      wsBus.add(ctx, branchId);
+      try {
+        ctx.send(JSON.stringify({ type: 'hello', at: Date.now() }));
+      } catch {
+        // ignore
+      }
+    },
+    onMessage: (text, ctx) => {
+      // Treat any inbound message as a heartbeat. We don't accept commands.
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && parsed.type === 'ping') {
+          ctx.send(JSON.stringify({ type: 'pong', at: Date.now() }));
+        }
+      } catch {
+        // ignore non-JSON
+      }
+    },
+    onClose: (ctx) => {
+      wsBus.remove(ctx);
+    },
+    onError: (err) => {
+      logger.warn({ err: err.message }, 'ws error');
+    },
+  });
+});
+
+server.listen(port, host, () => {
+  logger.info({ port, host }, 'pos-api listening');
 });
 
 export default app;

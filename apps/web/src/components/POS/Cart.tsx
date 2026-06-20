@@ -9,6 +9,7 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { formatIDR } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 
 const ORDER_TYPES: { value: OrderType; label: string }[] = [
   { value: 'DINE_IN', label: 'Dine In' },
@@ -25,7 +26,54 @@ interface Props {
 
 export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: Props) {
   const cart = useCart();
-  const [showAllControls, setShowAllControls] = useState(true);
+  const [discountCode, setDiscountCode] = useState('');
+  const [applying, setApplying] = useState(false);
+  const [discountErr, setDiscountErr] = useState<string | null>(null);
+
+  // Recompute discount if the cart subtotal changes; we keep the absolute
+  // value clamped, so the discount shown stays accurate.
+  useEffect(() => {
+    if (cart.discount && cart.subtotalCents === 0) {
+      cart.setDiscount(null);
+    }
+  }, [cart.subtotalCents, cart.discount, cart]);
+
+  async function applyDiscount() {
+    if (!discountCode.trim()) return;
+    if (cart.subtotalCents <= 0) {
+      toast.error('Tambah item dulu');
+      return;
+    }
+    setApplying(true);
+    setDiscountErr(null);
+    try {
+      const res = await api.validateDiscount(discountCode.trim(), cart.subtotalCents);
+      const v = res.data;
+      if (!v.valid) {
+        setDiscountErr(v.reason || 'Kode tidak berlaku');
+        cart.setDiscount(null);
+        return;
+      }
+      cart.setDiscount({
+        code: discountCode.trim(),
+        discountId: v.discountId!,
+        name: v.name || discountCode.trim(),
+        discountCents: v.discountCents,
+        baseSubtotalCents: cart.subtotalCents,
+      });
+      toast.success(`Diskon diterapkan: -${formatIDR(v.discountCents)}`);
+    } catch (e: any) {
+      setDiscountErr(e?.message || 'Gagal validasi diskon');
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  function clearDiscount() {
+    cart.setDiscount(null);
+    setDiscountCode('');
+    setDiscountErr(null);
+  }
 
   return (
     <div className="flex h-full flex-col bg-neutral-950 border-l border-neutral-800">
@@ -170,11 +218,61 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
           />
         </div>
 
+        {/* Discount code */}
+        <div>
+          <label className="text-xs text-neutral-400 mb-1 block" htmlFor="discount">
+            Kode Diskon
+          </label>
+          {cart.discount ? (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-emerald-700/50 bg-emerald-950/30 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm text-emerald-200 truncate">
+                  {cart.discount.name}{' '}
+                  <span className="text-emerald-400/70 text-xs">({cart.discount.code})</span>
+                </div>
+                <div className="text-xs text-emerald-300/80">
+                  -{formatIDR(cart.discountCents)}
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={clearDiscount}>
+                Hapus
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                id="discount"
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                placeholder="HEMAT10"
+                className="flex-1"
+              />
+              <Button
+                size="md"
+                variant="outline"
+                onClick={applyDiscount}
+                disabled={applying || !discountCode.trim()}
+              >
+                {applying ? 'Cek…' : 'Pakai'}
+              </Button>
+            </div>
+          )}
+          {discountErr && (
+            <div className="text-xs text-red-400 mt-1">{discountErr}</div>
+          )}
+        </div>
+
         <div className="space-y-1 text-sm">
           <div className="flex justify-between text-neutral-300">
             <span>Subtotal</span>
             <span>{formatIDR(cart.subtotalCents)}</span>
           </div>
+          {cart.discountCents > 0 && (
+            <div className="flex justify-between text-emerald-400">
+              <span>Diskon</span>
+              <span>-{formatIDR(cart.discountCents)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-neutral-400">
             <span>Pajak ({(cart.taxRateBp / 100).toFixed(1)}%)</span>
             <span>{formatIDR(cart.taxCents)}</span>
@@ -197,7 +295,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
           disabled={!canCheckout || busy}
           onClick={onCheckout}
         >
-          {busy ? 'Memproses…' : 'Bayar Tunai'}
+          {busy ? 'Memproses…' : 'Bayar'}
         </Button>
       </div>
     </div>

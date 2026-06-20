@@ -5,6 +5,7 @@ import { AppEnv, requireAuth, requireRole, ok, fail } from '../middleware/auth.j
 import { logger } from '../logger.js';
 import { computeDiscount } from './discounts.js';
 import { finalizeOrderPayment, restoreInventoryForOrder } from '../services/payment-finalize.js';
+import { wsBus } from '../lib/ws-bus.js';
 
 export const orderRoutes = new Hono<AppEnv>();
 
@@ -184,6 +185,18 @@ orderRoutes.post('/', async (c) => {
     { orderId: order.id, orderNumber: order.orderNumber, total, discountCents },
     'order created'
   );
+  wsBus.broadcast(
+    {
+      type: 'order.created',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      totalCents: order.totalCents,
+      status: order.status,
+      branchId: order.branchId,
+      at: Date.now(),
+    },
+    order.branchId,
+  );
   return ok(c, order, 201);
 });
 
@@ -284,6 +297,18 @@ orderRoutes.post('/:id/void', requireRole('OWNER', 'MANAGER'), async (c) => {
   });
 
   logger.info({ orderId: id, reason, by: user.id }, 'order voided');
+  wsBus.broadcast(
+    {
+      type: 'order.voided',
+      orderId: updated.id,
+      orderNumber: updated.orderNumber,
+      totalCents: updated.totalCents,
+      status: updated.status,
+      branchId: updated.branchId,
+      at: Date.now(),
+    },
+    updated.branchId,
+  );
   return ok(c, updated);
 });
 
@@ -364,6 +389,18 @@ orderRoutes.post('/:id/refund', requireRole('OWNER', 'MANAGER'), async (c) => {
     }
 
     logger.info({ orderId: id, refundMethod, by: user.id }, 'order refunded');
+    wsBus.broadcast(
+      {
+        type: 'order.refunded',
+        orderId: updated.id,
+        orderNumber: updated.orderNumber,
+        totalCents: updated.totalCents,
+        status: updated.status,
+        branchId: updated.branchId,
+        at: Date.now(),
+      },
+      updated.branchId,
+    );
     return ok(c, updated);
   } catch (e: any) {
     logger.error({ err: e, orderId: id }, 'refund failed');

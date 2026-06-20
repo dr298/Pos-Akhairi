@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@pos/db';
 import { logger } from '../logger.js';
+import { wsBus } from '../lib/ws-bus.js';
 
 export type FinalizeProvider = 'CASH' | 'MIDTRANS' | 'XENDIT';
 export type FinalizeMethod = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET';
@@ -190,6 +191,19 @@ export async function finalizeOrderPayment(input: FinalizeInput): Promise<Finali
       lowStockCount: lowStockAlerts.length,
     },
     'event: order.paid (finalized)'
+  );
+
+  wsBus.broadcast(
+    {
+      type: 'order.paid',
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      totalCents: order.totalCents,
+      status: 'PAID',
+      branchId: order.branchId,
+      at: Date.now(),
+    },
+    order.branchId,
   );
 
   return {

@@ -18,6 +18,15 @@ export interface CartLine {
 
 export type OrderType = 'DINE_IN' | 'TAKEOUT' | 'DELIVERY';
 
+export interface AppliedDiscount {
+  code: string;
+  discountId: string;
+  name: string;
+  discountCents: number;
+  /** Subtotal BEFORE discount — used to recompute tax. */
+  baseSubtotalCents: number;
+}
+
 export interface UseCart {
   lines: CartLine[];
   orderType: OrderType;
@@ -25,6 +34,7 @@ export interface UseCart {
   customerName: string;
   notes: string;
   taxRateBp: number;
+  discount: AppliedDiscount | null;
   setOrderType: (t: OrderType) => void;
   setTableNumber: (s: string) => void;
   setCustomerName: (s: string) => void;
@@ -35,8 +45,10 @@ export interface UseCart {
   removeLine: (lineId: string) => void;
   setLineQuantity: (lineId: string, qty: number) => void;
   clear: () => void;
+  setDiscount: (d: AppliedDiscount | null) => void;
   subtotalCents: number;
   taxCents: number;
+  discountCents: number;
   totalCents: number;
   itemCount: number;
 }
@@ -62,6 +74,7 @@ export function useCart(): UseCart {
   const [tableNumber, setTableNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
+  const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
 
   const addItem = useCallback(
     (item: MenuItem, opts?: { modifiers?: Modifier[]; notes?: string }) => {
@@ -120,6 +133,7 @@ export function useCart(): UseCart {
     setCustomerName('');
     setNotes('');
     setOrderType('DINE_IN');
+    setDiscount(null);
   }, []);
 
   const subtotalCents = useMemo(
@@ -127,11 +141,21 @@ export function useCart(): UseCart {
     [lines],
   );
   const taxRateBp = TAX_RATE_BP_DEFAULT;
+  // Tax is computed on the post-discount subtotal, matching backend behaviour
+  // (total = subtotal + tax - discount, with tax = floor(subtotal*rate)).
+  const discountCents = useMemo(() => {
+    if (!discount) return 0;
+    if (subtotalCents === 0) return 0;
+    // If the cart subtotal grew past the discount's baseline, cap the
+    // discount at the recorded baseSubtotal. Otherwise use the recorded value.
+    return Math.min(discount.discountCents, subtotalCents);
+  }, [discount, subtotalCents]);
+  const discountedSubtotalCents = Math.max(0, subtotalCents - discountCents);
   const taxCents = useMemo(
-    () => Math.round((subtotalCents * taxRateBp) / 10000),
-    [subtotalCents, taxRateBp],
+    () => Math.round((discountedSubtotalCents * taxRateBp) / 10000),
+    [discountedSubtotalCents, taxRateBp],
   );
-  const totalCents = subtotalCents + taxCents;
+  const totalCents = discountedSubtotalCents + taxCents;
   const itemCount = useMemo(
     () => lines.reduce((s, l) => s + l.quantity, 0),
     [lines],
@@ -144,6 +168,7 @@ export function useCart(): UseCart {
     customerName,
     notes,
     taxRateBp,
+    discount,
     setOrderType,
     setTableNumber,
     setCustomerName,
@@ -154,8 +179,10 @@ export function useCart(): UseCart {
     removeLine,
     setLineQuantity,
     clear,
+    setDiscount,
     subtotalCents,
     taxCents,
+    discountCents,
     totalCents,
     itemCount,
   };

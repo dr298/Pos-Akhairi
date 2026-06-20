@@ -1,0 +1,51 @@
+// Tiny event bus for broadcasting order events to all connected WebSocket
+// clients. In-process; if we later run multiple API instances, swap for Redis
+// pub/sub or a shared broker.
+
+import type { WSContext } from '../lib/ws.js';
+
+export interface OrderEvent {
+  type: 'order.created' | 'order.paid' | 'order.voided' | 'order.refunded';
+  orderId: string;
+  orderNumber: string;
+  totalCents?: number;
+  status?: string;
+  branchId?: string;
+  at: number;
+}
+
+class WSBus {
+  private clients = new Set<WSContext>();
+  private branchIndex = new Map<WSContext, string | null>();
+
+  add(ctx: WSContext, branchId: string | null = null) {
+    this.clients.add(ctx);
+    this.branchIndex.set(ctx, branchId);
+  }
+
+  remove(ctx: WSContext) {
+    this.clients.delete(ctx);
+    this.branchIndex.delete(ctx);
+  }
+
+  size(): number {
+    return this.clients.size;
+  }
+
+  broadcast(event: OrderEvent, branchId?: string | null) {
+    const payload = JSON.stringify(event);
+    for (const client of this.clients) {
+      if (branchId !== undefined) {
+        const clientBranch = this.branchIndex.get(client);
+        if (clientBranch && clientBranch !== branchId) continue;
+      }
+      try {
+        client.send(payload);
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+
+export const wsBus = new WSBus();

@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { api, type Order } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -108,9 +110,14 @@ export default function HistoryPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{selected.orderNumber}</CardTitle>
-                    <Badge tone={STATUS_TONES[selected.status] || 'muted'}>
-                      {selected.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge tone={STATUS_TONES[selected.status] || 'muted'}>
+                        {selected.status}
+                      </Badge>
+                      <Link href={`/pos/orders/${selected.id}`}>
+                        <Button size="sm" variant="outline">Detail</Button>
+                      </Link>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">

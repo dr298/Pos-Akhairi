@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
-const NAV: { href: string; label: string; match: (p: string) => boolean }[] = [
+const NAV: { href: string; label: string; match: (p: string) => boolean; managerOnly?: boolean }[] = [
   { href: '/pos', label: 'Order', match: (p) => p === '/pos' },
   { href: '/pos/history', label: 'Riwayat', match: (p) => p.startsWith('/pos/history') },
   { href: '/pos/shift', label: 'Shift', match: (p) => p.startsWith('/pos/shift') },
+  { href: '/pos/discounts', label: 'Diskon', match: (p) => p.startsWith('/pos/discounts'), managerOnly: true },
+  { href: '/display', label: 'Display', match: () => false },
 ];
 
 function formatTime(d: Date): string {
@@ -63,7 +65,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-1">
-            {NAV.map((n) => (
+            {NAV.filter((n) => !n.managerOnly || user.role === 'OWNER' || user.role === 'MANAGER').map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
@@ -95,7 +97,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="md:hidden flex items-center gap-1 px-2 pb-2 overflow-x-auto">
-          {NAV.map((n) => (
+          {NAV.filter((n) => !n.managerOnly || user.role === 'OWNER' || user.role === 'MANAGER').map((n) => (
             <Link
               key={n.href}
               href={n.href}
