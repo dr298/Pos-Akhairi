@@ -1,10 +1,18 @@
 // Typed API client for pos.akhairi.com backend.
-// Server runs on http://localhost:8787 (configurable via NEXT_PUBLIC_API_URL).
-// All requests send credentials so the pos_session cookie flows through.
+// API_URL is prepended to every request path. In production it should be a
+// relative path '' (empty) so the browser resolves the fetch as
+// `https://pos.akhairi.com/api/...` — this hits the Next.js rewrite which
+// forwards server-side to the internal api:8787 container with cookies
+// flowing through the same origin. In dev, set NEXT_PUBLIC_API_URL to the
+// full backend origin (e.g. http://localhost:8787) and the call sites'
+// '/api/...' paths will hit the API directly.
+//
+// Path convention: call sites pass paths *with* the '/api/...' prefix.
+// This file does NOT touch the path.
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== 'undefined' ? 'http://localhost:8787' : 'http://localhost:8787');
+  '';
 
 // WebSocket URL derived from API URL — swap http→ws, https→wss.
 export const WS_URL =

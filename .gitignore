@@ -11,6 +11,11 @@ coverage
 .turbo
 .pnpm-store
 
+# Test artifacts
+test-results/
+playwright-report/
+e2e/screenshots/
+
 # Prisma
 packages/db/prisma/migrations/.cache
 
