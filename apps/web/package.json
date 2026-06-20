@@ -10,10 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@prisma/client": "5.22.0",
     "next": "16.2.9",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "@prisma/client": "5.22.0"
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

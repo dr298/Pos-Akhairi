@@ -236,6 +236,7 @@ model Payment {
   id            String        @id @default(cuid())
   orderId       String        @map("order_id")
   order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider      String        @default("CASH")
   method        PaymentMethod @default(PENDING)
   status        PaymentStatus @default(PENDING)
   amountCents   Int           @map("amount_cents")
