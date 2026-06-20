@@ -56,7 +56,7 @@ async function main() {
     { name: 'Pelengkap',  sortOrder: 3 },
     { name: 'Minuman',    sortOrder: 4 },
   ];
-  const categories = [];
+  const categories: Array<{ id: string; name: string; sortOrder: number }> = [];
   for (const c of categoriesData) {
     const cat = await prisma.menuCategory.upsert({
       where: { id: `cat-${c.name.toLowerCase()}` },

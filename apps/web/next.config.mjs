@@ -4,6 +4,7 @@ const nextConfig = {
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
-  turbopack: { root: '/repo/apps/web' },
+  // Hoisted monorepo: tell Turbopack to look for next/ in the workspace root
+  turbopack: { root: '/repo' },
 };
 export default nextConfig;
