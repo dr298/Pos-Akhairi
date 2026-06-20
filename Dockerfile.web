@@ -23,6 +23,7 @@ COPY --from=deps /repo/node_modules /repo/node_modules
 COPY --from=deps /repo/package.json /repo/package.json
 COPY apps/web/package.json ./
 COPY apps/web/next.config.mjs ./
+COPY apps/web/postcss.config.mjs ./
 COPY apps/web/tsconfig.json ./
 COPY apps/web/next-env.d.ts ./
 COPY apps/web/src ./src

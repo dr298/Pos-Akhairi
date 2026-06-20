@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type User } from '@/lib/api';
-import { clearAuthed, markAuthed } from '@/lib/auth';
+import { api, ApiError, type User } from '@/lib/api';
+import { clearAuthed, isAuthed, markAuthed } from '@/lib/auth';
 
 interface AuthState {
   user: User | null;
@@ -21,13 +21,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const refresh = useCallback(async () => {
+    // Skip the /api/auth/me round-trip on public pages (login, etc.) where
+    // we know there's no session — avoids a 401 in the browser console.
+    if (!isAuthed()) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     try {
       const res = await api.me();
       setUser(res.user);
-      markAuthed();
-    } catch {
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        setUser(null);
+        clearAuthed();
+        return;
+      }
       setUser(null);
       clearAuthed();
+      console.error('Auth refresh failed:', e);
     } finally {
       setLoading(false);
     }

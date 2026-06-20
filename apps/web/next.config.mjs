@@ -15,13 +15,15 @@ const nextConfig = {
   ...(hasRepoRoot ? { turbopack: { root: repoRoot } } : {}),
   // Proxy /api/* from the browser → API container. Browser sees same-origin
   // (pos.akhairi.com/api/login), Next.js forwards server-side to
-  // the API container at api:8787 (docker service name in the compose
-  // network). Cookie flows naturally (no CORS).
+  // the API container. The host is read from API_PROXY_TARGET (defaults to
+  // the docker service name `pos-api` for the standalone container; for
+  // docker compose, override to `api`). Cookie flows naturally (no CORS).
   async rewrites() {
+    const apiHost = process.env.API_PROXY_TARGET || 'pos-api:8787';
     return [
       {
         source: '/api/:path*',
-        destination: `http://api:8787/api/:path*`,
+        destination: `http://${apiHost}/api/:path*`,
       },
     ];
   },

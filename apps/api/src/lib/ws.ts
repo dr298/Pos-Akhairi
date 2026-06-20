@@ -7,7 +7,7 @@
 //
 // Exposes upgradeWebSocket() that hooks into Hono via a NodeServer upgrade.
 
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Duplex } from 'node:stream';
 
@@ -29,10 +29,6 @@ function makeAcceptKey(reqKey: string): string {
   return createHash('sha1').update(reqKey + WS_MAGIC).digest('base64');
 }
 
-function makeMaskKey(): Buffer {
-  return randomBytes(4);
-}
-
 function sendFrame(
   socket: Duplex,
   payload: Buffer,
@@ -43,16 +39,16 @@ function sendFrame(
   if (len < 126) {
     header = Buffer.alloc(2);
     header[0] = 0x80 | opcode; // FIN=1
-    header[1] = 0x80 | len; // MASK=0 (server-to-client)
+    header[1] = len; // MASK=0 (server-to-client frames MUST NOT be masked per RFC 6455 §5.1)
   } else if (len < 65536) {
     header = Buffer.alloc(4);
     header[0] = 0x80 | opcode;
-    header[1] = 0x80 | 126;
+    header[1] = 126;
     header.writeUInt16BE(len, 2);
   } else {
     header = Buffer.alloc(10);
     header[0] = 0x80 | opcode;
-    header[1] = 0x80 | 127;
+    header[1] = 127;
     header.writeBigUInt64BE(BigInt(len), 2);
   }
   socket.write(Buffer.concat([header, payload]));

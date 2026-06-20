@@ -6,6 +6,11 @@ const EMAIL = process.env.E2E_EMAIL || 'owner@bkj.id';
 const PASS = process.env.E2E_PASSWORD || 'password123';
 
 async function loginViaApiAndInject(context: import('@playwright/test').BrowserContext, email = EMAIL, pass = PASS) {
+  // Set the localStorage flag BEFORE the page loads, so AuthProvider sees it
+  // on the first render and calls /api/auth/me to validate the cookie.
+  await context.addInitScript(() => {
+    try { window.localStorage.setItem('pos:authed', '1'); } catch {}
+  });
   const ctx = await request.newContext({ baseURL: BASE });
   const r = await ctx.post('/api/auth/login', {
     data: { email, password: pass },
@@ -19,9 +24,6 @@ async function loginViaApiAndInject(context: import('@playwright/test').BrowserC
 }
 
 async function openAndWaitForUser(page: import('@playwright/test').Page) {
-  // AuthProvider calls /api/auth/me on mount during page load. We don't need to
-  // wait for that specific response — networkidle + a content check is enough.
-  // waitForFunction: body has content AND doesn't show "Memuat…"
   await page.waitForFunction(
     () => {
       const t = document.body.innerText || '';
@@ -29,7 +31,6 @@ async function openAndWaitForUser(page: import('@playwright/test').Page) {
     },
     { timeout: 15000 },
   );
-  // Also wait a beat for client-side data fetches
   await page.waitForLoadState('networkidle');
 }
 
@@ -82,22 +83,8 @@ test('S3: delivery inbox page renders', async ({ browser }) => {
 test('S4: chain report (owner) renders with branch data', async ({ browser }) => {
   const ctx = await browser.newContext();
   await loginViaApiAndInject(ctx);
-  // Log cookies immediately after injection
-  const cookiesAfter = await ctx.cookies();
-  console.log('  cookies after inject:', cookiesAfter.map(c => `${c.name}@${c.domain} path=${c.path} sameSite=${c.sameSite}`));
   const page = await ctx.newPage();
   page.on('console', (msg) => console.log(`  [browser console] ${msg.type()}: ${msg.text()}`));
-  page.on('response', (r) => {
-    if (r.url().includes('/api/auth/') || r.url().includes('/api/reports/chain')) {
-      console.log(`  [response] ${r.status()} ${r.url()}`);
-    }
-  });
-  page.on('request', (r) => {
-    if (r.url().includes('/api/')) {
-      const cookieHeader = r.headers()['cookie'] || '(none)';
-      console.log(`  [request] ${r.method()} ${r.url()} cookie=${cookieHeader.slice(0, 50)}...`);
-    }
-  });
   await page.goto(`${BASE}/pos/chain`, { waitUntil: 'networkidle' });
   await openAndWaitForUser(page);
   await page.screenshot({ path: 'e2e/screenshots/r-05-chain.png', fullPage: true });
