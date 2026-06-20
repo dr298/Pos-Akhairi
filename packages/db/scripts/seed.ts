@@ -10,43 +10,48 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('[seed] starting');
 
-  // 1. Branch
-  const branch = await prisma.branch.upsert({
-    where: { code: 'BKJ-PASAR-LAMA' },
-    update: {},
-    create: {
-      code: 'BKJ-PASAR-LAMA',
-      name: 'Bakmie Kota Juang - Pasar Lama',
-      address: 'Jl. Pasar Lama No. 1, Tangerang',
-      city: 'Tangerang',
-      phone: '+62-21-555-0101',
-      timezone: 'Asia/Jakarta',
-    },
-  });
-  console.log(`[seed] branch: ${branch.code} (${branch.id})`);
+  // 1. Branches
+  const branchCodes = [
+    { code: 'BKJ-PASAR-LAMA', name: 'Bakmie Kota Juang - Pasar Lama', address: 'Jl. Pasar Lama No. 1, Tangerang', phone: '+62-21-555-0101' },
+    { code: 'BKJ-CIPUTAT-01', name: 'Bakmie Kota Juang - Ciputat',    address: 'Jl. Ciputat Raya No. 50, Tangerang Selatan', phone: '+62-21-555-0102' },
+  ];
+  const branches = [];
+  for (const b of branchCodes) {
+    const branch = await prisma.branch.upsert({
+      where: { code: b.code },
+      update: { name: b.name, address: b.address, phone: b.phone, city: 'Tangerang', timezone: 'Asia/Jakarta' },
+      create: { code: b.code, name: b.name, address: b.address, city: 'Tangerang', phone: b.phone, timezone: 'Asia/Jakarta' },
+    });
+    branches.push(branch);
+    console.log(`[seed] branch: ${branch.code} (${branch.id})`);
+  }
 
-  // 2. Users (owner/manager/cashier) — password: password123
+  // 2. Users (owner/manager/cashier/cashier2) — password: password123
   const passwordHash = await bcrypt.hash('password123', 10);
   const usersData = [
-    { email: 'owner@bkj.id',   name: 'Harry (Owner)',   role: 'OWNER'   as const },
-    { email: 'manager@bkj.id', name: 'Sinta (Manager)', role: 'MANAGER' as const },
-    { email: 'cashier@bkj.id', name: 'Budi (Cashier)',  role: 'CASHIER' as const },
+    { email: 'owner@bkj.id',   name: 'Harry (Owner)',    role: 'OWNER'   as const },
+    { email: 'manager@bkj.id', name: 'Sinta (Manager)',  role: 'MANAGER' as const },
+    { email: 'cashier@bkj.id',  name: 'Budi (Cashier)',   role: 'CASHIER' as const, branchCode: 'BKJ-PASAR-LAMA' },
+    { email: 'cashier2@bkj.id', name: 'Andi (Cashier 2)', role: 'CASHIER' as const, branchCode: 'BKJ-CIPUTAT-01' },
   ];
   const users = [];
   for (const u of usersData) {
+    const userBranch = u.branchCode
+      ? branches.find(b => b.code === u.branchCode)
+      : branches[0];
     const user = await prisma.user.upsert({
       where: { email: u.email },
-      update: { name: u.name, role: u.role, branchId: branch.id, isActive: true },
+      update: { name: u.name, role: u.role, branchId: userBranch?.id, isActive: true },
       create: {
         email: u.email,
         passwordHash,
         name: u.name,
         role: u.role,
-        branchId: branch.id,
+        branchId: userBranch?.id,
       },
     });
     users.push(user);
-    console.log(`[seed] user: ${user.email} (${user.role})`);
+    console.log(`[seed] user: ${user.email} (${user.role}) branch=${userBranch?.code}`);
   }
 
   // 3. Menu categories
@@ -81,6 +86,7 @@ async function main() {
     { sku: 'BKJ-010', name: 'Es Jeruk',             desc: 'Jeruk peras dingin',                        price: 12000, cat: 'Minuman'   },
   ];
 
+  for (const branch of branches) {
   for (const m of menusData) {
     await prisma.menuItem.upsert({
       where: { branchId_sku: { branchId: branch.id, sku: m.sku } },
@@ -97,7 +103,7 @@ async function main() {
       },
     });
   }
-  console.log(`[seed] menus: ${menusData.length} items`);
+  console.log(`[seed] menus for ${branch.code}: ${menusData.length} items`);
 
   // 5. Inventory — basic raw materials
   const invData = [
@@ -122,9 +128,9 @@ async function main() {
       },
     });
   }
-  console.log(`[seed] inventory: ${invData.length} items`);
+  console.log(`[seed] inventory for ${branch.code}: ${invData.length} items`);
 
-  // 6. Discounts (S2.5)
+  // 6. Discounts (S2.5) — per branch
   const discountsData = [
     {
       code: 'WELCOME10',
@@ -151,7 +157,7 @@ async function main() {
   ];
   for (const d of discountsData) {
     await prisma.discount.upsert({
-      where: { code: d.code },
+      where: { branchId_code: { branchId: branch.id, code: d.code } },
       update: {
         name: d.name,
         type: d.type,
@@ -173,7 +179,8 @@ async function main() {
       },
     });
   }
-  console.log(`[seed] discounts: ${discountsData.length} items`);
+  console.log(`[seed] discounts for ${branch.code}: ${discountsData.length} items`);
+  } // end for each branch
 
   console.log('[seed] done');
 }

@@ -26,3 +26,9 @@ packages/db/prisma/migrations/.cache
 # Docker
 postgres-data
 redis-data
+
+e2e/full-qa/screenshots/
+e2e/full-qa/results/
+evidence-site/data
+evidence-site/journeys
+evidence-site/screenshots

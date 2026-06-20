@@ -157,7 +157,9 @@ discountRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
   }
 
   if (parsed.data.code) {
-    const dup = await prisma.discount.findUnique({ where: { code: parsed.data.code } });
+    const dup = await prisma.discount.findFirst({
+      where: { branchId: user.branchId, code: parsed.data.code },
+    });
     if (dup) return fail(c, 'CodeTaken', 'Discount code already exists', 409);
   }
 

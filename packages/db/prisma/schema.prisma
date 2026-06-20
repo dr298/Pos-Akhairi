@@ -483,7 +483,7 @@ model Discount {
   id               String       @id @default(cuid())
   branchId         String       @map("branch_id")
   branch           Branch       @relation(fields: [branchId], references: [id])
-  code             String?      @unique
+  code             String?      @map("code")
   name             String
   type             DiscountType
   // For PERCENTAGE: value is 0-100 (integer percent).
@@ -501,6 +501,7 @@ model Discount {
 
   orders Order[]
 
+  @@unique([branchId, code])
   @@index([branchId, isActive])
   @@index([code])
   @@map("discounts")

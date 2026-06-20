@@ -1,0 +1,16 @@
+services:
+  evidence:
+    build: ./evidence-site
+    container_name: pos-evidence
+    restart: unless-stopped
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./e2e/full-qa/results:/app/data:ro
+      - ./e2e/full-qa/screenshots:/app/screenshots:ro
+    networks:
+      - pos-evidence-net
+networks:
+  pos-evidence-net:
+    name: pos-evidence-net
+    driver: bridge
