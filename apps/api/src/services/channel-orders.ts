@@ -131,6 +131,23 @@ export async function consolidateChannelOrder(input: ConsolidateInput) {
     }
   }
 
+  // If the new status is CANCELLED/REJECTED and there's a linked local order,
+  // reverse it (void if still OPEN, refund if PAID).
+  if (existing && existing.status !== status && (status === 'CANCELLED' || status === 'REJECTED')) {
+    if (existing.orderId) {
+      await reverseLocalOrderForChannelCancellation(
+        existing.orderId,
+        status,
+        `channel order ${status.toLowerCase()} by aggregator`,
+      ).catch((e) => {
+        logger.warn(
+          { err: (e as Error).message, channelOrderId: row.id, localOrderId: existing.orderId },
+          'failed to reverse local order for channel cancellation',
+        );
+      });
+    }
+  }
+
   // Broadcast WS event
   wsBus.broadcast(
     {
@@ -304,6 +321,23 @@ export async function updateChannelOrderStatus(
     }),
   ]);
 
+  // If we're cancelling/rejecting, also reverse the local order (void if OPEN,
+  // refund if PAID). Best-effort — never throw out of here.
+  if ((status === 'CANCELLED' || status === 'REJECTED') && co.orderId) {
+    try {
+      await reverseLocalOrderForChannelCancellation(
+        co.orderId,
+        status,
+        note ?? `channel order ${status.toLowerCase()} by ${actor}`,
+      );
+    } catch (e) {
+      logger.warn(
+        { err: (e as Error).message, channelOrderId: co.id, localOrderId: co.orderId },
+        'failed to reverse local order on channel cancellation',
+      );
+    }
+  }
+
   // Push to aggregator (best-effort)
   if (client) {
     try {
@@ -358,4 +392,110 @@ export async function updateChannelOrderStatus(
     },
     co.branchId,
   );
+}
+
+/**
+ * Reverse a local Order because the aggregator cancelled the underlying
+ * channel order. If the order is still OPEN, void it. If PAID, refund it.
+ * No-op if already VOIDED/REFUNDED.
+ *
+ * Called automatically by consolidateChannelOrder when an aggregator reports
+ * CANCELLED/REJECTED on an already-accepted channel order.
+ */
+export async function reverseLocalOrderForChannelCancellation(
+  orderId: string,
+  channelStatus: 'CANCELLED' | 'REJECTED',
+  reason: string,
+): Promise<{ action: 'voided' | 'refunded' | 'noop'; status: string }> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { payments: true },
+  });
+  if (!order) {
+    logger.warn({ orderId }, 'reverseLocalOrder: order not found');
+    return { action: 'noop', status: 'not_found' };
+  }
+  if (order.status === 'VOIDED' || order.status === 'REFUNDED') {
+    return { action: 'noop', status: order.status };
+  }
+
+  const actor = (await prisma.user.findFirst({ where: { branchId: order.branchId, role: 'OWNER' } }))?.id
+    ?? order.openedById;
+
+  if (order.status === 'OPEN') {
+    // Void it
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'VOIDED',
+        voidedAt: new Date(),
+        voidedById: actor,
+        voidReason: reason,
+      },
+    });
+    logger.info(
+      { orderId, channelStatus, reason },
+      'local order voided (channel cancellation)',
+    );
+    wsBus.broadcast(
+      {
+        type: 'order.voided',
+        orderId,
+        orderNumber: order.orderNumber,
+        totalCents: order.totalCents,
+        status: 'VOIDED',
+        branchId: order.branchId,
+        at: Date.now(),
+      },
+      order.branchId,
+    );
+    return { action: 'voided', status: 'VOIDED' };
+  }
+
+  if (order.status === 'PAID') {
+    // Refund it via CASH (or mark original as REFUNDED)
+    // For channel cancellations we always refund the full amount back to the
+    // aggregator — they will handle the customer refund. So we mark the
+    // original payment as REFUNDED rather than create a new CASH payment.
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: 'REFUNDED',
+          voidedAt: new Date(),
+          voidedById: actor,
+          voidReason: reason,
+        },
+      });
+      // Mark all PAID payments as REFUNDED
+      await tx.payment.updateMany({
+        where: { orderId, status: 'PAID' },
+        data: { status: 'REFUNDED' },
+      });
+    });
+    logger.info(
+      { orderId, channelStatus, reason },
+      'local order refunded (channel cancellation)',
+    );
+    wsBus.broadcast(
+      {
+        type: 'order.refunded',
+        orderId,
+        orderNumber: order.orderNumber,
+        totalCents: order.totalCents,
+        status: 'REFUNDED',
+        branchId: order.branchId,
+        at: Date.now(),
+      },
+      order.branchId,
+    );
+    return { action: 'refunded', status: 'REFUNDED' };
+  }
+
+  // PREP / DONE / etc — too late to fully reverse. Just record the event.
+  logger.warn(
+    { orderId, currentStatus: order.status, channelStatus },
+    'channel cancellation arrived for non-reversible order status; manual review needed',
+  );
+  return { action: 'noop', status: order.status };
 }

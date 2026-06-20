@@ -8,13 +8,14 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
-const NAV: { href: string; label: string; match: (p: string) => boolean; managerOnly?: boolean }[] = [
+const NAV: { href: string; label: string; match: (p: string) => boolean; managerOnly?: boolean; ownerOnly?: boolean }[] = [
   { href: '/pos', label: 'Order', match: (p) => p === '/pos' },
   { href: '/pos/history', label: 'Riwayat', match: (p) => p.startsWith('/pos/history') },
   { href: '/pos/delivery', label: 'Delivery', match: (p) => p.startsWith('/pos/delivery') },
   { href: '/pos/shift', label: 'Shift', match: (p) => p.startsWith('/pos/shift') },
   { href: '/pos/discounts', label: 'Diskon', match: (p) => p.startsWith('/pos/discounts'), managerOnly: true },
   { href: '/pos/channels', label: 'Channels', match: (p) => p.startsWith('/pos/channels'), managerOnly: true },
+  { href: '/pos/chain', label: 'Chain', match: (p) => p.startsWith('/pos/chain'), ownerOnly: true },
   { href: '/display', label: 'Display', match: () => false },
 ];
 
@@ -67,7 +68,11 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-1">
-            {NAV.filter((n) => !n.managerOnly || user.role === 'OWNER' || user.role === 'MANAGER').map((n) => (
+            {NAV.filter((n) => {
+              if (n.ownerOnly && user.role !== 'OWNER') return false;
+              if (n.managerOnly && user.role !== 'OWNER' && user.role !== 'MANAGER') return false;
+              return true;
+            }).map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
@@ -99,7 +104,11 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="md:hidden flex items-center gap-1 px-2 pb-2 overflow-x-auto">
-          {NAV.filter((n) => !n.managerOnly || user.role === 'OWNER' || user.role === 'MANAGER').map((n) => (
+          {NAV.filter((n) => {
+            if (n.ownerOnly && user.role !== 'OWNER') return false;
+            if (n.managerOnly && user.role !== 'OWNER' && user.role !== 'MANAGER') return false;
+            return true;
+          }).map((n) => (
             <Link
               key={n.href}
               href={n.href}

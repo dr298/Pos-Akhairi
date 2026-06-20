@@ -5,12 +5,15 @@
 import type { WSContext } from '../lib/ws.js';
 
 export interface OrderEvent {
-  type: 'order.created' | 'order.paid' | 'order.voided' | 'order.refunded';
-  orderId: string;
-  orderNumber: string;
+  type: 'order.created' | 'order.paid' | 'order.voided' | 'order.refunded' | 'day.closed';
+  orderId?: string;
+  orderNumber?: string;
   totalCents?: number;
   status?: string;
   branchId?: string;
+  dailyCloseId?: string;
+  businessDate?: string;
+  totals?: Record<string, number | string>;
   at: number;
 }
 

@@ -92,6 +92,15 @@ export interface AggregatorClient {
   verifyWebhook(headers: Record<string, string>, body: string): boolean;
   /** Optional: status to be polled periodically. */
   pollIntervalSeconds(): number;
+  /** Fetch the aggregator's daily report (commission, gross, order count). */
+  getDailyReport(date: string): Promise<AggregatorDailyReport>;
+}
+
+/** Aggregator's view of the day's activity, used for reconciliation. */
+export interface AggregatorDailyReport {
+  grossCents: number;
+  commissionCents: number;
+  orderCount: number;
 }
 
 export class AggregatorError extends Error {

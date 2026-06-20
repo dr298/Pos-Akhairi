@@ -307,3 +307,92 @@ ${orders
 
   return fail(c, 'ValidationError', "format must be 'csv' or 'pdf' (or 'html')", 400);
 });
+
+// Sprint 4.4: chain report (OWNER only, aggregates across all branches)
+reportRoutes.get('/chain', requireRole('OWNER'), async (c) => {
+  const date = c.req.query('date') ?? new Date().toISOString().slice(0, 10);
+  const start = new Date(`${date}T00:00:00.000Z`);
+  const end = new Date(`${date}T23:59:59.999Z`);
+
+  const [branches, orders, allOrderIds, dailyCloses, commissionMismatches] = await Promise.all([
+    prisma.branch.findMany({
+      where: { isActive: true },
+      orderBy: { code: 'asc' },
+    }),
+    prisma.order.findMany({
+      where: { openedAt: { gte: start, lte: end } },
+      select: { id: true, branchId: true, status: true, totalCents: true },
+    }),
+    prisma.order.findMany({
+      where: { openedAt: { gte: start, lte: end } },
+      select: { id: true },
+    }),
+    prisma.dailyClose.findMany({
+      where: { businessDate: start },
+      select: { branchId: true, grossCents: true, netCents: true, status: true },
+    }),
+    prisma.commissionReport.findMany({
+      where: { businessDate: start, status: 'MISMATCH', resolvedAt: null },
+      select: { branchId: true, channel: true, deltaCents: true },
+    }),
+  ]);
+  const orderIdToBranch = new Map(orders.map((o) => [o.id, o.branchId]));
+  const payments = allOrderIds.length
+    ? await prisma.payment.findMany({
+        where: {
+          paidAt: { gte: start, lte: end },
+          orderId: { in: allOrderIds.map((o) => o.id) },
+        },
+        select: { orderId: true, method: true, amountCents: true },
+      })
+    : [];
+  const paymentsWithBranch = payments.map((p) => ({
+    ...p,
+    branchId: orderIdToBranch.get(p.orderId) ?? '',
+  }));
+
+  const byBranch = branches.map((b) => {
+    const branchOrders = orders.filter((o) => o.branchId === b.id);
+    const branchPayments = paymentsWithBranch.filter((p) => p.branchId === b.id);
+    const branchClose = dailyCloses.find((dc) => dc.branchId === b.id);
+    const branchMismatches = commissionMismatches.filter((cm) => cm.branchId === b.id);
+    return {
+      branch: { id: b.id, code: b.code, name: b.name, city: b.city },
+      orders: {
+        total: branchOrders.length,
+        paid: branchOrders.filter((o) => o.status === 'PAID').length,
+        voided: branchOrders.filter((o) => o.status === 'VOIDED').length,
+        refunded: branchOrders.filter((o) => o.status === 'REFUNDED').length,
+        grossCents: branchOrders
+          .filter((o) => o.status === 'PAID' || o.status === 'REFUNDED')
+          .reduce((s, o) => s + o.totalCents, 0),
+      },
+      payments: branchPayments.reduce(
+        (acc, p) => {
+          acc[p.method] = (acc[p.method] ?? 0) + p.amountCents;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
+      dailyClose: branchClose
+        ? {
+            status: branchClose.status,
+            grossCents: branchClose.grossCents,
+            netCents: branchClose.netCents,
+          }
+        : null,
+      mismatches: branchMismatches.length,
+    };
+  });
+
+  const totals = {
+    branches: branches.length,
+    orders: orders.length,
+    grossCents: orders
+      .filter((o) => o.status === 'PAID' || o.status === 'REFUNDED')
+      .reduce((s, o) => s + o.totalCents, 0),
+    mismatches: commissionMismatches.length,
+  };
+
+  return ok(c, { date, totals, branches: byBranch });
+});

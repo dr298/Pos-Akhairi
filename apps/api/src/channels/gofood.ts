@@ -9,6 +9,7 @@ import { createHmac } from 'node:crypto';
 import type {
   AggregatorClient,
   AggregatorConfig,
+  AggregatorDailyReport,
   AggregatorMenuItem,
   AggregatorOrder,
 } from './types.js';
@@ -31,6 +32,28 @@ export class GoFoodClient implements AggregatorClient {
 
   pollIntervalSeconds(): number {
     return 30;
+  }
+
+  async getDailyReport(_date: string): Promise<AggregatorDailyReport> {
+    // Sprint 4 stub: real impl would call GoFood Partner API
+    // /v1/orders/reports?date=... For now: honour the env override
+    // MOCK_AGGREGATOR_GROSS_CENTS / MOCK_AGGREGATOR_COMMISSION_CENTS to allow
+    // E2E testing of MATCH/MISMATCH flows.
+    const gross = parseInt(process.env.MOCK_AGGREGATOR_GROSS_CENTS ?? '0', 10);
+    const commission = parseInt(
+      process.env.MOCK_AGGREGATOR_COMMISSION_CENTS ?? '0',
+      10,
+    );
+    if (gross > 0 || commission > 0) {
+      return {
+        grossCents: gross,
+        commissionCents: commission,
+        orderCount: parseInt(process.env.MOCK_AGGREGATOR_ORDER_COUNT ?? '0', 10),
+      };
+    }
+    throw new Error(
+      'GoFood getDailyReport not yet implemented upstream; reconciliation will show FETCH_FAILED',
+    );
   }
 
   private async ensureToken(): Promise<string> {

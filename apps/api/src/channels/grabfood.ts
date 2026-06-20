@@ -6,6 +6,7 @@ import { createHmac } from 'node:crypto';
 import type {
   AggregatorClient,
   AggregatorConfig,
+  AggregatorDailyReport,
   AggregatorMenuItem,
   AggregatorOrder,
 } from './types.js';
@@ -25,6 +26,12 @@ export class GrabFoodClient implements AggregatorClient {
 
   pollIntervalSeconds(): number {
     return 30;
+  }
+
+  async getDailyReport(_date: string): Promise<AggregatorDailyReport> {
+    // Stub: real impl would call GrabFood partner reporting endpoint.
+    // For now: throw so reconciler records FETCH_FAILED and ops knows.
+    throw new Error('GrabFood getDailyReport not yet implemented upstream');
   }
 
   private sign(method: string, path: string, body: string, ts: string): string {

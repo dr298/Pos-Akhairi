@@ -357,6 +357,36 @@ export interface ChannelOrderEvent {
   createdAt: string;
 }
 
+export interface ChainReportBranch {
+  id: string;
+  code: string;
+  name: string;
+  city: string | null;
+}
+export interface ChainReportEntry {
+  branch: ChainReportBranch;
+  orders: {
+    total: number;
+    paid: number;
+    voided: number;
+    refunded: number;
+    grossCents: number;
+  };
+  payments: Record<string, number>;
+  dailyClose: { status: string; grossCents: number; netCents: number } | null;
+  mismatches: number;
+}
+export interface ChainReport {
+  date: string;
+  totals: {
+    branches: number;
+    orders: number;
+    grossCents: number;
+    mismatches: number;
+  };
+  branches: ChainReportEntry[];
+}
+
 export interface ChannelOrderDetail extends ChannelOrder {
   events: ChannelOrderEvent[];
 }
@@ -514,6 +544,9 @@ export const api = {
   // Reports
   getDailyReport: (date: string) =>
     request<{ data: unknown }>(`/api/reports/daily?date=${encodeURIComponent(date)}`),
+  // Sprint 4.4: chain report (OWNER only)
+  getChainReport: (date: string) =>
+    request<{ data: ChainReport }>(`/api/reports/chain?date=${encodeURIComponent(date)}`),
 
   // Channels (Sprint 3)
   listChannels: () => request<{ data: ChannelConfig[] }>('/api/channels'),
