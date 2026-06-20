@@ -12,6 +12,11 @@ import { orderRoutes } from './routes/orders.js';
 import { shiftRoutes } from './routes/shifts.js';
 import { reportRoutes } from './routes/reports.js';
 import { discountRoutes } from './routes/discounts.js';
+import { channelRoutes } from './routes/channels.js';
+import { channelOrderRoutes } from './routes/channel-orders.js';
+import { channelAnalyticsRoutes } from './routes/channel-analytics.js';
+import { webhookRoutes } from './routes/webhooks.js';
+import { startChannelPoller } from './services/channel-poller.js';
 import { handleWebSocketUpgrade } from './lib/ws.js';
 import { wsBus } from './lib/ws-bus.js';
 import { readToken } from './middleware/auth.js';
@@ -39,6 +44,10 @@ app.route('/api/orders', orderRoutes);
 app.route('/api/shifts', shiftRoutes);
 app.route('/api/reports', reportRoutes);
 app.route('/api/discounts', discountRoutes);
+app.route('/api/channels', channelRoutes);
+app.route('/api/channel-orders', channelOrderRoutes);
+app.route('/api/channel-analytics', channelAnalyticsRoutes);
+app.route('/api/webhooks', webhookRoutes);
 
 app.notFound((c) => c.json({ error: 'Not Found', path: c.req.path }, 404));
 app.onError((err, c) => {
@@ -125,6 +134,12 @@ server.on('upgrade', (req, socket, head) => {
 
 server.listen(port, host, () => {
   logger.info({ port, host }, 'pos-api listening');
+  // Start the channel poller in the background. It reads enabled
+  // ChannelConfigs every pollIntervalSec and pulls new orders.
+  if (process.env.CHANNEL_POLLER_ENABLED !== 'false') {
+    startChannelPoller();
+    logger.info('channel poller started');
+  }
 });
 
 export default app;

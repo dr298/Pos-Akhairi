@@ -11,8 +11,10 @@ import { cn } from '@/lib/utils';
 const NAV: { href: string; label: string; match: (p: string) => boolean; managerOnly?: boolean }[] = [
   { href: '/pos', label: 'Order', match: (p) => p === '/pos' },
   { href: '/pos/history', label: 'Riwayat', match: (p) => p.startsWith('/pos/history') },
+  { href: '/pos/delivery', label: 'Delivery', match: (p) => p.startsWith('/pos/delivery') },
   { href: '/pos/shift', label: 'Shift', match: (p) => p.startsWith('/pos/shift') },
   { href: '/pos/discounts', label: 'Diskon', match: (p) => p.startsWith('/pos/discounts'), managerOnly: true },
+  { href: '/pos/channels', label: 'Channels', match: (p) => p.startsWith('/pos/channels'), managerOnly: true },
   { href: '/display', label: 'Display', match: () => false },
 ];
 

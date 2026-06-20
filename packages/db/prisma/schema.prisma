@@ -114,6 +114,8 @@ model Branch {
   menuItems  MenuItem[]
   inventory  InventoryItem[]
   discounts  Discount[]
+  channelConfigs ChannelConfig[]
+  channelOrders  ChannelOrder[]
 
   @@map("branches")
 }
@@ -233,6 +235,7 @@ model Order {
 
   items         OrderItem[]
   payments      Payment[]
+  channelOrders ChannelOrder[]
 
   @@unique([branchId, orderNumber])
   @@index([status])
@@ -364,4 +367,117 @@ model Discount {
   @@index([branchId, isActive])
   @@index([code])
   @@map("discounts")
+}
+
+// ─── Sprint 3: Delivery aggregators ──────────────────────────────────────────
+
+enum Channel {
+  POS          // order created directly in POS
+  GOFOOD
+  GRABFOOD
+  SHOPEEFOOD
+  MANUAL       // phone / WhatsApp / in-person
+}
+
+enum ChannelOrderStatus {
+  PENDING        // received from channel, not yet accepted
+  ACCEPTED       // accepted by kitchen
+  REJECTED       // rejected (out of stock, closed, etc.)
+  PREPARING      // being cooked
+  READY          // ready for pickup by driver
+  PICKED_UP      // driver picked up
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model ChannelConfig {
+  id              String   @id @default(cuid())
+  branchId        String   @map("branch_id")
+  branch          Branch   @relation(fields: [branchId], references: [id])
+  channel         Channel
+  enabled         Boolean  @default(false)
+  storeId         String?  @map("store_id")
+  apiKeyEncrypted String?  @map("api_key_encrypted")
+  apiSecretEncrypted String? @map("api_secret_encrypted")
+  webhookSecret   String?  @map("webhook_secret")
+  // Polling settings (for fallback)
+  pollIntervalSec Int      @default(60) @map("poll_interval_sec")
+  lastPolledAt    DateTime? @map("last_polled_at")
+  // Aggregator-specific JSON config (store hours, delivery radius, etc.)
+  configJson      Json?    @map("config_json")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  orders          ChannelOrder[]
+
+  @@unique([branchId, channel])
+  @@index([channel, enabled])
+  @@map("channel_configs")
+}
+
+model ChannelOrder {
+  id              String            @id @default(cuid())
+  branchId        String            @map("branch_id")
+  branch          Branch            @relation(fields: [branchId], references: [id])
+  channel         Channel
+  channelConfigId String?           @map("channel_config_id")
+  channelConfig   ChannelConfig?    @relation(fields: [channelConfigId], references: [id])
+  externalId      String            @map("external_id")  // aggregator order id
+  externalRef     String?           @map("external_ref") // human ref
+  status          ChannelOrderStatus @default(PENDING)
+  // Customer & delivery
+  customerName    String?           @map("customer_name")
+  customerPhone   String?           @map("customer_phone")
+  deliveryAddress String?           @map("delivery_address")
+  deliveryLat     Decimal?          @map("delivery_lat") @db.Decimal(9, 6)
+  deliveryLng     Decimal?          @map("delivery_lng") @db.Decimal(9, 6)
+  deliveryNotes   String?           @map("delivery_notes")
+  driverName      String?           @map("driver_name")
+  driverPhone     String?           @map("driver_phone")
+  // Money
+  subtotalCents   Int               @default(0) @map("subtotal_cents")
+  deliveryFeeCents Int              @default(0) @map("delivery_fee_cents")
+  serviceFeeCents Int               @default(0) @map("service_fee_cents")
+  discountCents   Int               @default(0) @map("discount_cents")
+  commissionCents Int               @default(0) @map("commission_cents")
+  totalCents      Int               @default(0) @map("total_cents")
+  // Linkage to local order (created when accepted)
+  orderId         String?           @map("order_id")
+  order           Order?            @relation(fields: [orderId], references: [id])
+  // Payload
+  itemsJson       Json              @map("items_json")
+  rawPayload      Json?             @map("raw_payload")
+  // Lifecycle
+  receivedAt      DateTime          @default(now()) @map("received_at")
+  acceptedAt      DateTime?         @map("accepted_at")
+  preparedAt      DateTime?         @map("prepared_at")
+  deliveredAt     DateTime?         @map("delivered_at")
+  cancelledAt     DateTime?         @map("cancelled_at")
+  cancelReason    String?           @map("cancel_reason")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  events          ChannelOrderEvent[]
+
+  @@unique([channel, externalId])
+  @@index([branchId, status])
+  @@index([channel, status])
+  @@index([orderId])
+  @@map("channel_orders")
+}
+
+model ChannelOrderEvent {
+  id              String       @id @default(cuid())
+  channelOrderId  String       @map("channel_order_id")
+  channelOrder    ChannelOrder @relation(fields: [channelOrderId], references: [id], onDelete: Cascade)
+  status          ChannelOrderStatus
+  // For tracking who/what triggered: SYSTEM | KITCHEN | DRIVER | AGGREGATOR
+  actor           String       @default("SYSTEM")
+  note            String?
+  raw             Json?
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([channelOrderId, createdAt])
+  @@map("channel_order_events")
 }

@@ -269,6 +269,124 @@ export interface RefundRequest {
   refundMethod: 'CASH' | 'ORIGINAL';
 }
 
+// ─── Sprint 3: Delivery channels ─────────────────────────────────────────────
+
+export type Channel = 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD';
+export type ChannelOrderStatus =
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'PREPARING'
+  | 'READY'
+  | 'PICKED_UP'
+  | 'DELIVERED'
+  | 'CANCELLED'
+  | 'REFUNDED'
+  | 'REJECTED';
+
+export interface ChannelConfig {
+  id: string;
+  branchId: string;
+  channel: Channel | 'POS' | 'MANUAL';
+  enabled: boolean;
+  storeId: string | null;
+  hasApiKey: boolean;
+  hasApiSecret: boolean;
+  hasWebhookSecret: boolean;
+  pollIntervalSec: number;
+  lastPolledAt: string | null;
+  configJson: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChannelConfigUpsertInput {
+  enabled: boolean;
+  storeId: string;
+  apiKey: string;
+  apiSecret: string;
+  webhookSecret?: string;
+  pollIntervalSec?: number;
+  configJson?: Record<string, unknown>;
+}
+
+export interface ChannelOrderItem {
+  externalSku: string;
+  name: string;
+  quantity: number;
+  priceCents: number;
+  notes?: string;
+  modifiers?: { name: string; priceCents: number }[];
+}
+
+export interface ChannelOrder {
+  id: string;
+  branchId: string;
+  channel: Channel;
+  externalId: string;
+  externalRef: string | null;
+  status: ChannelOrderStatus;
+  customerName: string | null;
+  customerPhone: string | null;
+  deliveryAddress: string | null;
+  deliveryLat: string | null;
+  deliveryLng: string | null;
+  deliveryNotes: string | null;
+  driverName: string | null;
+  driverPhone: string | null;
+  subtotalCents: number;
+  deliveryFeeCents: number;
+  serviceFeeCents: number;
+  discountCents: number;
+  commissionCents: number;
+  totalCents: number;
+  orderId: string | null;
+  itemsJson: ChannelOrderItem[];
+  receivedAt: string;
+  acceptedAt: string | null;
+  preparedAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+}
+
+export interface ChannelOrderEvent {
+  id: string;
+  status: ChannelOrderStatus;
+  actor: string;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ChannelOrderDetail extends ChannelOrder {
+  events: ChannelOrderEvent[];
+}
+
+export interface ChannelAnalyticsByStatus {
+  [status: string]: number;
+}
+
+export interface ChannelAnalyticsChannel {
+  channel: string;
+  orderCount: number;
+  totalRevenueCents: number;
+  totalCommissionCents: number;
+  totalDeliveryFeeCents: number;
+  byStatus: ChannelAnalyticsByStatus;
+}
+
+export interface ChannelAnalyticsDaily {
+  day: string;
+  channel: string;
+  orderCount: number;
+  revenueCents: number;
+}
+
+export interface ChannelAnalyticsSummary {
+  windowDays: number;
+  byChannel: ChannelAnalyticsChannel[];
+  daily: ChannelAnalyticsDaily[];
+}
+
 // ─── Endpoints ───────────────────────────────────────────────────────────────
 
 export const api = {
@@ -396,6 +514,67 @@ export const api = {
   // Reports
   getDailyReport: (date: string) =>
     request<{ data: unknown }>(`/api/reports/daily?date=${encodeURIComponent(date)}`),
+
+  // Channels (Sprint 3)
+  listChannels: () => request<{ data: ChannelConfig[] }>('/api/channels'),
+  upsertChannel: (
+    channel: 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD',
+    payload: ChannelConfigUpsertInput,
+  ) =>
+    request<{ data: ChannelConfig }>(`/api/channels/${channel}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  deleteChannel: (channel: 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD') =>
+    request<{ data: { deleted: boolean } }>(`/api/channels/${channel}`, {
+      method: 'DELETE',
+    }),
+  testChannel: (channel: 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD') =>
+    request<{ data: { ok: boolean; message: string } }>(`/api/channels/${channel}/test`, {
+      method: 'POST',
+    }),
+  pollChannel: (channel: 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD') =>
+    request<{ data: { polled: number } }>(`/api/channels/${channel}/poll`, {
+      method: 'POST',
+    }),
+  syncChannelMenu: (channel: 'GOFOOD' | 'GRABFOOD' | 'SHOPEEFOOD') =>
+    // Same as pollChannel for now; future: bulk menu push
+    request<{ data: { polled: number } }>(`/api/channels/${channel}/poll`, {
+      method: 'POST',
+    }),
+
+  // Channel orders
+  listChannelOrders: (filter?: { status?: ChannelOrderStatus; channel?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (filter?.status) qs.set('status', filter.status);
+    if (filter?.channel) qs.set('channel', filter.channel);
+    if (filter?.limit) qs.set('limit', String(filter.limit));
+    const q = qs.toString();
+    return request<{ data: ChannelOrder[] }>(`/api/channel-orders${q ? `?${q}` : ''}`);
+  },
+  getChannelOrder: (id: string) =>
+    request<{ data: ChannelOrderDetail }>(`/api/channel-orders/${id}`),
+  acceptChannelOrder: (id: string, prepMinutes = 15) =>
+    request<{ data: { id: string; orderId: string; status: string } }>(
+      `/api/channel-orders/${id}/accept`,
+      { method: 'POST', body: JSON.stringify({ prepMinutes }) },
+    ),
+  rejectChannelOrder: (id: string, reason: string) =>
+    request<{ data: { id: string; status: string } }>(`/api/channel-orders/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  updateChannelOrderStatus: (id: string, status: ChannelOrderStatus, note?: string) =>
+    request<{ data: { id: string; status: string } }>(`/api/channel-orders/${id}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status, note }),
+    }),
+
+  // Channel analytics
+  getChannelAnalyticsSummary: (days = 7) =>
+    request<{ data: ChannelAnalyticsSummary }>(
+      `/api/channel-analytics/summary?days=${days}`,
+    ),
 };
 
 export { API_URL };
