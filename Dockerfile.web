@@ -15,6 +15,9 @@ WORKDIR /repo/apps/web
 ENV NEXT_TELEMETRY_DISABLED=1
 # Force production for build to avoid Next 16 prerender warnings on /_global-error
 ENV NODE_ENV=production
+# Build-time envs (NEXT_PUBLIC_* must be present at build, not runtime)
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 # Hoisted node_modules from /repo contains @next, react, etc.
 COPY --from=deps /repo/node_modules /repo/node_modules
 COPY --from=deps /repo/package.json /repo/package.json
