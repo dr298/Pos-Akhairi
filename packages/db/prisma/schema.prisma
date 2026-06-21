@@ -79,8 +79,6 @@ model User {
   passwordHash String   @map("password_hash")
   name         String
   role         UserRole @default(CASHIER)
-  branchId     String?  @map("branch_id")
-  branch       Branch?  @relation(fields: [branchId], references: [id])
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -91,12 +89,6 @@ model User {
   ordersVoided   Order[] @relation("OrderVoidedBy")
   ordersRefunded Order[] @relation("OrderRefundedBy")
 
-  // Sprint 5.5
-  branchAccess        UserBranchAccess[]
-  transfersCreated    StockTransfer[]    @relation("TransferCreated")
-  transfersSent       StockTransfer[]    @relation("TransferSent")
-  transfersReceived   StockTransfer[]    @relation("TransferReceived")
-
   // Sprint 9.5
   purchaseOrdersCreated  PurchaseOrder[] @relation("POCreated")
   purchaseOrdersApproved PurchaseOrder[] @relation("POApproved")
@@ -105,84 +97,13 @@ model User {
   // Sprint 9.9
   wasteRecorded          WasteEntry[]    @relation("WasteRecorded")
 
-  @@index([branchId])
   @@index([role])
   @@map("users")
 }
 
-model Branch {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  name      String
-  address   String?
-  city      String?
-  phone     String?
-  timezone  String   @default("Asia/Jakarta")
-  isActive  Boolean  @default(true) @map("is_active")
-  // Sprint 5.6 — branch-level PPN configuration. 0 means no PPN
-  // (use per-item taxRateBp only). Non-zero means apply this rate
-  // to any item that has taxRateBp = 0 AND useBranchPpn = true.
-  ppnPercent     Int     @default(0) @map("ppn_percent") // basis points: 1100 = 11%
-  ppnInclusive   Boolean @default(false) @map("ppn_inclusive") // true: tax included in price
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
-  users             User[]
-  orders            Order[]
-  shifts            Shift[]
-  menuItems         MenuItem[]
-  inventory         InventoryItem[]
-  discounts         Discount[]
-  channelConfigs    ChannelConfig[]
-  channelOrders     ChannelOrder[]
-  dailyCloses       DailyClose[]
-  commissionReports CommissionReport[]
 
-  // Sprint 5
-  userAccess        UserBranchAccess[]
-  transfersFrom     StockTransfer[]    @relation("TransferFrom")
-  transfersTo       StockTransfer[]    @relation("TransferTo")
 
-  // Sprint 8.6 + 8.7
-  combos            Combo[]
-  promos            Promo[]
-
-  // Sprint 9.5
-  suppliers         Supplier[]
-  purchaseOrders    PurchaseOrder[]
-
-  // Sprint 9.6
-  prepSheets        PrepSheet[]
-
-  @@map("branches")
-}
-
-model CommissionReport {
-  id                        String    @id @default(cuid())
-  branchId                  String
-  branch                    Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  channel                   Channel
-  businessDate              DateTime  @db.Date
-  localCommissionCents      Int       @default(0)
-  localOrderCount           Int       @default(0)
-  localBilledCents          Int?
-  aggregatorCommissionCents Int?
-  aggregatorOrderCount      Int?
-  aggregatorBilledCents     Int?
-  deltaCents                Int?
-  status                    String // MATCH | MISMATCH | FETCH_FAILED | NO_DATA
-  notes                     String?
-  resolvedBy                String?
-  resolvedAt                DateTime?
-  createdBy                 String
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
-
-  @@unique([branchId, channel, businessDate], name: "branchId_channel_businessDate")
-  @@index([branchId, businessDate])
-  @@index([status])
-  @@map("commission_reports")
-}
 
 model MenuCategory {
   id        String   @id @default(cuid())
@@ -199,8 +120,6 @@ model MenuCategory {
 
 model MenuItem {
   id          String       @id @default(cuid())
-  branchId    String       @map("branch_id")
-  branch      Branch       @relation(fields: [branchId], references: [id])
   categoryId  String       @map("category_id")
   category    MenuCategory @relation(fields: [categoryId], references: [id])
   sku         String
@@ -213,11 +132,9 @@ model MenuItem {
   priceCents  Int          @map("price_cents")
   costCents   Int          @default(0) @map("cost_cents")
   taxRateBp   Int          @default(1100) @map("tax_rate_bp") // basis points: 1100 = 11%
-  // Sprint 5.6 — opt-in to use branch.ppnPercent instead of per-item rate.
   // Useful for "PPN-free" items (e.g. basic takeaway packaging) or
   // "follow branch default" items (e.g. items where tax should match
   // the local tax authority config per branch).
-  useBranchPpn Boolean     @default(false) @map("use_branch_ppn")
   isActive    Boolean      @default(true) @map("is_active")
   isAvailable Boolean      @default(true) @map("is_available")
   imageUrl    String?      @map("image_url")
@@ -228,10 +145,7 @@ model MenuItem {
   recipes    Recipe[]
   orderItems OrderItem[]
 
-  @@unique([branchId, sku])
-  @@unique([branchId, barcode])
   @@index([categoryId])
-  @@index([branchId, isActive])
   @@map("menu_items")
 }
 
@@ -267,8 +181,6 @@ model Recipe {
 
 model Order {
   id            String      @id @default(cuid())
-  branchId      String      @map("branch_id")
-  branch        Branch      @relation(fields: [branchId], references: [id])
   shiftId       String?     @map("shift_id")
   shift         Shift?      @relation(fields: [shiftId], references: [id])
   orderNumber   String      @map("order_number")
@@ -313,11 +225,7 @@ model Order {
 
   items         OrderItem[]
   payments      Payment[]
-  channelOrders ChannelOrder[]
-
-  @@unique([branchId, orderNumber])
   @@index([status])
-  @@index([branchId, openedAt])
   @@index([openedAt])
   @@map("orders")
 }
@@ -367,8 +275,6 @@ model Payment {
 
 model Shift {
   id            String      @id @default(cuid())
-  branchId      String      @map("branch_id")
-  branch        Branch      @relation(fields: [branchId], references: [id])
   userId        String      @map("user_id")
   user          User        @relation(fields: [userId], references: [id])
   status        ShiftStatus @default(OPEN)
@@ -383,15 +289,12 @@ model Shift {
   orders      Order[]
   dailyCloses DailyClose[]
 
-  @@index([branchId, status])
   @@index([userId])
   @@map("shifts")
 }
 
 model DailyClose {
   id       String  @id @default(cuid())
-  branchId String  @map("branch_id")
-  branch   Branch  @relation(fields: [branchId], references: [id])
   shiftId  String? @map("shift_id")
   shift    Shift?  @relation(fields: [shiftId], references: [id])
 
@@ -409,7 +312,7 @@ model DailyClose {
   ordersVoided   Int @default(0) @map("orders_voided")
   ordersRefunded Int @default(0) @map("orders_refunded")
 
-  // Local totals (from Orders + ChannelOrders)
+  // Local totals (from Orders)
   grossCents        Int @default(0) @map("gross_cents")
   discountCents     Int @default(0) @map("discount_cents")
   taxCents          Int @default(0) @map("tax_cents")
@@ -434,7 +337,6 @@ model DailyClose {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([branchId, businessDate])
   @@index([businessDate])
   @@index([status])
   @@map("daily_closes")
@@ -442,8 +344,6 @@ model DailyClose {
 
 model InventoryItem {
   id           String   @id @default(cuid())
-  branchId     String   @map("branch_id")
-  branch       Branch   @relation(fields: [branchId], references: [id])
   sku          String
   name         String
   unit         String
@@ -456,10 +356,6 @@ model InventoryItem {
 
   logs        InventoryLog[]
   recipes     Recipe[]
-  transfers   StockTransferItem[]
-
-  @@unique([branchId, sku])
-  @@index([branchId, isActive])
   @@map("inventory_items")
 }
 
@@ -480,8 +376,6 @@ model InventoryLog {
 
 model Discount {
   id               String       @id @default(cuid())
-  branchId         String       @map("branch_id")
-  branch           Branch       @relation(fields: [branchId], references: [id])
   code             String?      @map("code")
   name             String
   type             DiscountType
@@ -500,188 +394,12 @@ model Discount {
 
   orders Order[]
 
-  @@unique([branchId, code])
-  @@index([branchId, isActive])
   @@index([code])
   @@map("discounts")
 }
 
-// ─── Sprint 3: Delivery aggregators ──────────────────────────────────────────
 
-enum Channel {
-  POS // order created directly in POS
-  GOFOOD
-  GRABFOOD
-  SHOPEEFOOD
-  MANUAL // phone / WhatsApp / in-person
-}
 
-// Sprint 5.5 — multi-branch user access
-model UserBranchAccess {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  branchId  String   @map("branch_id")
-  role      UserRole @default(CASHIER) // role scoped to this branch (OWNER might be MANAGER at another)
-  isDefault Boolean  @default(false) @map("is_default")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@unique([userId, branchId])
-  @@index([branchId])
-  @@map("user_branch_access")
-}
-
-// Sprint 5.2 — stock transfer between branches
-enum StockTransferStatus {
-  DRAFT
-  IN_TRANSIT
-  RECEIVED
-  CANCELLED
-}
-
-model StockTransfer {
-  id            String             @id @default(cuid())
-  fromBranchId  String             @map("from_branch_id")
-  toBranchId    String             @map("to_branch_id")
-  status        StockTransferStatus @default(DRAFT)
-  notes         String?
-  createdById   String             @map("created_by_id")
-  sentById      String?            @map("sent_by_id")
-  receivedById  String?            @map("received_by_id")
-  createdAt     DateTime           @default(now()) @map("created_at")
-  sentAt        DateTime?          @map("sent_at")
-  receivedAt    DateTime?          @map("received_at")
-  cancelledAt   DateTime?          @map("cancelled_at")
-
-  fromBranch Branch                @relation("TransferFrom", fields: [fromBranchId], references: [id])
-  toBranch   Branch                @relation("TransferTo", fields: [toBranchId], references: [id])
-  createdBy  User                  @relation("TransferCreated", fields: [createdById], references: [id])
-  sentBy     User?                 @relation("TransferSent", fields: [sentById], references: [id])
-  receivedBy User?                 @relation("TransferReceived", fields: [receivedById], references: [id])
-  items      StockTransferItem[]
-
-  @@index([fromBranchId])
-  @@index([toBranchId])
-  @@index([status])
-  @@map("stock_transfers")
-}
-
-model StockTransferItem {
-  id                String        @id @default(cuid())
-  transferId        String        @map("transfer_id")
-  inventoryItemId   String        @map("inventory_item_id")
-  qtyTransferred    Int           @map("qty_transferred")
-  qtyReceived       Int?          @map("qty_received")
-  transfer          StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  inventoryItem     InventoryItem @relation(fields: [inventoryItemId], references: [id])
-
-  @@index([transferId])
-  @@map("stock_transfer_items")
-}
-
-enum ChannelOrderStatus {
-  PENDING // received from channel, not yet accepted
-  ACCEPTED // accepted by kitchen
-  REJECTED // rejected (out of stock, closed, etc.)
-  PREPARING // being cooked
-  READY // ready for pickup by driver
-  PICKED_UP // driver picked up
-  DELIVERED
-  CANCELLED
-  REFUNDED
-}
-
-model ChannelConfig {
-  id                 String    @id @default(cuid())
-  branchId           String    @map("branch_id")
-  branch             Branch    @relation(fields: [branchId], references: [id])
-  channel            Channel
-  enabled            Boolean   @default(false)
-  storeId            String?   @map("store_id")
-  apiKeyEncrypted    String?   @map("api_key_encrypted")
-  apiSecretEncrypted String?   @map("api_secret_encrypted")
-  webhookSecret      String?   @map("webhook_secret")
-  // Polling settings (for fallback)
-  pollIntervalSec    Int       @default(60) @map("poll_interval_sec")
-  lastPolledAt       DateTime? @map("last_polled_at")
-  // Aggregator-specific JSON config (store hours, delivery radius, etc.)
-  configJson         Json?     @map("config_json")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
-
-  orders ChannelOrder[]
-
-  @@unique([branchId, channel])
-  @@index([channel, enabled])
-  @@map("channel_configs")
-}
-
-model ChannelOrder {
-  id               String             @id @default(cuid())
-  branchId         String             @map("branch_id")
-  branch           Branch             @relation(fields: [branchId], references: [id])
-  channel          Channel
-  channelConfigId  String?            @map("channel_config_id")
-  channelConfig    ChannelConfig?     @relation(fields: [channelConfigId], references: [id])
-  externalId       String             @map("external_id") // aggregator order id
-  externalRef      String?            @map("external_ref") // human ref
-  status           ChannelOrderStatus @default(PENDING)
-  // Customer & delivery
-  customerName     String?            @map("customer_name")
-  customerPhone    String?            @map("customer_phone")
-  deliveryAddress  String?            @map("delivery_address")
-  deliveryLat      Decimal?           @map("delivery_lat") @db.Decimal(9, 6)
-  deliveryLng      Decimal?           @map("delivery_lng") @db.Decimal(9, 6)
-  deliveryNotes    String?            @map("delivery_notes")
-  driverName       String?            @map("driver_name")
-  driverPhone      String?            @map("driver_phone")
-  // Money
-  subtotalCents    Int                @default(0) @map("subtotal_cents")
-  deliveryFeeCents Int                @default(0) @map("delivery_fee_cents")
-  serviceFeeCents  Int                @default(0) @map("service_fee_cents")
-  discountCents    Int                @default(0) @map("discount_cents")
-  commissionCents  Int                @default(0) @map("commission_cents")
-  totalCents       Int                @default(0) @map("total_cents")
-  // Linkage to local order (created when accepted)
-  orderId          String?            @map("order_id")
-  order            Order?             @relation(fields: [orderId], references: [id])
-  // Payload
-  itemsJson        Json               @map("items_json")
-  rawPayload       Json?              @map("raw_payload")
-  // Lifecycle
-  receivedAt       DateTime           @default(now()) @map("received_at")
-  acceptedAt       DateTime?          @map("accepted_at")
-  preparedAt       DateTime?          @map("prepared_at")
-  deliveredAt      DateTime?          @map("delivered_at")
-  cancelledAt      DateTime?          @map("cancelled_at")
-  cancelReason     String?            @map("cancel_reason")
-  createdAt        DateTime           @default(now()) @map("created_at")
-  updatedAt        DateTime           @updatedAt @map("updated_at")
-
-  events ChannelOrderEvent[]
-
-  @@unique([channel, externalId])
-  @@index([branchId, status])
-  @@index([channel, status])
-  @@index([orderId])
-  @@map("channel_orders")
-}
-
-model ChannelOrderEvent {
-  id             String             @id @default(cuid())
-  channelOrderId String             @map("channel_order_id")
-  channelOrder   ChannelOrder       @relation(fields: [channelOrderId], references: [id], onDelete: Cascade)
-  status         ChannelOrderStatus
-  // For tracking who/what triggered: SYSTEM | KITCHEN | DRIVER | AGGREGATOR
-  actor          String             @default("SYSTEM")
-  note           String?
-  raw            Json?
-  createdAt      DateTime           @default(now()) @map("created_at")
-
-  @@index([channelOrderId, createdAt])
-  @@map("channel_order_events")
-}
 
 // Sprint 7.2 — Self-hosted error tracking.
 // Every unhandled exception in the API writes one row here. Owners
@@ -701,7 +419,6 @@ model ErrorEvent {
   statusCode  Int?     @map("status_code")
   // Auth context (if any)
   userId      String?  @map("user_id")
-  branchId    String?  @map("branch_id")
   // Error details
   message     String
   stack       String?
@@ -724,8 +441,6 @@ model ErrorEvent {
 // override (e.g. upgrade to a more expensive item).
 model Combo {
   id          String   @id @default(cuid())
-  branchId    String   @map("branch_id")
-  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   name        String
   description String?
   // Set price in cents — what the customer pays for this combo.
@@ -740,7 +455,6 @@ model Combo {
 
   items ComboItem[]
 
-  @@index([branchId, isActive])
   @@map("combos")
 }
 
@@ -779,8 +493,6 @@ enum PromoType {
 
 model Promo {
   id                    String    @id @default(cuid())
-  branchId              String    @map("branch_id")
-  branch                Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
   code                  String    @unique
   name                  String
   type                  PromoType
@@ -808,7 +520,6 @@ model Promo {
   conditions PromoCondition[]
   rewards    PromoReward[]
 
-  @@index([branchId, isActive])
   @@index([code])
   @@map("promos")
 }
@@ -872,7 +583,6 @@ model Customer {
   // Optional branch scoping. When null, the customer is chain-wide (any
   // branch can attach orders / look up). When set, the customer is local
   // to that branch and lookup is constrained to that branch.
-  branchId        String?   @map("branch_id")
   phone           String?
   email           String?
   name            String?
@@ -889,19 +599,16 @@ model Customer {
 
   loyaltyTransactions LoyaltyTransaction[]
 
-  @@index([branchId, phone])
   @@index([phone])
   @@index([email])
   @@map("customers")
 }
 
-// Branch-level loyalty configuration. pointsPerRupiah is the earn rate
 // (1 point per rupiah by default; or per 100 rupiahs — see earn formula
 // in services/loyalty.ts). rupiahPerPoint is the redeem rate: how many
 // rupiahs of discount one point is worth.
 model LoyaltyConfig {
   id                  String   @id @default(cuid())
-  branchId            String   @unique @map("branch_id")
   // EARN: points = floor((amountCents / 100) * pointsPerRupiah).
   // Default 1 means 1 point per 100 rupiah of paid amount.
   pointsPerRupiah     Int      @default(1) @map("points_per_rupiah")
@@ -1001,7 +708,6 @@ model ReceiptDelivery {
 // marked ABANDONED by a background job.
 model KioskSession {
   id              String   @id @default(cuid())
-  branchId        String   @map("branch_id")
   // Cart items stored as JSON. Shape:
   // { items: Array<{ id: string, menuItemId: string, name: string,
   //                  priceCents: number, quantity: number, notes?: string,
@@ -1017,13 +723,12 @@ model KioskSession {
 
   @@index([status])
   @@index([expiresAt])
-  @@index([branchId, status])
   @@map("kiosk_sessions")
 }
 
 // ─── Sprint 9.3 — Waiter Handheld (Table Management) ──────────────────────
 
-// A table on the floor. Branch-scoped. Unique (branchId, number) so two
+// A table on the floor.
 // branches can have a "1" table each. positionX/positionY are an optional
 // floor-map layout (0..100 normalized). The `status` is the *current*
 // operational state — derived from the active TableSession for live state
@@ -1037,7 +742,6 @@ enum TableStatus {
 
 model Table {
   id        String      @id @default(cuid())
-  branchId  String      @map("branch_id")
   number    String
   capacity  Int         @default(4)
   area      String? // e.g. "Indoor", "Outdoor", "VIP"
@@ -1050,8 +754,6 @@ model Table {
 
   sessions TableSession[]
 
-  @@unique([branchId, number])
-  @@index([branchId, status])
   @@map("tables")
 }
 
@@ -1099,7 +801,6 @@ model TableSession {
 //   DOG       (Anjing)     — low popularity,  low margin contribution
 model MenuEngineeringSnapshot {
   id           String   @id @default(cuid())
-  branchId     String   @map("branch_id")
   periodStart  DateTime @map("period_start")
   periodEnd    DateTime @map("period_end")
   generatedAt  DateTime @default(now()) @map("generated_at")
@@ -1112,8 +813,6 @@ model MenuEngineeringSnapshot {
   totalsJson   Json     @map("totals_json")
   createdById  String?  @map("created_by_id")
 
-  @@index([branchId, periodStart])
-  @@index([branchId, generatedAt])
   @@map("menu_engineering_snapshots")
 }
 
@@ -1135,7 +834,6 @@ enum ReservationStatus {
 
 model Reservation {
   id              String            @id @default(cuid())
-  branchId        String            @map("branch_id")
   // Optional: link to a registered customer (member) for the reservation
   customerId      String?           @map("customer_id")
   // Customer contact (required — for SMS/WhatsApp confirmations even if not a member)
@@ -1156,21 +854,17 @@ model Reservation {
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
-  @@index([branchId, reservedAt])
   @@index([status])
-  @@index([branchId, status, reservedAt])
   @@map("reservations")
 }
 
 // ─── Sprint 9.5 — Suppliers & Purchase Orders ───────────────────────────────
 
-// A supplier (vendor) the branch sources inventory from. Branch-scoped
+// A supplier (vendor) the system sources inventory from.
 // so two branches can independently maintain their own supplier list.
 // isActive=false hides from pickers but keeps historical PO references valid.
 model Supplier {
   id          String   @id @default(cuid())
-  branchId    String   @map("branch_id")
-  branch      Branch   @relation(fields: [branchId], references: [id])
   name        String
   contactName String?  @map("contact_name")
   phone       String?
@@ -1183,7 +877,6 @@ model Supplier {
 
   purchaseOrders PurchaseOrder[]
 
-  @@index([branchId, isActive])
   @@map("suppliers")
 }
 
@@ -1207,8 +900,6 @@ enum PurchaseOrderStatus {
 // per branch). All money is integer cents (IDR).
 model PurchaseOrder {
   id            String              @id @default(cuid())
-  branchId      String              @map("branch_id")
-  branch        Branch              @relation(fields: [branchId], references: [id])
   poNumber      String              @map("po_number")
   supplierId    String              @map("supplier_id")
   supplier      Supplier            @relation(fields: [supplierId], references: [id])
@@ -1231,10 +922,7 @@ model PurchaseOrder {
 
   items PurchaseOrderItem[]
 
-  @@unique([branchId, poNumber])
-  @@index([branchId, status])
   @@index([supplierId])
-  @@index([branchId, createdAt])
   @@map("purchase_orders")
 }
 
@@ -1268,8 +956,6 @@ model PurchaseOrderItem {
 // version is rendered client-side in the web UI.
 model PrepSheet {
   id            String   @id @default(cuid())
-  branchId      String   @map("branch_id")
-  branch        Branch   @relation(fields: [branchId], references: [id])
   date          DateTime @db.Date
   lookbackDays  Int      @map("lookback_days")
   // Array of { menuItemId, name, categoryId?, categoryName?,
@@ -1280,7 +966,6 @@ model PrepSheet {
   generatedBy   User     @relation("PrepSheetGenerated", fields: [generatedById], references: [id])
   notes         String?
 
-  @@index([branchId, date])
   @@map("prep_sheets")
 }
 
@@ -1311,7 +996,6 @@ enum WasteStatus {
 // CASHIER+ create rule on the API.
 model WasteEntry {
   id              String      @id @default(cuid())
-  branchId        String      @map("branch_id")
   type            WasteType
   status          WasteStatus @default(ACTIVE)
   menuItemId      String?     @map("menu_item_id")
@@ -1331,8 +1015,6 @@ model WasteEntry {
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
-  @@index([branchId, recordedAt])
-  @@index([branchId, status, recordedAt])
   @@index([type])
   @@map("waste_entries")
 }
