@@ -75,14 +75,6 @@ const NAV: NavGroup[] = [
     ],
   },
   {
-    id: 'network',
-    label: 'Network',
-    items: [
-      { href: '/pos/chain',     label: 'Chain',      icon: 'branch',  match: p => p.startsWith('/pos/chain'),    show: r => isOwner(r),   shortcut: 'C' },
-      { href: '/pos/branches',  label: 'Cabang',     icon: 'branch',  match: p => p.startsWith('/pos/branches'), show: r => isOwner(r) },
-    ],
-  },
-  {
     id: 'tools',
     label: 'Tools',
     items: [
@@ -109,17 +101,14 @@ function formatDate(d: Date): string {
 }
 
 export function POSLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout, switchBranch } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [now, setNow] = useState<Date | null>(null);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const switcherRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -136,19 +125,16 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
 
   // Click-outside handlers
   useEffect(() => {
-    if (!switcherOpen && !userMenuOpen) return;
+    if (!userMenuOpen) return;
     const onClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (switcherOpen && switcherRef.current && !switcherRef.current.contains(target)) {
-        setSwitcherOpen(false);
-      }
-      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(target)) {
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
-  }, [switcherOpen, userMenuOpen]);
+  }, [userMenuOpen]);
 
   // Close drawer on route change
   useEffect(() => {
@@ -194,31 +180,10 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const accessList = user.branchAccess ?? [];
-  const canSwitch = accessList.length > 1;
-
   // Filter items visible for this role
   const visibleGroups = NAV
     .map(g => ({ ...g, items: g.items.filter(i => i.show(user.role)) }))
     .filter(g => g.items.length > 0);
-
-  const onSwitch = async (branchId: string) => {
-    if (branchId === user.branchId) {
-      setSwitcherOpen(false);
-      return;
-    }
-    setSwitching(true);
-    try {
-      await switchBranch(branchId);
-      setSwitcherOpen(false);
-      router.refresh();
-    } catch (e) {
-      console.error('Branch switch failed:', e);
-      alert('Gagal pindah branch. Coba lagi.');
-    } finally {
-      setSwitching(false);
-    }
-  };
 
   // Search filter
   const searchResults = searchQuery
@@ -235,7 +200,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
         style={{ fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
       >
         <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-5 h-14">
-          {/* Left: logo + branch switcher */}
+          {/* Left: logo */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button
               type="button"
@@ -249,56 +214,6 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-white text-sm font-bold">BKJ</span>
               <span className="hidden sm:inline text-neutral-100">POS</span>
             </Link>
-            <span className="text-neutral-700 hidden sm:inline">/</span>
-            {canSwitch ? (
-              <div className="relative" ref={switcherRef}>
-                <button
-                  type="button"
-                  onClick={() => setSwitcherOpen(v => !v)}
-                  className="hidden sm:flex items-center gap-1.5 min-w-0 px-2 py-1 rounded-md hover:bg-white/5 transition-colors"
-                >
-                  <Icon name="branch" className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
-                  <span className="text-sm text-neutral-200 truncate max-w-[180px]">
-                    {user.branch?.name ?? 'Branch'}
-                  </span>
-                  <Icon name="chevron-down" className="h-3 w-3 text-neutral-500 shrink-0" />
-                </button>
-                {switcherOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-40 min-w-[260px] bg-neutral-900 border border-white/10 rounded-lg shadow-2xl py-1">
-                    <div className="px-3 py-2 border-b border-white/5">
-                      <div className="text-[10px] uppercase tracking-wider text-neutral-500">Pindah Branch</div>
-                    </div>
-                    {accessList.map(a => (
-                      <button
-                        key={a.branchId}
-                        type="button"
-                        disabled={switching}
-                        onClick={() => onSwitch(a.branchId)}
-                        className={cn(
-                          'w-full text-left px-3 py-2 text-sm hover:bg-white/5 disabled:opacity-50 flex items-center justify-between gap-2 transition-colors',
-                          a.branchId === user.branchId && 'bg-white/5',
-                        )}
-                      >
-                        <span className="truncate">
-                          <span className="block text-neutral-100">{a.branch.name}</span>
-                          <span className="block text-[10px] text-neutral-500">
-                            {a.branch.code} · {a.role}{a.isDefault ? ' · default' : ''}
-                          </span>
-                        </span>
-                        {a.branchId === user.branchId && (
-                          <span className="text-[10px] text-red-400 font-medium">aktif</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="hidden sm:flex items-center gap-1.5 min-w-0">
-                <Icon name="branch" className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
-                <span className="text-sm text-neutral-200 truncate max-w-[180px]">{user.branch?.name ?? 'Branch'}</span>
-              </div>
-            )}
           </div>
 
           {/* Center: search (desktop only) */}
@@ -464,7 +379,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-neutral-100 truncate">{user.name}</div>
-                  <div className="text-[10px] text-neutral-500">{user.role} · {user.branch?.code}</div>
+                  <div className="text-[10px] text-neutral-500">{user.role}</div>
                 </div>
                 <Button size="sm" variant="outline" onClick={logout}>Keluar</Button>
               </div>

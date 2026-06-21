@@ -11,9 +11,6 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
-  // Sprint 5.5b — switch active branch. Calls /api/auth/me/branch, then
-  // refreshes the user object so role/branchId update.
-  switchBranch: (branchId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -72,13 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login');
   }, [router]);
 
-  const switchBranch = useCallback(async (branchId: string) => {
-    await api.switchBranch(branchId);
-    await refresh();
-  }, [refresh]);
-
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refresh, switchBranch }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

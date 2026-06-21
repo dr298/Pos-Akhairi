@@ -18,8 +18,7 @@
 //
 // Each quadrant card lists its items sorted by totalQty desc. Clicking
 // an item opens a side panel with the item's detail (revenue, margin,
-// pcts) and a small trend chart if multiple snapshots exist for the
-// branch.
+// pcts) and a small trend chart if multiple snapshots exist.
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -109,7 +108,6 @@ export default function MenuEngineeringPage() {
 
 function MenuEngineeringPageContent() {
   const { user } = useAuth();
-  const branchId = user?.branchId || '';
 
   const [snapshots, setSnapshots] = useState<MenuEngineeringSnapshot[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -125,10 +123,9 @@ function MenuEngineeringPageContent() {
 
   // Load the latest snapshot list
   const refreshList = useCallback(async () => {
-    if (!branchId) return;
     setLoadingList(true);
     try {
-      const res = await api.listMenuEngineeringSnapshots({ branchId, limit: 12 });
+      const res = await api.listMenuEngineeringSnapshots({ limit: 12 });
       setSnapshots(res.data || []);
       if (!activeId && res.data && res.data.length > 0) {
         setActiveId(res.data[0].id);
@@ -138,7 +135,7 @@ function MenuEngineeringPageContent() {
     } finally {
       setLoadingList(false);
     }
-  }, [branchId, activeId]);
+  }, [activeId]);
 
   useEffect(() => {
     void refreshList();
@@ -169,10 +166,6 @@ function MenuEngineeringPageContent() {
   }, [activeId]);
 
   async function handleGenerate() {
-    if (!branchId) {
-      toast.error('Pilih branch dulu');
-      return;
-    }
     if (!periodStart || !periodEnd) {
       toast.error('Tanggal periode wajib diisi');
       return;
@@ -184,7 +177,6 @@ function MenuEngineeringPageContent() {
     setGenerating(true);
     try {
       const res = await api.createMenuEngineeringSnapshot({
-        branchId,
         periodStart: `${periodStart}T00:00:00+07:00`,
         periodEnd: `${periodEnd}T23:59:59+07:00`,
       });

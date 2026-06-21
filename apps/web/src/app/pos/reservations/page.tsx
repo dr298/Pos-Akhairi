@@ -131,28 +131,21 @@ function ReservationsPageContent() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
 
-  const branchId = user?.branchId || '';
-
   // Load reservations for the selected date
-  const refresh = useCallback(
-    async (date: string, status: StatusFilter) => {
-      if (!branchId) return;
-      setLoading(true);
-      try {
-        const res = await api.listReservations({
-          branchId,
-          date,
-          ...(status !== 'ALL' ? { status } : {}),
-        });
-        setReservations(res.data || []);
-      } catch (e: any) {
-        toast.error(e?.message || 'Gagal memuat reservasi');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [branchId],
-  );
+  const refresh = useCallback(async (date: string, status: StatusFilter) => {
+    setLoading(true);
+    try {
+      const res = await api.listReservations({
+        date,
+        ...(status !== 'ALL' ? { status } : {}),
+      });
+      setReservations(res.data || []);
+    } catch (e: any) {
+      toast.error(e?.message || 'Gagal memuat reservasi');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Compute the 7-day window for the calendar strip
   const weekDays = useMemo(() => {
@@ -167,14 +160,13 @@ function ReservationsPageContent() {
 
   // Load counts for the 7-day window
   useEffect(() => {
-    if (!branchId) return;
     let cancelled = false;
     (async () => {
       try {
         const results = await Promise.all(
           weekDays.map((d) =>
             api
-              .listReservations({ branchId, date: d })
+              .listReservations({ date: d })
               .then((r) => ({ d, count: r.data?.length ?? 0 }))
               .catch(() => ({ d, count: 0 })),
           ),
@@ -190,7 +182,7 @@ function ReservationsPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [branchId, weekDays]);
+  }, [weekDays]);
 
   // Refresh the reservation list when date/status change
   useEffect(() => {
@@ -203,7 +195,6 @@ function ReservationsPageContent() {
     if (!form.date) {
       setForm((f) => ({ ...f, date: selectedDate }));
     }
-    if (!branchId) return;
     if (!form.date || !form.partySize) {
       setAvailableSlots([]);
       return;
@@ -211,7 +202,6 @@ function ReservationsPageContent() {
     setSlotsLoading(true);
     api
       .getReservationAvailability({
-        branchId,
         date: form.date,
         partySize: form.partySize,
       })
@@ -222,7 +212,7 @@ function ReservationsPageContent() {
         setAvailableSlots([]);
       })
       .finally(() => setSlotsLoading(false));
-  }, [formOpen, form.date, form.partySize, branchId]);
+  }, [formOpen, form.date, form.partySize]);
 
   function openCreate() {
     setForm({ ...EMPTY_FORM, date: selectedDate });
@@ -230,10 +220,6 @@ function ReservationsPageContent() {
   }
 
   async function handleSave() {
-    if (!branchId) {
-      toast.error('Pilih branch dulu');
-      return;
-    }
     if (!form.customerName.trim() || !form.customerPhone.trim()) {
       toast.error('Nama dan nomor HP wajib diisi');
       return;
@@ -246,7 +232,6 @@ function ReservationsPageContent() {
     try {
       const reservedAt = buildDateTime(form.date, form.time);
       await api.createReservation({
-        branchId,
         customerName: form.customerName.trim(),
         customerPhone: form.customerPhone.trim(),
         partySize: form.partySize,

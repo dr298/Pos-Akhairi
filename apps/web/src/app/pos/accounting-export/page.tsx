@@ -48,10 +48,7 @@ export default function AccountingExportPage() {
     return null;
   }
 
-  const branchId = user.branchId;
-
   const onDownload = useCallback(async () => {
-    if (!branchId) return;
     setError(null);
     setSuccess(null);
     if (!from || !to) {
@@ -64,7 +61,7 @@ export default function AccountingExportPage() {
     }
     setDownloading(true);
     try {
-      const path = `/api/accounting-export/${journalType}-journal.csv?branchId=${encodeURIComponent(branchId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&format=${format}`;
+      const path = `/api/accounting-export/${journalType}-journal.csv?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&format=${format}`;
       const res = await fetch(path, {
         method: 'GET',
         credentials: 'include',
@@ -92,7 +89,7 @@ export default function AccountingExportPage() {
     } finally {
       setDownloading(false);
     }
-  }, [branchId, from, to, format, journalType, t]);
+  }, [from, to, format, journalType, t]);
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-3 max-w-screen-2xl mx-auto">

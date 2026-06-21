@@ -160,9 +160,8 @@ export default function SuppliersPage() {
         </CardContent>
       </Card>
 
-      {showCreate && user.branchId && (
+      {showCreate && (
         <SupplierFormModal
-          branchId={user.branchId}
           onClose={() => setShowCreate(false)}
           onSaved={() => {
             setShowCreate(false);
@@ -172,7 +171,6 @@ export default function SuppliersPage() {
       )}
       {editing && (
         <SupplierFormModal
-          branchId={editing.branchId}
           existing={editing}
           onClose={() => setEditing(null)}
           onSaved={() => {
@@ -186,12 +184,10 @@ export default function SuppliersPage() {
 }
 
 function SupplierFormModal({
-  branchId,
   existing,
   onClose,
   onSaved,
 }: {
-  branchId: string;
   existing?: Supplier;
   onClose: () => void;
   onSaved: () => void;
@@ -227,7 +223,7 @@ function SupplierFormModal({
       if (existing) {
         await api.updateSupplier(existing.id, payload);
       } else {
-        await api.createSupplier({ ...payload, branchId });
+        await api.createSupplier(payload);
       }
       onSaved();
     } catch (e) {

@@ -60,13 +60,15 @@ export default function NewPurchaseOrderPage() {
     })();
   }, [user, router]);
 
-  // Load inventory for current branch
+  // Load inventory
   useEffect(() => {
-    if (!user?.branchId) return;
     setLoadingInv(true);
     void (async () => {
       try {
-        const res = await fetch(`/api/transfers/inventory/${user.branchId}`, {
+        // The transfers/inventory route is being consolidated to a global
+        // (non-branch-scoped) inventory endpoint. We hit the same path
+        // without the trailing branch id; backend returns all active items.
+        const res = await fetch('/api/transfers/inventory', {
           credentials: 'include',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -86,7 +88,7 @@ export default function NewPurchaseOrderPage() {
         setLoadingInv(false);
       }
     })();
-  }, [user?.branchId]);
+  }, [user]);
 
   const totalCents = useMemo(() => {
     let total = 0;
@@ -109,10 +111,6 @@ export default function NewPurchaseOrderPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.branchId) {
-      setError('Tidak ada branch context');
-      return;
-    }
     if (!supplierId) {
       setError('Pilih supplier');
       return;
@@ -133,7 +131,6 @@ export default function NewPurchaseOrderPage() {
     setError(null);
     try {
       const r = await api.createPurchaseOrder({
-        branchId: user.branchId,
         supplierId,
         notes: notes.trim() || null,
         expectedAt: expectedAt ? new Date(expectedAt).toISOString() : null,

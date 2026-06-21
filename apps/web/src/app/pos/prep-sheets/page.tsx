@@ -63,12 +63,10 @@ export default function PrepSheetsPage() {
 
   const onGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.branchId) return;
     setGenerating(true);
     setError(null);
     try {
       const r = await api.generatePrepSheet({
-        branchId: user.branchId,
         date,
         lookbackDays,
         notes: notes.trim() || null,

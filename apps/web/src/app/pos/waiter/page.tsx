@@ -92,20 +92,17 @@ function WaiterPageContent() {
   const [activeTable, setActiveTable] = useState<RestaurantTable | null>(null);
   const [openDialog, setOpenDialog] = useState<RestaurantTable | null>(null);
 
-  const branchId = user?.branchId || '';
-
   const refresh = useCallback(async () => {
-    if (!branchId) return;
     setLoading(true);
     try {
-      const res = await api.listTables({ branchId });
+      const res = await api.listTables();
       setTables(res.data || []);
     } catch (e: any) {
       toast.error(e?.message || 'Gagal memuat meja');
     } finally {
       setLoading(false);
     }
-  }, [branchId]);
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -114,10 +111,9 @@ function WaiterPageContent() {
   // Polling so the floor view stays fresh (waiter might sit at the table
   // for a few minutes — refresh every 15s).
   useEffect(() => {
-    if (!branchId) return;
     const id = setInterval(() => void refresh(), 15_000);
     return () => clearInterval(id);
-  }, [branchId, refresh]);
+  }, [refresh]);
 
   const filtered = useMemo(() => {
     if (filter === 'ALL') return tables;

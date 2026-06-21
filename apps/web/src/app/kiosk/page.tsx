@@ -2,24 +2,17 @@
 
 // apps/web/src/app/kiosk/page.tsx
 //
-// Sprint 9.1 — Self-Order Kiosk landing page.
+// Self-Order Kiosk landing page.
+// Public (no auth), fullscreen, touch-friendly. Customer browses the menu,
+// adds items to a cart, then hits "Bayar di Kasir" to convert the cart
+// into a real Order with type=KIOSK. The Order shows on the cashier's POS
+// where they take payment.
 //
-// Public (no auth), fullscreen, touch-friendly. The customer picks a
-// branch (the kiosk hardware is assigned to one branch; in dev we let
-// the customer pick), browses the menu, adds items to a cart, then
-// hits "Bayar di Kasir" to convert the cart into a real Order with
-// type=KIOSK. The Order shows on the cashier's POS where they take
-// payment.
-//
-// The page reads `?branchId=X` from the URL. If absent and the user is
-// not authed, we render a branch picker. The branch picker is for dev
-// convenience — in production, the kiosk is tied to a single branch
-// via URL/deep-link.
+// Single-restaurant deployment: no branch picker.
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { api, type Branch } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -108,16 +101,8 @@ export default function KioskPage() {
 
 function KioskPageContent() {
   const router = useRouter();
-  const params = useSearchParams();
-  const branchIdFromUrl = params.get('branchId') || '';
-
-  // Branch picker state
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [pickingBranch, setPickingBranch] = useState(false);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(branchIdFromUrl);
 
   // Menu + cart
-  const [branch, setBranch] = useState<Branch | null>(null);
   const [categories, setCategories] = useState<KioskCategory[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -126,55 +111,27 @@ function KioskPageContent() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
+
   const [orderResult, setOrderResult] = useState<{
     orderId: string;
     orderNumber: string;
     totalCents: number;
   } | null>(null);
 
-  // Step 1: load the branch list (so the customer can pick a branch in
-  // dev environments). In production with branchId in URL, skip this.
+  // Step 1: load the menu for the single restaurant and start a session.
   useEffect(() => {
-    if (branchIdFromUrl) {
-      setSelectedBranchId(branchIdFromUrl);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.listBranches();
-        if (cancelled) return;
-        const list = (res.data?.branches ?? []).filter((b) => b.isActive !== false);
-        setBranches(list);
-        setPickingBranch(list.length > 1);
-      } catch (e) {
-        toast.error((e as Error).message || 'Gagal memuat daftar branch');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [branchIdFromUrl]);
-
-  // Step 2: load the menu for the selected branch and start a session.
-  useEffect(() => {
-    if (!selectedBranchId) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        // Load menu
-        const menuRes = await fetch(
-          `/api/kiosk/menu?branchId=${encodeURIComponent(selectedBranchId)}`,
-          { credentials: 'include' },
-        );
+        // Load menu (no branchId — single restaurant)
+        const menuRes = await fetch(`/api/kiosk/menu`, { credentials: 'include' });
         if (!menuRes.ok) {
           const err = await menuRes.json().catch(() => ({}));
           throw new Error(err.message || 'Gagal memuat menu');
         }
         const menuJson = await menuRes.json();
         if (cancelled) return;
-        setBranch(menuJson.data.branch);
         setCategories(menuJson.data.categories ?? []);
         if ((menuJson.data.categories ?? []).length > 0) {
           setActiveCategory(menuJson.data.categories[0].id);
@@ -196,16 +153,16 @@ function KioskPageContent() {
               // Session dead — start a new one
               clearStoredCart();
               setCart([]);
-              await startSession(selectedBranchId, stored.items);
+              await startSession(stored.items);
             }
           } catch {
             clearStoredCart();
             setCart([]);
-            await startSession(selectedBranchId, stored.items);
+            await startSession(stored.items);
           }
         } else {
           // Start a fresh session
-          await startSession(selectedBranchId, stored.items);
+          await startSession(stored.items);
         }
       } catch (e) {
         toast.error((e as Error).message || 'Gagal memuat halaman');
@@ -217,16 +174,15 @@ function KioskPageContent() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranchId]);
+  }, []);
 
-  const startSession = useCallback(async (branchId: string, seedItems: CartItem[]) => {
+  const startSession = useCallback(async (seedItems: CartItem[]) => {
     try {
       const r = await fetch('/api/kiosk/cart', {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          branchId,
           items: seedItems.map((it) => ({
             menuItemId: it.menuItemId,
             quantity: it.quantity,
@@ -406,40 +362,10 @@ function KioskPageContent() {
   function resetForNewOrder() {
     setOrderResult(null);
     setShowCart(false);
-    if (selectedBranchId) startSession(selectedBranchId, []);
+    startSession([]);
   }
 
-  // ─── Branch picker (dev convenience) ─────────────────────────────────────
-  if (pickingBranch && !selectedBranchId) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-neutral-950 text-neutral-100">
-        <h1 className="text-2xl sm:text-4xl font-bold mb-2">Pilih Lokasi</h1>
-        <p className="text-neutral-400 mb-6 text-center">Pilih cabang untuk memesan</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
-          {branches.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              onClick={() => {
-                setSelectedBranchId(b.id);
-                setPickingBranch(false);
-                router.replace(`/kiosk?branchId=${encodeURIComponent(b.id)}`);
-              }}
-              className="min-h-[120px] rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-red-500 hover:bg-neutral-800 active:scale-[0.98] transition-all p-5 text-left"
-            >
-              <div className="text-lg font-semibold">{b.name}</div>
-              <div className="text-sm text-neutral-400 mt-1">{b.code}</div>
-              {b.address ? (
-                <div className="text-xs text-neutral-500 mt-2 truncate">{b.address}</div>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      </main>
-    );
-  }
-
-  // ─── Order complete (show QR + order #) ─────────────────────────────────
+  // ─── Order complete (show order #) ──────────────────────────────────────
   if (orderResult) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-neutral-950 text-neutral-100">
@@ -492,19 +418,11 @@ function KioskPageContent() {
     );
   }
 
-  if (!branch || categories.length === 0) {
+  if (categories.length === 0) {
     return (
       <main className="min-h-screen flex items-center justify-center p-6 text-neutral-400 text-center">
         <div>
-          <p>Menu belum tersedia untuk cabang ini.</p>
-          <Button
-            size="lg"
-            variant="outline"
-            className="mt-4"
-            onClick={() => router.push('/kiosk')}
-          >
-            Pilih cabang lain
-          </Button>
+          <p>Menu belum tersedia.</p>
         </div>
       </main>
     );
@@ -518,7 +436,7 @@ function KioskPageContent() {
         <div className="px-4 py-3 flex items-center justify-between gap-3">
           <div>
             <div className="text-xs text-neutral-500">Self-Order</div>
-            <div className="text-lg sm:text-xl font-semibold">{branch.name}</div>
+            <div className="text-lg sm:text-xl font-semibold">Bakmie Kota Juang</div>
           </div>
           <button
             type="button"

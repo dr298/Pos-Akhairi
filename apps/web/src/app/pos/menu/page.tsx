@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type Branch, type MenuItem } from '@/lib/api';
+import { api, type MenuItem } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { formatIDR } from '@/lib/format';
 import { useAuth } from '@/hooks/useAuth';
 
-type Tab = 'items' | 'categories' | 'clone';
+type Tab = 'items' | 'categories';
 
 interface Category {
   id: string;
@@ -21,26 +21,15 @@ interface Category {
 
 export default function MenuManagementPage() {
   const router = useRouter();
-  const { user, loading: authLoading, switchBranch } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const fmt = formatIDR;
   const [tab, setTab] = useState<Tab>('items');
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-
-  // Clone state
-  const [cloneSource, setCloneSource] = useState<string>('');
-  const [cloneTarget, setCloneTarget] = useState<string>('');
-  const [cloneSourceItems, setCloneSourceItems] = useState<MenuItem[]>([]);
-  const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
-  const [skipExisting, setSkipExisting] = useState(true);
-  const [cloning, setCloning] = useState(false);
-  const [cloneResult, setCloneResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
 
   // Item edit modal
   const [editing, setEditing] = useState<MenuItem | null>(null);
@@ -61,7 +50,7 @@ export default function MenuManagementPage() {
   });
   const [creatingItem, setCreatingItem] = useState(false);
 
-  // Init branches
+  // Auth gate
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -72,20 +61,6 @@ export default function MenuManagementPage() {
       router.push('/pos');
       return;
     }
-    void (async () => {
-      try {
-        const r = await api.listBranches();
-        const bs = r.data?.branches ?? [];
-        setBranches(bs);
-        if (bs.length > 0) {
-          setSelectedBranchId(bs[0].id);
-          setCloneSource(bs[0].id);
-          setCloneTarget(bs[1]?.id ?? bs[0].id);
-        }
-      } catch (e) {
-        setError((e as Error).message);
-      }
-    })();
   }, [user, authLoading, router]);
 
   // Load categories
@@ -102,47 +77,23 @@ export default function MenuManagementPage() {
     void loadCategories();
   }, [loadCategories]);
 
-  // Load items for selected branch
+  // Load items
   const loadItems = useCallback(async () => {
-    if (!selectedBranchId) return;
     setLoading(true);
     setError(null);
     try {
-      const r = await api.getMenuItems({ branchId: selectedBranchId });
+      const r = await api.getMenuItems();
       setItems((r.data as MenuItem[]) ?? []);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [selectedBranchId]);
+  }, []);
 
   useEffect(() => {
     void loadItems();
   }, [loadItems]);
-
-  // Load source items for clone
-  useEffect(() => {
-    if (!cloneSource) return;
-    void (async () => {
-      try {
-        const r = await api.getMenuItems({ branchId: cloneSource });
-        setCloneSourceItems((r.data as MenuItem[]) ?? []);
-      } catch (e) {
-        setError((e as Error).message);
-      }
-    })();
-  }, [cloneSource]);
-
-  // Switch active branch when user picks a different one
-  const onBranchChange = async (id: string) => {
-    setSelectedBranchId(id);
-    try {
-      await switchBranch(id);
-    } catch {
-      // non-fatal
-    }
-  };
 
   // Filter items by search
   const filtered = items.filter((it) => {
@@ -217,44 +168,6 @@ export default function MenuManagementPage() {
     }
   };
 
-  const runClone = async () => {
-    if (!cloneSource || !cloneTarget) {
-      setError('Source dan target branch wajib dipilih');
-      return;
-    }
-    if (cloneSource === cloneTarget) {
-      setError('Source dan target harus berbeda');
-      return;
-    }
-    setCloning(true);
-    setError(null);
-    setCloneResult(null);
-    try {
-      const overrides: Record<string, { priceCents?: number; costCents?: number }> = {};
-      for (const [sku, raw] of Object.entries(priceOverrides)) {
-        const price = parseFloat(raw);
-        if (!isNaN(price) && price > 0) {
-          overrides[sku] = { priceCents: Math.round(price * 100) };
-        }
-      }
-      const r = await api.cloneMenu({
-        sourceBranchId: cloneSource,
-        targetBranchId: cloneTarget,
-        priceOverrides: overrides,
-        skipExisting,
-      });
-      setCloneResult(r.data as any);
-      setInfo(
-        `Selesai: ${(r.data as any).created} dibuat, ${(r.data as any).updated} diupdate, ${(r.data as any).skipped} dilewati`,
-      );
-      setTimeout(() => setInfo(null), 5000);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setCloning(false);
-    }
-  };
-
   if (authLoading || !user) {
     return <div className="p-6 text-slate-400">Loading…</div>;
   }
@@ -264,21 +177,7 @@ export default function MenuManagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Manajemen Menu</h1>
-          <p className="text-sm text-slate-400 mt-1">Kelola menu, kategori, dan copy antar cabang</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400">Cabang:</label>
-          <select
-            value={selectedBranchId}
-            onChange={(e) => onBranchChange(e.target.value)}
-            className="bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded px-3 py-1.5"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.code} — {b.name}
-              </option>
-            ))}
-          </select>
+          <p className="text-sm text-slate-400 mt-1">Kelola menu dan kategori</p>
         </div>
       </div>
 
@@ -292,7 +191,7 @@ export default function MenuManagementPage() {
       )}
 
       <div className="flex gap-2 border-b border-slate-800">
-        {(['items', 'categories', 'clone'] as const).map((t) => (
+        {(['items', 'categories'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -302,7 +201,7 @@ export default function MenuManagementPage() {
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            {t === 'items' ? 'Menu Items' : t === 'categories' ? 'Kategori' : 'Copy antar Cabang'}
+            {t === 'items' ? 'Menu Items' : 'Kategori'}
           </button>
         ))}
       </div>
@@ -354,11 +253,7 @@ export default function MenuManagementPage() {
                           {it.costCents != null ? fmt(it.costCents) : '—'}
                         </td>
                         <td className="py-2 px-3 text-center text-xs">
-                          {it.useBranchPpn ? (
-                            <Badge tone="info">branch</Badge>
-                          ) : (
-                            <span className="text-slate-400">{((it.taxRateBp ?? 0) / 100).toFixed(1)}%</span>
-                          )}
+                          <span className="text-slate-400">{((it.taxRateBp ?? 0) / 100).toFixed(1)}%</span>
                         </td>
                         <td className="py-2 px-3 text-center">
                           {it.isAvailable ? (
@@ -404,112 +299,10 @@ export default function MenuManagementPage() {
               </ul>
             )}
             <p className="text-xs text-slate-500 mt-3">
-              Kategori dibuat otomatis saat copy menu dari cabang lain, atau via API.
+              Kategori dibuat via API atau menu Settings.
             </p>
           </CardContent>
         </Card>
-      )}
-
-      {tab === 'clone' && (
-        <div className="space-y-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Copy Menu Antar Cabang</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-slate-400">
-                Pilih cabang sumber (template menu) dan cabang target. Bisa override harga per SKU.
-                Item yang sudah ada di target akan di-skip (default) atau di-overwrite dengan harga
-                sumber.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Dari (source)</label>
-                  <select
-                    value={cloneSource}
-                    onChange={(e) => setCloneSource(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded px-3 py-2"
-                  >
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.code} — {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Ke (target)</label>
-                  <select
-                    value={cloneTarget}
-                    onChange={(e) => setCloneTarget(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded px-3 py-2"
-                  >
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.code} — {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={skipExisting}
-                  onChange={(e) => setSkipExisting(e.target.checked)}
-                  className="rounded"
-                />
-                Skip item yang sudah ada di target (recommended)
-              </label>
-
-              {cloneSourceItems.length > 0 && cloneSource !== cloneTarget && (
-                <div className="mt-3 border border-slate-800 rounded">
-                  <div className="px-3 py-2 bg-slate-900/50 text-xs text-slate-400 border-b border-slate-800">
-                    {cloneSourceItems.length} item di source — override harga (kosongkan = pakai harga
-                    source)
-                  </div>
-                  <div className="max-h-72 overflow-y-auto">
-                    {cloneSourceItems.map((it) => (
-                      <div
-                        key={it.id}
-                        className="grid grid-cols-[1fr_100px_120px] gap-2 px-3 py-1.5 text-xs border-b border-slate-800/30 items-center"
-                      >
-                        <div>
-                          <div className="text-slate-100">{it.name}</div>
-                          <div className="text-slate-500 font-mono">{it.sku}</div>
-                        </div>
-                        <div className="text-right text-slate-400">{fmt(it.priceCents)}</div>
-                        <input
-                          type="number"
-                          step="100"
-                          placeholder="override"
-                          value={priceOverrides[it.sku ?? ''] ?? ''}
-                          onChange={(e) =>
-                            setPriceOverrides((p) => ({ ...p, [it.sku ?? '']: e.target.value }))
-                          }
-                          className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-right text-slate-100"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <Button onClick={runClone} disabled={cloning}>
-                  {cloning ? 'Copying…' : 'Copy Menu'}
-                </Button>
-                {cloneResult && (
-                  <div className="text-sm text-slate-300">
-                    Created: <span className="text-emerald-400">{cloneResult.created}</span>, Updated:{' '}
-                    <span className="text-amber-400">{cloneResult.updated}</span>, Skipped:{' '}
-                    <span className="text-slate-400">{cloneResult.skipped}</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       )}
 
       {/* Edit modal */}

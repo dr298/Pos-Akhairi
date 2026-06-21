@@ -10,8 +10,6 @@ import { formatIDR } from '@/lib/format';
 
 interface ZReport {
   date: string;
-  branchId: string;
-  branch: { id: string; code: string; name: string; city: string; timezone: string } | null;
   summary: {
     grossCents: number;
     discountCents: number;
@@ -118,8 +116,6 @@ export default function ZReportPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Z-Report</h1>
           <p className="text-xs sm:text-sm text-neutral-400">
-            {report?.branch?.name ?? user.branch?.name ?? 'Branch'} ·{' '}
-            {report?.branch?.city ?? user.branch?.city ?? ''} ·{' '}
             <span className="text-neutral-500">generated {report ? new Date(report.generatedAt).toLocaleString('id-ID') : '—'}</span>
           </p>
         </div>

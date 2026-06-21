@@ -56,25 +56,22 @@ export default function WastePage() {
 
   if (!user) return null;
 
-  const load = useCallback(
-    async (branchId: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [list, sum] = await Promise.all([
-          api.listWaste({ branchId, limit: 100 }),
-          api.getWasteSummary({ branchId, days: 30 }),
-        ]);
-        setEntries(list.data.entries);
-        setSummary(sum.data);
-      } catch (e) {
-        setError((e as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [list, sum] = await Promise.all([
+        api.listWaste({ limit: 100 }),
+        api.getWasteSummary({ days: 30 }),
+      ]);
+      setEntries(list.data.entries);
+      setSummary(sum.data);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -82,13 +79,11 @@ export default function WastePage() {
       router.replace('/pos');
       return;
     }
-    if (!user.branchId) return;
-    void load(user.branchId);
+    void load();
   }, [user, router, load]);
 
   // Search menu items for the picker
   useEffect(() => {
-    if (!user?.branchId) return;
     if (itemSearch.trim().length < 1) {
       setItemOptions([]);
       return;
@@ -108,7 +103,7 @@ export default function WastePage() {
       cancelled = true;
       clearTimeout(to);
     };
-  }, [user?.branchId, itemSearch]);
+  }, [itemSearch]);
 
   const filteredEntries = useMemo(() => {
     if (!filterType) return entries;
@@ -117,7 +112,6 @@ export default function WastePage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.branchId) return;
     if (!itemId) {
       setError('Pilih item terlebih dahulu');
       return;
@@ -130,7 +124,6 @@ export default function WastePage() {
     setError(null);
     try {
       await api.createWaste({
-        branchId: user.branchId,
         type,
         menuItemId: type === 'FOOD' ? itemId : null,
         // The waste form in this v1 only allows FOOD items (search via
@@ -145,7 +138,7 @@ export default function WastePage() {
       setQuantity(1);
       setReason('');
       setNotes('');
-      await load(user.branchId);
+      await load();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -158,7 +151,7 @@ export default function WastePage() {
     if (!confirm('Hapus catatan waste ini?')) return;
     try {
       await api.deleteWaste(id);
-      if (user.branchId) await load(user.branchId);
+      await load();
     } catch (e) {
       setError((e as Error).message);
     }

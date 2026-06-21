@@ -70,37 +70,11 @@ async function request<T>(
 
 export type Role = 'OWNER' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
 
-export interface Branch {
-  id: string;
-  code: string;
-  name: string;
-  address?: string | null;
-  city?: string | null;
-  phone?: string | null;
-  timezone?: string;
-  isActive?: boolean;
-  // Sprint 5.6 — branch-level PPN config (basis points: 1100 = 11%).
-  // ppnPercent = 0 means no PPN (use per-item taxRateBp only).
-  // ppnInclusive = true means tax is already included in the price.
-  ppnPercent?: number;
-  ppnInclusive?: boolean;
-}
-
 export interface User {
   id: string;
   email: string;
   name: string;
   role: Role;
-  branchId: string;
-  branch?: Branch;
-  // Sprint 5.5b — list of all branches the user can switch to.
-  // Length === 1 means no switcher UI; > 1 shows the dropdown.
-  branchAccess?: Array<{
-    branchId: string;
-    role: Role;
-    isDefault: boolean;
-    branch: Branch;
-  }>;
 }
 
 export interface AuthResponse {
@@ -128,10 +102,6 @@ export interface MenuItem {
   costCents?: number;
   categoryId: string;
   taxRateBp?: number;
-  // Sprint 5.6 — opt-in flag: when true, use branch.ppnPercent as
-  // the tax rate (instead of per-item taxRateBp). Lets branches
-  // override PPN centrally per tax-authority config.
-  useBranchPpn?: boolean;
   isActive: boolean;
   isAvailable: boolean;
   imageUrl?: string | null;
@@ -198,7 +168,6 @@ export interface Order {
 
 export interface Shift {
   id: string;
-  branchId: string;
   userId: string;
   status: 'OPEN' | 'CLOSED';
   openingCents: number;
@@ -209,7 +178,6 @@ export interface Shift {
   closedAt?: string | null;
   notes?: string | null;
   user?: Pick<User, 'id' | 'name' | 'email'>;
-  branch?: Branch;
 }
 
 export interface PaymentProvider {
@@ -223,7 +191,6 @@ export type DiscountType = 'PERCENTAGE' | 'FIXED';
 
 export interface Discount {
   id: string;
-  branchId: string;
   code?: string | null;
   name: string;
   type: DiscountType;
@@ -263,7 +230,6 @@ export interface ComboItem {
 
 export interface Combo {
   id: string;
-  branchId: string;
   name: string;
   description: string | null;
   priceCents: number;
@@ -314,7 +280,6 @@ export interface PromoReward {
 
 export interface Promo {
   id: string;
-  branchId: string;
   code: string;
   name: string;
   type: PromoType;
@@ -347,7 +312,6 @@ export interface PromoValidation {
 
 export interface Customer {
   id: string;
-  branchId: string | null;
   phone: string | null;
   email: string | null;
   name: string | null;
@@ -429,75 +393,6 @@ export interface RefundRequest {
   refundMethod: 'CASH' | 'ORIGINAL';
 }
 
-export interface ChainReportBranch {
-  id: string;
-  code: string;
-  name: string;
-  city: string | null;
-}
-export interface ChainReportEntry {
-  branch: ChainReportBranch;
-  orders: {
-    total: number;
-    paid: number;
-    voided: number;
-    refunded: number;
-    grossCents: number;
-  };
-  payments: Record<string, number>;
-  dailyClose: { status: string; grossCents: number; netCents: number } | null;
-  mismatches: number;
-}
-export interface ChainReport {
-  date: string;
-  totals: {
-    branches: number;
-    orders: number;
-    grossCents: number;
-    mismatches: number;
-  };
-  branches: ChainReportEntry[];
-}
-
-// Sprint 5.2 — Stock transfers
-export type StockTransferStatus = 'DRAFT' | 'IN_TRANSIT' | 'RECEIVED' | 'CANCELLED';
-
-export interface StockTransferItem {
-  id: string;
-  transferId: string;
-  inventoryItemId: string;
-  qtyTransferred: number;
-  qtyReceived: number | null;
-  inventoryItem?: {
-    id: string;
-    sku: string;
-    name: string;
-    unit: string;
-    branchId?: string;
-  };
-}
-
-export interface StockTransfer {
-  id: string;
-  fromBranchId: string;
-  toBranchId: string;
-  status: StockTransferStatus;
-  notes: string | null;
-  createdById: string;
-  sentById: string | null;
-  receivedById: string | null;
-  createdAt: string;
-  sentAt: string | null;
-  receivedAt: string | null;
-  cancelledAt: string | null;
-  fromBranch?: { id: string; code: string; name: string };
-  toBranch?: { id: string; code: string; name: string };
-  createdBy?: { name: string };
-  sentBy?: { name: string };
-  receivedBy?: { name: string };
-  items: StockTransferItem[];
-}
-
 // ─── Endpoints ───────────────────────────────────────────────────────────────
 
 export const api = {
@@ -509,18 +404,11 @@ export const api = {
     }),
   me: () => request<AuthResponse>('/api/auth/me'),
   logout: () => request<{ ok?: boolean }>('/api/auth/logout', { method: 'POST' }),
-  // Sprint 5.5b — switch active branch (sets pos_branch cookie server-side)
-  switchBranch: (branchId: string) =>
-    request<{ ok: boolean; branchId: string; role: Role }>('/api/auth/me/branch', {
-      method: 'POST',
-      body: JSON.stringify({ branchId }),
-    }),
 
   // Menu
   getCategories: () => request<{ data: Category[] }>('/api/menu/categories'),
-  getMenuItems: (params?: { branchId?: string; category?: string; search?: string }) => {
+  getMenuItems: (params?: { category?: string; search?: string }) => {
     const qs = new URLSearchParams();
-    if (params?.branchId) qs.set('branchId', params.branchId);
     if (params?.category) qs.set('category', params.category);
     if (params?.search) qs.set('search', params.search);
     const tail = qs.toString();
@@ -529,12 +417,10 @@ export const api = {
   // Sprint 8.11 — barcode lookup (used by handheld / Bluetooth scanners).
   // The route is /api/menu/items/by-barcode/:barcode. We percent-encode
   // the barcode in case it contains characters like `/` or whitespace.
-  getMenuItemByBarcode: (barcode: string, branchId?: string) => {
-    const q = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
-    return request<{ data: MenuItem }>(
-      `/api/menu/items/by-barcode/${encodeURIComponent(barcode)}${q}`,
-    );
-  },
+  getMenuItemByBarcode: (barcode: string) =>
+    request<{ data: MenuItem }>(
+      `/api/menu/items/by-barcode/${encodeURIComponent(barcode)}`,
+    ),
   createMenuItem: (payload: any) =>
     request<{ data: MenuItem }>('/api/menu/items', {
       method: 'POST',
@@ -558,12 +444,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ closingCash, notes }),
     }),
-  listShifts: (params?: { from?: string; to?: string; status?: 'OPEN' | 'CLOSED'; branchId?: string }) => {
+  listShifts: (params?: { from?: string; to?: string; status?: 'OPEN' | 'CLOSED' }) => {
     const qs = new URLSearchParams();
     if (params?.from) qs.set('from', params.from);
     if (params?.to) qs.set('to', params.to);
     if (params?.status) qs.set('status', params.status);
-    if (params?.branchId) qs.set('branchId', params.branchId);
     const q = qs.toString();
     return request<{ data: Shift[] }>(`/api/shifts${q ? `?${q}` : ''}`);
   },
@@ -683,80 +568,10 @@ export const api = {
   // Reports
   getDailyReport: (date: string) =>
     request<{ data: unknown }>(`/api/reports/daily?date=${encodeURIComponent(date)}`),
-  // Sprint 4.4: chain report (OWNER only)
-  getChainReport: (date: string) =>
-    request<{ data: ChainReport }>(`/api/reports/chain?date=${encodeURIComponent(date)}`),
-
-  // Sprint 5.2 — Stock transfers
-  listTransfers: (params?: { status?: string; branchId?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.status) q.set('status', params.status);
-    if (params?.branchId) q.set('branchId', params.branchId);
-    const qs = q.toString();
-    return request<{ data: { transfers: StockTransfer[] } }>(
-      `/api/transfers${qs ? `?${qs}` : ''}`,
-    );
-  },
-  getTransfer: (id: string) =>
-    request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}`),
-  createTransfer: (payload: {
-    fromBranchId: string;
-    toBranchId: string;
-    notes?: string;
-    items: Array<{ inventoryItemId: string; qtyTransferred: number }>;
-  }) =>
-    request<{ data: { transfer: StockTransfer } }>('/api/transfers', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-  sendTransfer: (id: string) =>
-    request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}/send`, { method: 'POST' }),
-  receiveTransfer: (id: string, items?: Array<{ transferItemId: string; qtyReceived: number }>) =>
-    request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}/receive`, {
-      method: 'POST',
-      body: JSON.stringify({ items }),
-    }),
-  cancelTransfer: (id: string) =>
-    request<{ data: { transfer: StockTransfer } }>(`/api/transfers/${id}/cancel`, { method: 'POST' }),
-
-  // Sprint 5.4 — bulk copy menu between branches with per-SKU price override
-  cloneMenu: (payload: {
-    sourceBranchId: string;
-    targetBranchId: string;
-    priceOverrides?: Record<string, { priceCents?: number; costCents?: number }>;
-    skipExisting?: boolean;
-  }) =>
-    request<{ data: { sourceBranchId: string; targetBranchId: string; created: number; updated: number; skipped: number } }>(
-      '/api/menu/clone',
-      { method: 'POST', body: JSON.stringify(payload) },
-    ),
-
-  // Sprint 5.6 — branches (list + PPN config)
-  listBranches: () =>
-    request<{ data: { branches: Branch[] } }>('/api/branches'),
-  getBranch: (id: string) =>
-    request<{ data: { branch: Branch } }>(`/api/branches/${id}`),
-  updateBranchPpn: (
-    id: string,
-    payload: { ppnPercent: number; ppnInclusive?: boolean },
-  ) =>
-    request<{ data: { branch: Branch } }>(`/api/branches/${id}/ppn`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    }),
-  updateBranch: (
-    id: string,
-    payload: { name?: string; address?: string | null; city?: string | null; phone?: string | null; timezone?: string },
-  ) =>
-    request<{ data: { branch: Branch } }>(`/api/branches/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    }),
 
   // Sprint 8.6 — Combos (set meals)
-  listCombos: (params?: { branchId?: string; includeInactive?: boolean }) => {
+  listCombos: (params?: { includeInactive?: boolean }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.includeInactive) q.set('includeInactive', 'true');
     const qs = q.toString();
     return request<{ data: Combo[] }>(`/api/combos${qs ? `?${qs}` : ''}`);
@@ -806,16 +621,14 @@ export const api = {
     request<{ data: Combo }>(`/api/combos/${id}`, { method: 'DELETE' }),
 
   // Sprint 8.7 — Promos
-  listPromos: (params?: { branchId?: string; isActive?: boolean }) => {
+  listPromos: (params?: { isActive?: boolean }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.isActive) q.set('isActive', 'true');
     const qs = q.toString();
     return request<{ data: Promo[] }>(`/api/promos${qs ? `?${qs}` : ''}`);
   },
   validatePromo: (payload: {
     code: string;
-    branchId?: string;
     items: Array<{ menuItemId: string; quantity: number; unitPriceCents: number }>;
     memberId?: string;
   }) =>
@@ -825,7 +638,6 @@ export const api = {
     }),
   applyPromo: (payload: {
     code: string;
-    branchId?: string;
     items: Array<{ menuItemId: string; quantity: number; unitPriceCents: number }>;
     memberId?: string;
     orderId: string;
@@ -897,10 +709,9 @@ export const api = {
     request<{ data: Promo }>(`/api/promos/${id}`, { method: 'DELETE' }),
 
   // Sprint 8.8 — Customers / Members
-  listCustomers: (params?: { search?: string; branchId?: string; includeInactive?: boolean; limit?: number }) => {
+  listCustomers: (params?: { search?: string; includeInactive?: boolean; limit?: number }) => {
     const q = new URLSearchParams();
     if (params?.search) q.set('search', params.search);
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.includeInactive) q.set('includeInactive', 'true');
     if (params?.limit) q.set('limit', String(params.limit));
     const qs = q.toString();
@@ -917,7 +728,6 @@ export const api = {
     birthday?: string;
     address?: string;
     notes?: string;
-    branchId?: string;
   }) =>
     request<{ data: Customer }>('/api/customers', {
       method: 'POST',
@@ -939,10 +749,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
-  lookupCustomer: (phone: string, branchId?: string) =>
+  lookupCustomer: (phone: string) =>
     request<{ data: Customer | null }>('/api/customers/lookup', {
       method: 'POST',
-      body: JSON.stringify({ phone, branchId }),
+      body: JSON.stringify({ phone }),
     }),
   getCustomerBalance: (id: string) =>
     request<{ data: { customerId: string; points: number; updatedAt: string | null } }>(
@@ -1045,9 +855,8 @@ export const api = {
   // bundle. See apps/web/src/app/kiosk/page.tsx for the fetch wrappers.
 
   // ─── Sprint 9.2 — Reservations (auth) ──────────────────────────────────
-  listReservations: (params?: { branchId?: string; date?: string; status?: string }) => {
+  listReservations: (params?: { date?: string; status?: string }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.date) q.set('date', params.date);
     if (params?.status) q.set('status', params.status);
     const qs = q.toString();
@@ -1055,14 +864,12 @@ export const api = {
   },
   getReservation: (id: string) =>
     request<{ data: Reservation }>(`/api/reservations/${id}`),
-  getReservationAvailability: (params: { branchId?: string; date: string; partySize: number }) => {
+  getReservationAvailability: (params: { date: string; partySize: number }) => {
     const q = new URLSearchParams();
-    if (params.branchId) q.set('branchId', params.branchId);
     q.set('date', params.date);
     q.set('partySize', String(params.partySize));
     return request<{
       data: {
-        branchId: string;
         date: string;
         partySize: number;
         slotMinutes: number;
@@ -1072,7 +879,6 @@ export const api = {
     }>(`/api/reservations/availability?${q.toString()}`);
   },
   createReservation: (payload: {
-    branchId: string;
     customerName: string;
     customerPhone: string;
     partySize: number;
@@ -1115,9 +921,8 @@ export const api = {
     }),
 
   // ─── Sprint 9.3 — Tables (waiter handheld) ─────────────────────────────
-  listTables: (params?: { branchId?: string; status?: string; includeInactive?: boolean }) => {
+  listTables: (params?: { status?: string; includeInactive?: boolean }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.status) q.set('status', params.status);
     if (params?.includeInactive) q.set('includeInactive', 'true');
     const qs = q.toString();
@@ -1126,7 +931,6 @@ export const api = {
   getTable: (id: string) =>
     request<{ data: RestaurantTableDetail }>(`/api/tables/${id}`),
   createTable: (payload: {
-    branchId: string;
     number: string;
     capacity?: number;
     area?: string;
@@ -1188,7 +992,6 @@ export const api = {
 
   // ─── Sprint 9.4 — Menu engineering (BCG matrix) ────────────────────────
   createMenuEngineeringSnapshot: (payload: {
-    branchId: string;
     periodStart: string;
     periodEnd: string;
   }) =>
@@ -1196,9 +999,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  listMenuEngineeringSnapshots: (params?: { branchId?: string; limit?: number }) => {
+  listMenuEngineeringSnapshots: (params?: { limit?: number }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.limit) q.set('limit', String(params.limit));
     const qs = q.toString();
     return request<{ data: MenuEngineeringSnapshot[] }>(
@@ -1212,12 +1014,10 @@ export const api = {
 
   // Sprint 9.5 — Suppliers
   listSuppliers: (params?: {
-    branchId?: string;
     includeInactive?: boolean;
     search?: string;
   }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.includeInactive) q.set('includeInactive', 'true');
     if (params?.search) q.set('search', params.search);
     const qs = q.toString();
@@ -1226,7 +1026,6 @@ export const api = {
     );
   },
   createSupplier: (payload: {
-    branchId: string;
     name: string;
     contactName?: string | null;
     phone?: string | null;
@@ -1258,12 +1057,10 @@ export const api = {
 
   // Sprint 9.5 — Purchase Orders
   listPurchaseOrders: (params?: {
-    branchId?: string;
     status?: PurchaseOrderStatus;
     supplierId?: string;
   }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.status) q.set('status', params.status);
     if (params?.supplierId) q.set('supplierId', params.supplierId);
     const qs = q.toString();
@@ -1276,7 +1073,6 @@ export const api = {
       `/api/purchase-orders/${id}`,
     ),
   createPurchaseOrder: (payload: {
-    branchId: string;
     supplierId: string;
     notes?: string | null;
     expectedAt?: string | null;
@@ -1329,7 +1125,6 @@ export const api = {
 
   // Sprint 9.6 — Prep Sheets
   generatePrepSheet: (payload: {
-    branchId: string;
     date: string;
     lookbackDays?: number;
     notes?: string | null;
@@ -1340,9 +1135,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  listPrepSheets: (params?: { branchId?: string; date?: string }) => {
+  listPrepSheets: (params?: { date?: string }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.date) q.set('date', params.date);
     const qs = q.toString();
     return request<{ data: { prepSheets: PrepSheet[] } }>(
@@ -1359,10 +1153,9 @@ export const api = {
   // the JSON envelope.
   downloadAccountingExport: async (
     journalType: 'sales' | 'purchase',
-    params: { branchId: string; from: string; to: string; format: 'JURNAL' | 'ACCURATE' | 'MEKARI' | 'GENERIC' },
+    params: { from: string; to: string; format: 'JURNAL' | 'ACCURATE' | 'MEKARI' | 'GENERIC' },
   ): Promise<Response> => {
     const qs = new URLSearchParams();
-    qs.set('branchId', params.branchId);
     qs.set('from', params.from);
     qs.set('to', params.to);
     qs.set('format', params.format);
@@ -1376,7 +1169,6 @@ export const api = {
   // Note: this fetches CSV at /api/accounting-export/:type-journal.csv.
   // The fetch wrapper can't parse non-JSON, so we use raw fetch above.
   listWaste: (params?: {
-    branchId?: string;
     from?: string;
     to?: string;
     type?: 'FOOD' | 'INGREDIENT' | 'PACKAGING';
@@ -1384,7 +1176,6 @@ export const api = {
     includeDeleted?: boolean;
   }) => {
     const q = new URLSearchParams();
-    if (params?.branchId) q.set('branchId', params.branchId);
     if (params?.from) q.set('from', params.from);
     if (params?.to) q.set('to', params.to);
     if (params?.type) q.set('type', params.type);
@@ -1395,14 +1186,12 @@ export const api = {
       `/api/waste${qs ? `?${qs}` : ''}`,
     );
   },
-  getWasteSummary: (params: { branchId: string; days?: number }) => {
+  getWasteSummary: (params: { days?: number }) => {
     const q = new URLSearchParams();
-    q.set('branchId', params.branchId);
     if (params.days) q.set('days', String(params.days));
     return request<{ data: WasteSummary }>(`/api/waste/summary?${q.toString()}`);
   },
   createWaste: (payload: {
-    branchId: string;
     type: 'FOOD' | 'INGREDIENT' | 'PACKAGING';
     menuItemId?: string | null;
     inventoryItemId?: string | null;
@@ -1447,7 +1236,6 @@ export type ReservationStatus = 'BOOKED' | 'SEATED' | 'COMPLETED' | 'CANCELLED' 
 
 export interface Reservation {
   id: string;
-  branchId: string;
   customerId: string | null;
   customerName: string;
   customerPhone: string;
@@ -1494,7 +1282,6 @@ export interface KioskMenuCategory {
 }
 
 export interface KioskMenuResponse {
-  branch: Branch;
   categories: KioskMenuCategory[];
 }
 
@@ -1523,7 +1310,6 @@ export type TableSessionStatus = 'OPEN' | 'CLOSED';
 
 export interface RestaurantTable {
   id: string;
-  branchId: string;
   number: string;
   capacity: number;
   area: string | null;
@@ -1582,7 +1368,6 @@ export interface MenuEngineeringTotals {
 
 export interface MenuEngineeringSnapshot {
   id: string;
-  branchId: string;
   periodStart: string;
   periodEnd: string;
   generatedAt: string;
@@ -1600,7 +1385,6 @@ export interface MenuEngineeringSnapshotDetail extends MenuEngineeringSnapshot {
 
 export interface Supplier {
   id: string;
-  branchId: string;
   name: string;
   contactName: string | null;
   phone: string | null;
@@ -1641,7 +1425,6 @@ export interface PurchaseOrderItem {
 
 export interface PurchaseOrder {
   id: string;
-  branchId: string;
   poNumber: string;
   supplierId: string;
   // API serializes BigInt as string
@@ -1690,7 +1473,6 @@ export interface PrepSheetItem {
 
 export interface PrepSheet {
   id: string;
-  branchId: string;
   date: string;
   lookbackDays: number;
   generatedAt: string;
@@ -1718,7 +1500,6 @@ export type WasteStatus = 'ACTIVE' | 'DELETED';
 
 export interface WasteEntry {
   id: string;
-  branchId: string;
   type: WasteType;
   status: WasteStatus;
   menuItemId: string | null;
@@ -1762,7 +1543,6 @@ export interface WasteSummary {
   periodDays: number;
   from: string;
   to: string;
-  branchId: string;
   totalCount: number;
   totalCostCents: number;
   byType: { FOOD: WasteSummaryByType; INGREDIENT: WasteSummaryByType; PACKAGING: WasteSummaryByType };
