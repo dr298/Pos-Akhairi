@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { MenuItem, Modifier } from '@/lib/api';
 
 // Cart line: the item the user picked + the modifier choices they made.
@@ -68,7 +68,14 @@ function makeLineId(): string {
   return `l_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
 }
 
-export function useCart(): UseCart {
+// React Context so all consumers in the tree share the same cart state.
+// Without this, calling useCart() in <MenuGrid> and <Cart> (siblings) created
+// two independent state instances — items added via one didn't appear in the
+// other. Now PosPage wraps the tree in <CartProvider> and all children call
+// useCartContext() to read/write the same cart.
+const CartContext = createContext<UseCart | null>(null);
+
+export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
   const [tableNumber, setTableNumber] = useState('');
@@ -161,7 +168,7 @@ export function useCart(): UseCart {
     [lines],
   );
 
-  return {
+  const value: UseCart = {
     lines,
     orderType,
     tableNumber,
@@ -186,4 +193,17 @@ export function useCart(): UseCart {
     totalCents,
     itemCount,
   };
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+}
+
+export function useCart(): UseCart {
+  const ctx = useContext(CartContext);
+  if (!ctx) {
+    // Fallback for callers that haven't been wrapped in <CartProvider> yet.
+    // Most commonly: PosPage wraps the tree, so this should not trigger in
+    // production. We throw a clear error so the dev sees it immediately.
+    throw new Error('useCart must be used inside <CartProvider>. Wrap PosPage (or parent) in <CartProvider>.');
+  }
+  return ctx;
 }
