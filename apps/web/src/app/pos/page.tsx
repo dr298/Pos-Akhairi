@@ -183,21 +183,25 @@ export default function PosPage() {
   }
 
   async function createOrder(): Promise<Order> {
+    // Strip null/undefined values so the backend Zod schema (which now
+    // accepts nulls but prefers undefined for optional fields) doesn't
+    // choke. Also collapse the `modifiers` array (legacy shape) into the
+    // `modifiersJson` record the backend stores on each line.
     const orderRes = await api.createOrder({
       orderType: cart.orderType,
       items: cart.lines.map((l) => ({
         menuItemId: l.menuItemId,
         quantity: l.quantity,
         modifiers: l.modifiers.map((m) => ({ modifierId: m.modifierId })),
-        notes: l.notes,
+        notes: l.notes || undefined,
       })),
-      tableNumber: cart.orderType === 'DINE_IN' ? cart.tableNumber.trim() || null : null,
+      tableNumber: cart.orderType === 'DINE_IN' ? (cart.tableNumber.trim() || undefined) : undefined,
       customerName:
         cart.orderType === 'TAKEOUT' || cart.orderType === 'DELIVERY'
-          ? cart.customerName.trim() || null
-          : null,
-      notes: cart.notes.trim() || null,
-      discountCode: cart.discount?.code ?? null,
+          ? (cart.customerName.trim() || undefined)
+          : undefined,
+      notes: cart.notes.trim() || undefined,
+      discountCode: cart.discount?.code || undefined,
     });
     return orderRes.data;
   }

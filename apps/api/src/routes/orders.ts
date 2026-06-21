@@ -29,16 +29,23 @@ const orderComboItemSchema = z.object({
   notes: z.string().max(200).optional(),
 });
 
+// S1.5 — order create schema. Accepts both `orderType` (legacy frontend
+// key) and `type` (canonical) — silently preferring `orderType` first if
+// both are present. All optional string fields are `.nullable()` so the
+// frontend can send `null` to explicitly clear a value (instead of having
+// to omit the field). Enum matches the DB column (`DINE_IN | TAKEAWAY |
+// DELIVERY`); the frontend's `TAKEOUT` is mapped to `TAKEAWAY` below.
 const orderCreateSchema = z.object({
-  type: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']).optional(),
-  tableNumber: z.string().max(20).optional(),
-  customerName: z.string().max(100).optional(),
-  notes: z.string().max(500).optional(),
-  shiftId: z.string().optional(),
-  discountCode: z.string().min(1).max(50).optional(),
-  discountId: z.string().optional(),
+  type: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']).nullable().optional(),
+  orderType: z.enum(['DINE_IN', 'TAKEOUT', 'TAKEAWAY', 'DELIVERY']).nullable().optional(),
+  tableNumber: z.string().max(20).nullable().optional(),
+  customerName: z.string().max(100).nullable().optional(),
+  notes: z.string().max(500).nullable().optional(),
+  shiftId: z.string().nullable().optional(),
+  discountCode: z.string().min(1).max(50).nullable().optional(),
+  discountId: z.string().nullable().optional(),
   // Sprint 8.7 — promo engine code. Validated and applied during creation.
-  promoCode: z.string().min(1).max(50).optional(),
+  promoCode: z.string().min(1).max(50).nullable().optional(),
   items: z.array(orderItemSchema).min(1).optional(),
   // Sprint 8.6 — combo items (set meals). Expanded into line items.
   comboItems: z.array(orderComboItemSchema).optional(),
@@ -46,7 +53,7 @@ const orderCreateSchema = z.object({
   // service credits the customer's loyalty balance on payment. We
   // accept but don't validate membership here — payment-finalize is
   // defensive and will warn if the customer lookup fails.
-  customerId: z.string().min(1).max(50).optional(),
+  customerId: z.string().min(1).max(50).nullable().optional(),
 }).refine(
   (o) => (o.items && o.items.length > 0) || (o.comboItems && o.comboItems.length > 0),
   { message: 'At least one item or combo is required' },
@@ -112,6 +119,13 @@ orderRoutes.post('/', async (c) => {
     return fail(c, 'ValidationError', 'Invalid order payload', 400, parsed.error.issues);
   }
   if (!user.branchId) return fail(c, 'NoBranch', 'User has no branch', 400);
+
+  // Normalize order type: accept both `type` (canonical) and `orderType`
+  // (legacy frontend key). Map the frontend's `TAKEOUT` to the DB's
+  // canonical `TAKEAWAY`. `orderType` wins if both are present.
+  const rawType = parsed.data.orderType ?? parsed.data.type ?? null;
+  const normalizedType =
+    rawType === 'TAKEOUT' ? 'TAKEAWAY' : (rawType as 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY' | null);
 
   const regularItems = parsed.data.items ?? [];
   const comboItems = parsed.data.comboItems ?? [];
@@ -339,7 +353,7 @@ orderRoutes.post('/', async (c) => {
         branchId,
         shiftId: shiftId ?? undefined,
         orderNumber,
-        type: (parsed.data.type as any) ?? 'DINE_IN',
+        type: (normalizedType as any) ?? 'DINE_IN',
         status: 'OPEN',
         tableNumber: parsed.data.tableNumber,
         customerName: parsed.data.customerName,
@@ -472,10 +486,14 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
         cashierId: user.id,
       },
     });
-    // Sprint 7.5 — payment metric
-    const orderRow = finalized.order as unknown as { paidAt?: Date | null; createdAt: Date };
-    const paidAt = orderRow.paidAt ?? finalized.order.updatedAt;
-    const prepMs = paidAt.getTime() - orderRow.createdAt.getTime();
+    // Sprint 7.5 — payment metric. finalizer returns { order, payment,
+    // lowStockAlerts } where `order` is the closed order (with paidAt
+    // set by finalizeOrderPayment). Note: the schema field is `openedAt`
+    // (not `createdAt`). Defensive read in case the shape shifts.
+    const closedOrder = (finalized.order as unknown as { paidAt?: Date | null; openedAt?: Date; updatedAt: Date }) ?? undefined;
+    const paidAt = closedOrder?.paidAt ?? closedOrder?.updatedAt ?? new Date();
+    const openedAt = closedOrder?.openedAt ?? new Date(0);
+    const prepMs = paidAt.getTime() - openedAt.getTime();
     incCounter('pos_payments_completed_total', 'Total payments completed', {
       branchId: user.branchId ?? 'none',
       method: 'CASH',
@@ -485,11 +503,11 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
       method: 'CASH',
     });
     return ok(c, {
-      order: finalized.order,
-      payment: finalized.payment,
+      order: closedOrder,
+      payment: (finalized as { payment?: unknown }).payment,
       changeCents,
       amountGiven,
-      lowStockAlerts: finalized.lowStockAlerts,
+      lowStockAlerts: (finalized as { lowStockAlerts?: unknown[] }).lowStockAlerts ?? [],
     });
   } catch (e: any) {
     logger.error({ err: e, orderId: id }, 'pay-cash finalize failed');
