@@ -1,6 +1,6 @@
 // apps/api/src/routes/purchase-orders.ts
 //
-// Sprint 9.5 — Purchase Orders. Branch-scoped.
+// Sprint 9.5 — Purchase Orders. Single branch-less restaurant.
 //
 // Status flow:
 //   DRAFT  →  SENT  →  PARTIAL → RECEIVED
@@ -13,7 +13,7 @@
 // has been partially received but not all are complete.
 //
 // Endpoints (all require auth):
-//   GET   /api/purchase-orders?branchId=X&status=DRAFT
+//   GET   /api/purchase-orders?status=DRAFT
 //   GET   /api/purchase-orders/:id
 //   POST  /api/purchase-orders                          (MANAGER+)
 //   PATCH /api/purchase-orders/:id                      (MANAGER+)
@@ -21,9 +21,8 @@
 //   POST  /api/purchase-orders/:id/receive              (MANAGER+)
 //   POST  /api/purchase-orders/:id/cancel               (OWNER)
 //
-// PO numbers are generated as `PO-YYYYMMDD-NNNN` per (branchId, day).
-// The sequence resets daily; the per-branch uniqueness is enforced by
-// the @@unique([branchId, poNumber]) index.
+// PO numbers are generated as `PO-YYYYMMDD-NNNN` per day. The sequence
+// resets daily; uniqueness is enforced by the @@unique([poNumber]) index.
 
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -39,13 +38,6 @@ purchaseOrderRoutes.use('*', requireAuth);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function userHasBranchAccess(
-  branchAccess: Array<{ branchId: string }>,
-  branchId: string,
-): boolean {
-  return branchAccess.some((b) => b.branchId === branchId);
-}
-
 function fmtDateOnly(d: Date): string {
   // YYYYMMDD in local time (Asia/Jakarta is the system TZ, so this is fine).
   const y = d.getFullYear();
@@ -55,18 +47,18 @@ function fmtDateOnly(d: Date): string {
 }
 
 /**
- * Generate the next PO number for a branch on a given day.
- * Format: `PO-YYYYMMDD-NNNN`. Sequence is per-(branch, day) and resets
- * daily. The `branchId, poNumber` unique index guarantees we never
- * collide even under concurrent creation — we retry on P2002.
+ * Generate the next PO number for a given day.
+ * Format: `PO-YYYYMMDD-NNNN`. Sequence is per-day and resets daily.
+ * The `poNumber` unique index guarantees we never collide even under
+ * concurrent creation — we retry on P2002.
  */
-async function generatePoNumber(tx: Prisma.TransactionClient, branchId: string): Promise<string> {
+async function generatePoNumber(tx: Prisma.TransactionClient): Promise<string> {
   const today = new Date();
   const dayPart = fmtDateOnly(today);
   const prefix = `PO-${dayPart}-`;
-  // Look at existing PO numbers for this branch+day to find the highest seq.
+  // Look at existing PO numbers for today to find the highest seq.
   const todays = await tx.purchaseOrder.findMany({
-    where: { branchId, poNumber: { startsWith: prefix } },
+    where: { poNumber: { startsWith: prefix } },
     select: { poNumber: true },
   });
   let maxSeq = 0;
@@ -89,7 +81,6 @@ const itemSchema = z.object({
 });
 
 const createSchema = z.object({
-  branchId: z.string().min(1).max(50),
   supplierId: z.string().min(1).max(50),
   notes: z.string().max(1000).optional().nullable(),
   expectedAt: z.string().max(40).optional().nullable(),
@@ -117,18 +108,11 @@ const receiveSchema = z.object({
 // ─── List ──────────────────────────────────────────────────────────────────
 
 purchaseOrderRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
-  if (!userHasBranchAccess(user.branchAccess, branchId)) {
-    return fail(c, 'NoAccess', `No access to branch ${branchId}`, 403);
-  }
   const status = c.req.query('status');
   const supplierId = c.req.query('supplierId');
 
   const purchaseOrders = await prisma.purchaseOrder.findMany({
     where: {
-      branchId,
       ...(status ? { status: status as 'DRAFT' | 'SENT' | 'PARTIAL' | 'RECEIVED' | 'CANCELLED' } : {}),
       ...(supplierId ? { supplierId } : {}),
     },
@@ -147,7 +131,6 @@ purchaseOrderRoutes.get('/', async (c) => {
 // ─── Detail ────────────────────────────────────────────────────────────────
 
 purchaseOrderRoutes.get('/:id', async (c) => {
-  const user = c.get('user');
   const id = c.req.param('id');
   const po = await prisma.purchaseOrder.findUnique({
     where: { id },
@@ -165,9 +148,6 @@ purchaseOrderRoutes.get('/:id', async (c) => {
     },
   });
   if (!po) return fail(c, 'NotFound', 'Purchase order not found', 404);
-  if (!userHasBranchAccess(user.branchAccess, po.branchId)) {
-    return fail(c, 'NoAccess', 'No access to this purchase order', 403);
-  }
   // Enrich items with inventory item summary (name, sku, unit).
   const invIds = Array.from(new Set(po.items.map((i) => i.inventoryItemId)));
   const invItems = invIds.length
@@ -207,25 +187,19 @@ purchaseOrderRoutes.post(
       return fail(c, 'ValidationError', 'Invalid PO payload', 400, parsed.error.issues);
     }
     const input = parsed.data;
-    if (!userHasBranchAccess(user.branchAccess, input.branchId)) {
-      return fail(c, 'NoAccess', `No access to branch ${input.branchId}`, 403);
-    }
-    // Validate supplier belongs to this branch
+    // Validate supplier exists and is active
     const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId } });
     if (!supplier) return fail(c, 'NotFound', 'Supplier not found', 404);
-    if (supplier.branchId !== input.branchId) {
-      return fail(c, 'ValidationError', 'Supplier belongs to a different branch', 400);
-    }
     if (!supplier.isActive) {
       return fail(c, 'ValidationError', 'Supplier is inactive', 400);
     }
-    // Validate inventory items belong to this branch
+    // Validate inventory items exist
     const invIds = input.items.map((i) => i.inventoryItemId);
     const invItems = await prisma.inventoryItem.findMany({
-      where: { id: { in: invIds }, branchId: input.branchId },
+      where: { id: { in: invIds } },
     });
     if (invItems.length !== new Set(invIds).size) {
-      return fail(c, 'ValidationError', 'Some inventory items not in this branch', 400);
+      return fail(c, 'ValidationError', 'Some inventory items not found', 400);
     }
     // Compute totals
     let subtotal = 0;
@@ -244,10 +218,9 @@ purchaseOrderRoutes.post(
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         purchaseOrder = await prisma.$transaction(async (tx) => {
-          const poNumber = await generatePoNumber(tx, input.branchId);
+          const poNumber = await generatePoNumber(tx);
           return tx.purchaseOrder.create({
             data: {
-              branchId: input.branchId,
               poNumber,
               supplierId: input.supplierId,
               status: 'DRAFT',
@@ -273,7 +246,7 @@ purchaseOrderRoutes.post(
       } catch (e) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
           // PO number collision — retry with a fresh sequence.
-          logger.warn({ attempt, branchId: input.branchId }, 'PO number collision, retrying');
+          logger.warn({ attempt }, 'PO number collision, retrying');
           continue;
         }
         throw e;
@@ -282,11 +255,9 @@ purchaseOrderRoutes.post(
     if (!purchaseOrder) {
       return fail(c, 'Internal', 'Failed to generate unique PO number', 500);
     }
-    incCounter('pos_purchase_orders_created_total', 'POs created', {
-      branchId: input.branchId,
-    });
+    incCounter('pos_purchase_orders_created_total', 'POs created');
     logger.info(
-      { poId: purchaseOrder.id, poNumber: purchaseOrder.poNumber, branchId: input.branchId },
+      { poId: purchaseOrder.id, poNumber: purchaseOrder.poNumber },
       'purchase order created',
     );
     return ok(
@@ -309,7 +280,6 @@ purchaseOrderRoutes.patch(
   '/:id',
   requireRole('OWNER', 'MANAGER'),
   async (c) => {
-    const user = c.get('user');
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
     const parsed = updateSchema.safeParse(body);
@@ -318,9 +288,6 @@ purchaseOrderRoutes.patch(
     }
     const existing = await prisma.purchaseOrder.findUnique({ where: { id } });
     if (!existing) return fail(c, 'NotFound', 'PO not found', 404);
-    if (!userHasBranchAccess(user.branchAccess, existing.branchId)) {
-      return fail(c, 'NoAccess', 'No access to this PO', 403);
-    }
     if (existing.status !== 'DRAFT') {
       return fail(c, 'InvalidState', `Cannot edit PO in status ${existing.status}`, 409);
     }
@@ -331,13 +298,13 @@ purchaseOrderRoutes.patch(
     }
     let newItems: { inventoryItemId: string; qtyOrdered: string; unitCostCents: number; notes: string | null }[] | undefined;
     if (parsed.data.items) {
-      // Validate inventory items belong to the branch
+      // Validate inventory items exist
       const invIds = parsed.data.items.map((i) => i.inventoryItemId);
       const invItems = await prisma.inventoryItem.findMany({
-        where: { id: { in: invIds }, branchId: existing.branchId },
+        where: { id: { in: invIds } },
       });
       if (invItems.length !== new Set(invIds).size) {
-        return fail(c, 'ValidationError', 'Some inventory items not in this branch', 400);
+        return fail(c, 'ValidationError', 'Some inventory items not found', 400);
       }
       let subtotal = 0;
       for (const it of parsed.data.items) {
@@ -361,7 +328,6 @@ purchaseOrderRoutes.patch(
       }
       return tx.purchaseOrder.update({ where: { id }, data });
     });
-    void user;
     return ok(c, {
       purchaseOrder: {
         ...updated,
@@ -382,9 +348,6 @@ purchaseOrderRoutes.post(
     const id = c.req.param('id');
     const po = await prisma.purchaseOrder.findUnique({ where: { id } });
     if (!po) return fail(c, 'NotFound', 'PO not found', 404);
-    if (!userHasBranchAccess(user.branchAccess, po.branchId)) {
-      return fail(c, 'NoAccess', 'No access to this PO', 403);
-    }
     if (po.status !== 'DRAFT') {
       return fail(c, 'InvalidState', `Cannot send PO in status ${po.status}`, 409);
     }
@@ -392,7 +355,7 @@ purchaseOrderRoutes.post(
       where: { id },
       data: { status: 'SENT' },
     });
-    incCounter('pos_purchase_orders_sent_total', 'POs sent', { branchId: po.branchId });
+    incCounter('pos_purchase_orders_sent_total', 'POs sent');
     logger.info({ poId: id, by: user.id }, 'PO sent');
     return ok(c, {
       purchaseOrder: {
@@ -424,9 +387,6 @@ purchaseOrderRoutes.post(
       include: { items: true },
     });
     if (!po) return fail(c, 'NotFound', 'PO not found', 404);
-    if (!userHasBranchAccess(user.branchAccess, po.branchId)) {
-      return fail(c, 'NoAccess', 'No access to this PO', 403);
-    }
     if (po.status !== 'SENT' && po.status !== 'PARTIAL') {
       return fail(c, 'InvalidState', `Cannot receive PO in status ${po.status}`, 409);
     }
@@ -526,7 +486,6 @@ purchaseOrderRoutes.post(
     });
 
     incCounter('pos_purchase_orders_received_total', 'PO receives', {
-      branchId: po.branchId,
       status: result.status,
     });
     logger.info(
@@ -553,9 +512,6 @@ purchaseOrderRoutes.post(
     const id = c.req.param('id');
     const po = await prisma.purchaseOrder.findUnique({ where: { id } });
     if (!po) return fail(c, 'NotFound', 'PO not found', 404);
-    if (!userHasBranchAccess(user.branchAccess, po.branchId)) {
-      return fail(c, 'NoAccess', 'No access to this PO', 403);
-    }
     if (po.status !== 'DRAFT' && po.status !== 'SENT') {
       return fail(c, 'InvalidState', `Cannot cancel PO in status ${po.status}`, 409);
     }
@@ -563,9 +519,7 @@ purchaseOrderRoutes.post(
       where: { id },
       data: { status: 'CANCELLED', cancelledAt: new Date() },
     });
-    incCounter('pos_purchase_orders_cancelled_total', 'POs cancelled', {
-      branchId: po.branchId,
-    });
+    incCounter('pos_purchase_orders_cancelled_total', 'POs cancelled');
     logger.info({ poId: id, by: user.id }, 'PO cancelled');
     return ok(c, {
       purchaseOrder: {

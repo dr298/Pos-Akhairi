@@ -59,7 +59,7 @@ const orderCreateSchema = z.object({
   { message: 'At least one item or combo is required' },
 );
 
-async function nextOrderNumber(branchId: string): Promise<string> {
+async function nextOrderNumber(): Promise<string> {
   const today = new Date();
   const ymd =
     today.getFullYear().toString() +
@@ -67,7 +67,7 @@ async function nextOrderNumber(branchId: string): Promise<string> {
     String(today.getDate()).padStart(2, '0');
   const prefix = `ORD-${ymd}-`;
   const last = await prisma.order.findFirst({
-    where: { branchId, orderNumber: { startsWith: prefix } },
+    where: { orderNumber: { startsWith: prefix } },
     orderBy: { orderNumber: 'desc' },
   });
   let seq = 1;
@@ -78,20 +78,16 @@ async function nextOrderNumber(branchId: string): Promise<string> {
   return `${prefix}${String(seq).padStart(4, '0')}`;
 }
 
-async function loadActiveShift(userId: string, branchId: string) {
+async function loadActiveShift(userId: string) {
   return prisma.shift.findFirst({
-    where: { userId, branchId, status: 'OPEN' },
+    where: { userId, status: 'OPEN' },
   });
 }
 
 orderRoutes.get('/', async (c) => {
-  const user = c.get('user');
   const status = c.req.query('status');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   const orders = await prisma.order.findMany({
     where: {
-      branchId,
       ...(status ? { status: status as any } : {}),
     },
     include: { items: true, payments: true },
@@ -118,7 +114,6 @@ orderRoutes.post('/', async (c) => {
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid order payload', 400, parsed.error.issues);
   }
-  if (!user.branchId) return fail(c, 'NoBranch', 'User has no branch', 400);
 
   // Normalize order type: accept both `type` (canonical) and `orderType`
   // (legacy frontend key). Map the frontend's `TAKEOUT` to the DB's
@@ -134,38 +129,29 @@ orderRoutes.post('/', async (c) => {
   const menuIds = regularItems.map((i) => i.menuItemId);
   const menuItems = menuIds.length
     ? await prisma.menuItem.findMany({
-        where: { id: { in: menuIds }, branchId: user.branchId, isActive: true },
+        where: { id: { in: menuIds }, isActive: true },
       })
     : [];
   const menuMap = new Map(menuItems.map((m) => [m.id, m]));
   for (const it of regularItems) {
     if (!menuMap.has(it.menuItemId)) {
-      return fail(c, 'MenuItemNotFound', `Menu item ${it.menuItemId} not in this branch`, 400);
+      return fail(c, 'MenuItemNotFound', `Menu item ${it.menuItemId} not found`, 400);
     }
   }
 
-  // Sprint 5.6 — load branch PPN config for fallback + inclusive flag
-  const branchCfg = await prisma.branch.findUnique({
-    where: { id: user.branchId },
-    select: { ppnPercent: true, ppnInclusive: true },
-  });
-  const branchPpnBp = branchCfg?.ppnPercent ?? 0;
-  const branchPpnInclusive = branchCfg?.ppnInclusive ?? false;
-  function effectivePpnBp(m: { taxRateBp: number; useBranchPpn: boolean }): number {
-    if (m.taxRateBp > 0 && !m.useBranchPpn) return m.taxRateBp;
-    if (m.taxRateBp > 0 && m.useBranchPpn) return m.taxRateBp; // explicit per-item rate wins
-    if (branchPpnBp > 0 && m.useBranchPpn) return branchPpnBp;
-    return 0; // no PPN
+  // PPN config: use MenuItem.taxRateBp directly (no per-branch fallback).
+  function effectivePpnBp(m: { taxRateBp: number }): number {
+    return m.taxRateBp;
   }
 
   // Optionally attach to active shift
   let shiftId = parsed.data.shiftId;
   if (!shiftId) {
-    const shift = await loadActiveShift(user.id, user.branchId);
+    const shift = await loadActiveShift(user.id);
     if (shift) shiftId = shift.id;
   }
 
-  const orderNumber = await nextOrderNumber(user.branchId);
+  const orderNumber = await nextOrderNumber();
   let subtotal = 0;
   let tax = 0;
   const lineItems: Array<{
@@ -184,7 +170,7 @@ orderRoutes.post('/', async (c) => {
     const lineTotal = m.priceCents * it.quantity;
     subtotal += lineTotal;
     const rateBp = effectivePpnBp(m);
-    if (rateBp > 0 && !branchPpnInclusive) {
+    if (rateBp > 0) {
       tax += Math.floor((lineTotal * rateBp) / 10000);
     }
     lineItems.push({
@@ -204,14 +190,14 @@ orderRoutes.post('/', async (c) => {
   if (comboItems.length > 0) {
     const comboIds = Array.from(new Set(comboItems.map((ci) => ci.comboId)));
     const combos = await prisma.combo.findMany({
-      where: { id: { in: comboIds }, branchId: user.branchId, isActive: true },
+      where: { id: { in: comboIds }, isActive: true },
       include: { items: true },
     });
     const comboMap = new Map(combos.map((cm) => [cm.id, cm]));
     for (const ci of comboItems) {
       const combo = comboMap.get(ci.comboId);
       if (!combo) {
-        return fail(c, 'ComboNotFound', `Combo ${ci.comboId} not in this branch`, 400);
+        return fail(c, 'ComboNotFound', `Combo ${ci.comboId} not found`, 400);
       }
       // Validity window
       const now = new Date();
@@ -235,7 +221,7 @@ orderRoutes.post('/', async (c) => {
       subtotal += lineTotal;
       if (repMenu) {
         const rateBp = effectivePpnBp(repMenu);
-        if (rateBp > 0 && !branchPpnInclusive) {
+        if (rateBp > 0) {
           tax += Math.floor((lineTotal * rateBp) / 10000);
         }
       }
@@ -257,25 +243,6 @@ orderRoutes.post('/', async (c) => {
     }
   }
 
-  // Inclusive: tax already inside the price. Back-calculate from the
-  // subtotal of PPN-bearing lines using the dominant rate.
-  if (branchPpnInclusive && lineItems.length > 0) {
-    let inclusiveSubtotal = 0;
-    let maxRateBp = 0;
-    for (const li of lineItems) {
-      const m = menuMap.get(li.menuItemId);
-      if (!m) continue;
-      const r = effectivePpnBp(m);
-      if (r > 0) {
-        inclusiveSubtotal += m.priceCents * li.quantity;
-        if (r > maxRateBp) maxRateBp = r;
-      }
-    }
-    if (maxRateBp > 0 && inclusiveSubtotal > 0) {
-      tax = inclusiveSubtotal - Math.floor((inclusiveSubtotal * 10000) / (10000 + maxRateBp));
-    }
-  }
-
   // Discount resolution (legacy S2.5). Either discountCode/discountId OR
   // promoCode. If both, the legacy discount wins and the promo is logged
   // and skipped (per coordination note).
@@ -284,7 +251,6 @@ orderRoutes.post('/', async (c) => {
   if (parsed.data.discountCode || parsed.data.discountId) {
     const d = await prisma.discount.findFirst({
       where: {
-        branchId: user.branchId,
         ...(parsed.data.discountId
           ? { id: parsed.data.discountId }
           : { code: parsed.data.discountCode! }),
@@ -303,7 +269,7 @@ orderRoutes.post('/', async (c) => {
   let promoUsedCount: number | null = null;
   if (!discountId && parsed.data.promoCode) {
     const promo = await prisma.promo.findFirst({
-      where: { code: parsed.data.promoCode, branchId: user.branchId },
+      where: { code: parsed.data.promoCode },
       include: { conditions: true, rewards: true },
     });
     // Build PromoLineItem view from lineItems for the engine.
@@ -342,7 +308,6 @@ orderRoutes.post('/', async (c) => {
   // total = subtotal + tax - discount (clamp at 0)
   const total = Math.max(0, subtotal + tax - discountCents);
 
-  const branchId = user.branchId!; // narrowed by the check above
   // Prisma's typed `items.create` expects a relation-shape when using the
   // "checked" form (e.g. { menuItem: { connect: ... } }) or a flat
   // UncheckedCreate shape (just menuItemId). We use the latter since we
@@ -350,7 +315,6 @@ orderRoutes.post('/', async (c) => {
   const order = await prisma.$transaction(async (tx) => {
     const ord = await tx.order.create({
       data: {
-        branchId,
         shiftId: shiftId ?? undefined,
         orderNumber,
         type: (normalizedType as any) ?? 'DINE_IN',
@@ -409,32 +373,24 @@ orderRoutes.post('/', async (c) => {
   );
   // Sprint 7.5 — business metric
   incCounter('pos_orders_created_total', 'Total orders created', {
-    branchId: user.branchId ?? 'none',
     type: order.type,
   });
   observeHistogram(
     'pos_order_subtotal_cents',
     'Order subtotal in cents',
     total,
-    { branchId: user.branchId ?? 'none' },
   );
   if (comboItems.length > 0) {
-    incCounter('pos_combos_sold_total', 'Combos sold', {
-      branchId: user.branchId ?? 'none',
-    });
+    incCounter('pos_combos_sold_total', 'Combos sold');
   }
-  wsBus.broadcast(
-    {
-      type: 'order.created',
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      totalCents: order.totalCents,
-      status: order.status,
-      branchId: order.branchId,
-      at: Date.now(),
-    },
-    order.branchId,
-  );
+  wsBus.broadcast({
+    type: 'order.created',
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    totalCents: order.totalCents,
+    status: order.status,
+    at: Date.now(),
+  });
   return ok(c, order, 201);
 });
 
@@ -495,11 +451,9 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
     const openedAt = closedOrder?.openedAt ?? new Date(0);
     const prepMs = paidAt.getTime() - openedAt.getTime();
     incCounter('pos_payments_completed_total', 'Total payments completed', {
-      branchId: user.branchId ?? 'none',
       method: 'CASH',
     });
     observeHistogram('pos_payment_latency_ms', 'Time from order open to paid (ms)', prepMs, {
-      branchId: user.branchId ?? 'none',
       method: 'CASH',
     });
     return ok(c, {
@@ -551,18 +505,14 @@ orderRoutes.post('/:id/void', requireRole('OWNER', 'MANAGER'), async (c) => {
   });
 
   logger.info({ orderId: id, reason, by: user.id }, 'order voided');
-  wsBus.broadcast(
-    {
-      type: 'order.voided',
-      orderId: updated.id,
-      orderNumber: updated.orderNumber,
-      totalCents: updated.totalCents,
-      status: updated.status,
-      branchId: updated.branchId,
-      at: Date.now(),
-    },
-    updated.branchId,
-  );
+  wsBus.broadcast({
+    type: 'order.voided',
+    orderId: updated.id,
+    orderNumber: updated.orderNumber,
+    totalCents: updated.totalCents,
+    status: updated.status,
+    at: Date.now(),
+  });
   return ok(c, updated);
 });
 
@@ -643,18 +593,14 @@ orderRoutes.post('/:id/refund', requireRole('OWNER', 'MANAGER'), async (c) => {
     }
 
     logger.info({ orderId: id, refundMethod, by: user.id }, 'order refunded');
-    wsBus.broadcast(
-      {
-        type: 'order.refunded',
-        orderId: updated.id,
-        orderNumber: updated.orderNumber,
-        totalCents: updated.totalCents,
-        status: updated.status,
-        branchId: updated.branchId,
-        at: Date.now(),
-      },
-      updated.branchId,
-    );
+    wsBus.broadcast({
+      type: 'order.refunded',
+      orderId: updated.id,
+      orderNumber: updated.orderNumber,
+      totalCents: updated.totalCents,
+      status: updated.status,
+      at: Date.now(),
+    });
     return ok(c, updated);
   } catch (e: any) {
     logger.error({ err: e, orderId: id }, 'refund failed');

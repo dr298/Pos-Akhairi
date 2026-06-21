@@ -125,7 +125,7 @@ function itemLine(name: string, qty: number, lineTotalCents: number): string {
 }
 
 /**
- * Render the receipt for an order. Loads the order, branch, openedBy user
+ * Render the receipt for an order. Loads the order, openedBy user
  * and the first PAID payment. Throws (caller catches) if the order doesn't
  * exist; other lookup failures are tolerant.
  */
@@ -133,7 +133,6 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      branch: true,
       openedBy: { select: { name: true } },
       items: { orderBy: { createdAt: 'asc' } },
       payments: { where: { status: 'PAID' }, orderBy: { paidAt: 'asc' }, take: 1 },
@@ -144,8 +143,11 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
   }
 
   const cashierName = order.openedBy?.name ?? '—';
-  const branchName = order.branch?.name ?? BRAND_HEADER;
-  const branchAddress = order.branch?.address ?? null;
+  // Single-restaurant deployment. The legacy `branchName` / `branchAddress`
+  // fields are kept for receipt-template compatibility and fall back to the
+  // brand header when not set.
+  const branchName = BRAND_HEADER;
+  const branchAddress = null;
   const openedAt = order.openedAt;
   const closedAt = order.closedAt ?? null;
 

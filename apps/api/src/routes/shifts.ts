@@ -10,7 +10,6 @@ shiftRoutes.use('*', requireAuth);
 
 const openShiftSchema = z.object({
   openingCash: z.number().int().nonnegative(),
-  branchId: z.string().optional(),
   notes: z.string().max(500).optional(),
 });
 
@@ -21,13 +20,11 @@ const closeShiftSchema = z.object({
 
 shiftRoutes.get('/current', async (c) => {
   const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
-  const where: any = { branchId, status: 'OPEN' };
+  const where: any = { status: 'OPEN' };
   if (c.req.query('mine') === 'true') where.userId = user.id;
   const shift = await prisma.shift.findFirst({
     where,
-    include: { user: { select: { id: true, name: true, email: true } }, branch: true },
+    include: { user: { select: { id: true, name: true, email: true } } },
     orderBy: { openedAt: 'desc' },
   });
   return ok(c, shift);
@@ -40,12 +37,10 @@ shiftRoutes.post('/open', async (c) => {
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
   }
-  const branchId = parsed.data.branchId || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
-  // Enforce: only one open shift per user per branch
+  // Enforce: only one open shift per user
   const existing = await prisma.shift.findFirst({
-    where: { userId: user.id, branchId, status: 'OPEN' },
+    where: { userId: user.id, status: 'OPEN' },
   });
   if (existing) {
     return fail(c, 'ShiftAlreadyOpen', `User already has open shift ${existing.id}`, 409);
@@ -53,15 +48,14 @@ shiftRoutes.post('/open', async (c) => {
 
   const shift = await prisma.shift.create({
     data: {
-      branchId,
       userId: user.id,
       status: 'OPEN',
       openingCents: parsed.data.openingCash,
       notes: parsed.data.notes,
     },
-    include: { user: { select: { id: true, name: true, email: true } }, branch: true },
+    include: { user: { select: { id: true, name: true, email: true } } },
   });
-  logger.info({ shiftId: shift.id, userId: user.id, branchId }, 'shift opened');
+  logger.info({ shiftId: shift.id, userId: user.id }, 'shift opened');
   return ok(c, shift, 201);
 });
 
@@ -134,7 +128,7 @@ shiftRoutes.post('/:id/close', requireRole('OWNER', 'MANAGER'), async (c) => {
       varianceCents: variance,
       notes: parsed.data.notes ?? shift.notes,
     },
-    include: { user: { select: { id: true, name: true, email: true } }, branch: true },
+    include: { user: { select: { id: true, name: true, email: true } } },
   });
   logger.info(
     { shiftId: id, expected, variance, cashIn, refunds, opening: shift.openingCents },
@@ -144,14 +138,11 @@ shiftRoutes.post('/:id/close', requireRole('OWNER', 'MANAGER'), async (c) => {
 });
 
 shiftRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
   const from = c.req.query('from');
   const to = c.req.query('to');
   const status = c.req.query('status');
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
-  const where: any = { branchId };
+  const where: any = {};
   if (status) where.status = status;
   if (from || to) {
     where.openedAt = {};
@@ -173,7 +164,6 @@ shiftRoutes.get('/:id', async (c) => {
     where: { id },
     include: {
       user: { select: { id: true, name: true, email: true } },
-      branch: true,
       orders: {
         include: { items: true, payments: true },
         orderBy: { openedAt: 'asc' },

@@ -16,19 +16,16 @@ function dayRange(date: string): { start: Date; end: Date } {
 }
 
 reportRoutes.get('/daily', async (c) => {
-  const user = c.get('user');
   const date = c.req.query('date') || new Date().toISOString().slice(0, 10);
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
-  const cacheKey = `daily:${branchId}:${date}`;
+  const cacheKey = `daily:${date}`;
   const cached = cacheGet<any>(cacheKey);
   if (cached) return ok(c, { ...cached, cached: true });
 
   const { start, end } = dayRange(date);
   const [orderAgg, payments, topItems, hourlyRaw] = await Promise.all([
     prisma.order.aggregate({
-      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
       _count: { _all: true },
       _sum: { totalCents: true },
     }),
@@ -37,7 +34,6 @@ reportRoutes.get('/daily', async (c) => {
       where: {
         status: 'PAID',
         paidAt: { gte: start, lte: end },
-        order: { branchId },
       },
       _sum: { amountCents: true },
       _count: { _all: true },
@@ -45,14 +41,14 @@ reportRoutes.get('/daily', async (c) => {
     prisma.orderItem.groupBy({
       by: ['menuItemId'],
       where: {
-        order: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+        order: { status: 'PAID', closedAt: { gte: start, lte: end } },
       },
       _sum: { lineTotalCents: true, quantity: true },
       orderBy: { _sum: { lineTotalCents: 'desc' } },
       take: 10,
     }),
     prisma.order.findMany({
-      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
       select: { closedAt: true, totalCents: true },
     }),
   ]);
@@ -89,7 +85,6 @@ reportRoutes.get('/daily', async (c) => {
 
   const result = {
     date,
-    branchId,
     totalOrders: orderAgg._count._all,
     totalRevenueCents: orderAgg._sum.totalCents ?? 0,
     paymentBreakdown,
@@ -106,12 +101,9 @@ reportRoutes.get('/daily', async (c) => {
 });
 
 reportRoutes.get('/range', async (c) => {
-  const user = c.get('user');
   const from = c.req.query('from');
   const to = c.req.query('to');
-  const branchId = c.req.query('branchId') || user.branchId;
   if (!from || !to) return fail(c, 'ValidationError', 'from and to are required (YYYY-MM-DD)', 400);
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
   const start = new Date(`${from}T00:00:00.000Z`);
   const end = new Date(`${to}T23:59:59.999Z`);
@@ -121,7 +113,7 @@ reportRoutes.get('/range', async (c) => {
 
   const [agg, payments, ordersInRange] = await Promise.all([
     prisma.order.aggregate({
-      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
       _count: { _all: true },
       _sum: { totalCents: true },
     }),
@@ -130,13 +122,12 @@ reportRoutes.get('/range', async (c) => {
       where: {
         status: 'PAID',
         paidAt: { gte: start, lte: end },
-        order: { branchId },
       },
       _sum: { amountCents: true },
       _count: { _all: true },
     }),
     prisma.order.findMany({
-      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
       select: { closedAt: true, totalCents: true },
     }),
   ]);
@@ -170,7 +161,6 @@ reportRoutes.get('/range', async (c) => {
   return ok(c, {
     from,
     to,
-    branchId,
     totalDays,
     totalOrders: agg._count._all,
     totalRevenueCents: totalRevenue,
@@ -181,12 +171,9 @@ reportRoutes.get('/range', async (c) => {
 });
 
 reportRoutes.get('/items', async (c) => {
-  const user = c.get('user');
   const from = c.req.query('from');
   const to = c.req.query('to');
-  const branchId = c.req.query('branchId') || user.branchId;
   if (!from || !to) return fail(c, 'ValidationError', 'from and to are required (YYYY-MM-DD)', 400);
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
   const start = new Date(`${from}T00:00:00.000Z`);
   const end = new Date(`${to}T23:59:59.999Z`);
@@ -194,7 +181,7 @@ reportRoutes.get('/items', async (c) => {
   const grouped = await prisma.orderItem.groupBy({
     by: ['menuItemId'],
     where: {
-      order: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      order: { status: 'PAID', closedAt: { gte: start, lte: end } },
     },
     _sum: { lineTotalCents: true, quantity: true },
   });
@@ -215,7 +202,7 @@ reportRoutes.get('/items', async (c) => {
     }))
     .sort((a, b) => b.revenueCents - a.revenueCents);
 
-  return ok(c, { period: { from, to, branchId }, items });
+  return ok(c, { period: { from, to }, items });
 });
 
 function csvEscape(s: any): string {
@@ -234,21 +221,18 @@ function csvResponse(c: Context, filename: string, rows: (string | number)[][]) 
 }
 
 reportRoutes.get('/export', async (c) => {
-  const user = c.get('user');
   const type = c.req.query('type') || 'daily';
   const format = (c.req.query('format') || 'csv').toLowerCase();
   const date = c.req.query('date') || new Date().toISOString().slice(0, 10);
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
   if (type !== 'daily') {
-    return fail(c, 'ValidationError', "Only type=daily export supported in Sprint 1", 400);
+    return fail(c, 'ValidationError', "Only type=daily export supported", 400);
   }
   const { start, end } = dayRange(date);
 
   if (format === 'csv') {
     const orders = await prisma.order.findMany({
-      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
       include: { items: true, payments: true },
       orderBy: { closedAt: 'asc' },
     });
@@ -277,9 +261,8 @@ reportRoutes.get('/export', async (c) => {
   }
 
   if (format === 'pdf' || format === 'html') {
-    // Sprint 1: return printable HTML with content-disposition
     const orders = await prisma.order.findMany({
-      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
       include: { items: true, payments: true },
       orderBy: { closedAt: 'asc' },
     });
@@ -289,7 +272,6 @@ reportRoutes.get('/export', async (c) => {
 <style>body{font-family:system-ui,sans-serif;padding:24px}h1{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #ddd;padding:6px;text-align:left;font-size:12px}th{background:#f4f4f4}td.r,th.r{text-align:right}</style>
 </head><body>
 <h1>Daily Report — ${date}</h1>
-<div>Branch: ${branchId}</div>
 <div>Orders: <b>${orders.length}</b> &nbsp; Revenue: <b>Rp ${(totalRevenue/100).toLocaleString('id-ID')}</b></div>
 <table><thead><tr><th>#</th><th>Order</th><th>Closed</th><th>Items</th><th class=r>Total (IDR)</th><th>Payment</th></tr></thead>
 <tbody>
@@ -300,33 +282,30 @@ ${orders
   .join('\n')}
 </tbody></table>
 </body></html>`;
-    c.header('Content-Type', format === 'pdf' ? 'text/html; charset=utf-8' : 'text/html; charset=utf-8');
-    c.header('Content-Disposition', `attachment; filename="daily-${date}.${format === 'pdf' ? 'html' : 'html'}"`);
+    c.header('Content-Type', 'text/html; charset=utf-8');
+    c.header('Content-Disposition', `attachment; filename="daily-${date}.html"`);
     return c.body(html, 200);
   }
 
   return fail(c, 'ValidationError', "format must be 'csv' or 'pdf' (or 'html')", 400);
 });
 
-// Sprint 5.7 — Z-report (full end-of-day report per branch).
+// Sprint 5.7 — Z-report (full end-of-day report for the single restaurant).
 // Includes every section a manager needs to reconcile the day: gross/net
 // sales, void/refund, tax, payment method breakdown, order types, top
 // items, category breakdown, hourly chart, and shift drawer reconciliation.
 reportRoutes.get('/z-report', async (c) => {
-  const user = c.get('user');
   const date = c.req.query('date') || new Date().toISOString().slice(0, 10);
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail(c, 'ValidationError', 'Invalid date', 400);
 
-  const cacheKey = `zreport:${branchId}:${date}`;
+  const cacheKey = `zreport:${date}`;
   const cached = cacheGet<any>(cacheKey);
   if (cached) return ok(c, { ...cached, cached: true });
 
   const { start, end } = dayRange(date);
 
   // Parallel aggregates. We fetch flat rows for breakdowns (orderType,
-  // channel, item, category) and aggregate counts/sums separately.
+  // item, category) and aggregate counts/sums separately.
   const [
     paidAgg,
     voidAgg,
@@ -335,27 +314,25 @@ reportRoutes.get('/z-report', async (c) => {
     payments,
     paidItemsRaw,
     shifts,
-    branch,
     dailyClose,
   ] = await Promise.all([
     prisma.order.aggregate({
-      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
       _count: { _all: true },
       _sum: { subtotalCents: true, discountCents: true, taxCents: true, totalCents: true },
     }),
     prisma.order.aggregate({
-      where: { branchId, status: 'VOIDED', voidedAt: { gte: start, lte: end } },
+      where: { status: 'VOIDED', voidedAt: { gte: start, lte: end } },
       _count: { _all: true },
       _sum: { totalCents: true },
     }),
     prisma.order.aggregate({
-      where: { branchId, status: 'REFUNDED', refundedAt: { gte: start, lte: end } },
+      where: { status: 'REFUNDED', refundedAt: { gte: start, lte: end } },
       _count: { _all: true },
       _sum: { totalCents: true },
     }),
     prisma.order.findMany({
       where: {
-        branchId,
         status: { in: ['VOIDED', 'REFUNDED'] },
         OR: [
           { voidedAt: { gte: start, lte: end } },
@@ -367,13 +344,13 @@ reportRoutes.get('/z-report', async (c) => {
     }),
     prisma.payment.groupBy({
       by: ['method'],
-      where: { status: 'PAID', paidAt: { gte: start, lte: end }, order: { branchId } },
+      where: { status: 'PAID', paidAt: { gte: start, lte: end } },
       _sum: { amountCents: true },
       _count: { _all: true },
     }),
     // All items in PAID orders for top items + category + hourly
     prisma.orderItem.findMany({
-      where: { order: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } } },
+      where: { order: { status: 'PAID', closedAt: { gte: start, lte: end } } },
       select: {
         menuItemId: true,
         nameSnapshot: true,
@@ -384,7 +361,7 @@ reportRoutes.get('/z-report', async (c) => {
       },
     }),
     prisma.shift.findMany({
-      where: { branchId, openedAt: { gte: start, lte: end } },
+      where: { openedAt: { gte: start, lte: end } },
       select: {
         id: true, userId: true, status: true,
         openingCents: true, closingCents: true, expectedCents: true, varianceCents: true,
@@ -393,8 +370,7 @@ reportRoutes.get('/z-report', async (c) => {
       },
       orderBy: { openedAt: 'asc' },
     }),
-    prisma.branch.findUnique({ where: { id: branchId }, select: { id: true, code: true, name: true, city: true, timezone: true } }),
-    prisma.dailyClose.findFirst({ where: { branchId, businessDate: start } }),
+    prisma.dailyClose.findFirst({ where: { businessDate: start } }),
   ]);
 
   // Menu map for category breakdown
@@ -437,7 +413,7 @@ reportRoutes.get('/z-report', async (c) => {
     .map(([categoryId, v]) => ({ categoryId, ...v }))
     .sort((a, b) => b.revenueCents - a.revenueCents);
 
-  // Hourly breakdown (UTC hours; client reformats with branch timezone).
+  // Hourly breakdown (UTC hours; client reformats with restaurant timezone).
   // Use orderId from the item to count each order once.
   const hourly = Array.from({ length: 24 }, (_, h) => ({ hour: h, orders: 0, revenueCents: 0 }));
   const orderHourSeen = new Set<string>();
@@ -462,15 +438,7 @@ reportRoutes.get('/z-report', async (c) => {
     };
   }
 
-  // Order type breakdown. Channel breakdown needs the separate ChannelOrder
-  // join (one-to-many) so we fetch those rows too.
-  const [channelOrderRows] = await Promise.all([
-    prisma.channelOrder.findMany({
-      where: { order: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } } },
-      select: { orderId: true, channel: true, order: { select: { totalCents: true } } },
-    }),
-  ]);
-
+  // Order type breakdown.
   const orderTypeBreakdown: Record<string, { count: number; revenueCents: number }> = {};
   const seenOrderType = new Set<string>();
   for (const it of paidItemsRaw) {
@@ -483,69 +451,42 @@ reportRoutes.get('/z-report', async (c) => {
       orderTypeBreakdown[ot] = t;
     }
   }
+
+  // Channel breakdown (Sprint 10 — online ordering dropped). For legacy
+  // compatibility we still emit a single POS bucket covering all orders.
   const channelBreakdown: Record<string, { count: number; revenueCents: number }> = {
     POS: { count: 0, revenueCents: 0 },
   };
-  // Orders that have a ChannelOrder link are external aggregator orders
-  const externalOrderIds = new Set(channelOrderRows.map((c) => c.orderId));
-  // Walk channelOrderRows to populate per-channel
-  for (const c of channelOrderRows) {
-    if (!c.order) continue;
-    const cur = channelBreakdown[c.channel] || { count: 0, revenueCents: 0 };
-    cur.count += 1;
-    cur.revenueCents += c.order.totalCents;
-    channelBreakdown[c.channel] = cur;
-  }
-  // POS = paid orders that are NOT external (walk paidItemsRaw)
   for (const it of paidItemsRaw) {
-    if (externalOrderIds.has(it.orderId)) continue;
-    const cur = channelBreakdown.POS!;
+    if (!seenOrderType.has(it.orderId)) continue;
+    const cur = channelBreakdown['POS']!;
     cur.count += 1;
     cur.revenueCents += it.order.totalCents;
   }
 
-  // Shift cash reconciliation (use openingCents/closingCents/expectedCents/varianceCents)
-  const shiftReconciliation = shifts.map((s) => ({
-    shiftId: s.id,
-    cashier: s.user.name,
-    openedAt: s.openedAt,
-    closedAt: s.closedAt,
-    status: s.status,
-    openingCents: s.openingCents,
-    closingCents: s.closingCents,
-    expectedCents: s.expectedCents,
-    varianceCents: s.varianceCents,
-  }));
-
-  // Void/refund log
-  const voidRefundLog = voidRefunds.map((o) => ({
-    orderId: o.id,
-    orderNumber: o.orderNumber,
-    status: o.status,
-    totalCents: o.totalCents,
-    occurredAt: (o.voidedAt || o.refundedAt)?.toISOString() ?? null,
-  }));
-
-  const grossCents = paidAgg._sum.subtotalCents ?? 0;
+  const grossRevenueCents = paidAgg._sum.subtotalCents ?? 0;
   const discountCents = paidAgg._sum.discountCents ?? 0;
+  const netRevenueCents = grossRevenueCents - discountCents;
   const taxCents = paidAgg._sum.taxCents ?? 0;
-  const netCents = paidAgg._sum.totalCents ?? 0;
+  const totalRevenueCents = paidAgg._sum.totalCents ?? 0;
+  const voidCount = voidAgg._count._all;
+  const voidAmountCents = voidAgg._sum.totalCents ?? 0;
+  const refundCount = refundAgg._count._all;
+  const refundAmountCents = refundAgg._sum.totalCents ?? 0;
 
   const result = {
     date,
-    branchId,
-    branch,
     summary: {
-      grossCents,
+      grossRevenueCents,
       discountCents,
+      netRevenueCents,
       taxCents,
-      netCents,
-      paidOrders: paidAgg._count._all,
-      voidedOrders: voidAgg._count._all,
-      voidedCents: voidAgg._sum.totalCents ?? 0,
-      refundedOrders: refundAgg._count._all,
-      refundedCents: refundAgg._sum.totalCents ?? 0,
-      avgTicketCents: paidAgg._count._all > 0 ? Math.round(netCents / paidAgg._count._all) : 0,
+      totalRevenueCents,
+      paidOrderCount: paidAgg._count._all,
+      voidCount,
+      voidAmountCents,
+      refundCount,
+      refundAmountCents,
     },
     paymentBreakdown,
     orderTypeBreakdown,
@@ -553,181 +494,23 @@ reportRoutes.get('/z-report', async (c) => {
     topItems,
     categoryBreakdown,
     hourly,
-    shiftReconciliation,
-    voidRefundLog,
-    dailyClose: dailyClose
-      ? {
-          status: dailyClose.status,
-          grossCents: dailyClose.grossCents,
-          netCents: dailyClose.netCents,
-          closedAt: dailyClose.createdAt,
-        }
-      : null,
-    generatedAt: new Date().toISOString(),
+    shifts,
+    voidRefunds,
+    dailyClose: dailyClose ?? null,
   };
   cacheSet(cacheKey, result, 60_000);
   return ok(c, result);
 });
 
-// Sprint 5.7 — Z-report CSV export
-reportRoutes.get('/z-report/export.csv', async (c) => {
-  const user = c.get('user');
-  const date = c.req.query('date') || new Date().toISOString().slice(0, 10);
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
-
-  const { start, end } = dayRange(date);
-  const [branch, paidAgg, voidAgg, refundAgg, payments, orderItems] = await Promise.all([
-    prisma.branch.findUnique({ where: { id: branchId }, select: { name: true, code: true } }),
-    prisma.order.aggregate({
-      where: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } },
-      _count: { _all: true },
-      _sum: { subtotalCents: true, discountCents: true, taxCents: true, totalCents: true },
-    }),
-    prisma.order.aggregate({
-      where: { branchId, status: 'VOIDED', voidedAt: { gte: start, lte: end } },
-      _count: { _all: true },
-      _sum: { totalCents: true },
-    }),
-    prisma.order.aggregate({
-      where: { branchId, status: 'REFUNDED', refundedAt: { gte: start, lte: end } },
-      _count: { _all: true },
-      _sum: { totalCents: true },
-    }),
-    prisma.payment.groupBy({
-      by: ['method'],
-      where: { status: 'PAID', paidAt: { gte: start, lte: end }, order: { branchId } },
-      _sum: { amountCents: true },
-      _count: { _all: true },
-    }),
-    prisma.orderItem.groupBy({
-      by: ['menuItemId'],
-      where: { order: { branchId, status: 'PAID', closedAt: { gte: start, lte: end } } },
-      _sum: { lineTotalCents: true, quantity: true },
-    }),
-  ]);
-
-  const menuMap = new Map(
-    (
-      await prisma.menuItem.findMany({
-        where: { id: { in: orderItems.map((o) => o.menuItemId) } },
-        select: { id: true, name: true },
-      })
-    ).map((m) => [m.id, m.name])
+// Stub: Sprint 5.x — Commission report per channel (shopee, grab, gojek).
+// Channel-ordering was removed in the no-branch refactor, so the commission
+// data is no longer produced. We keep a stable 410 endpoint so the web admin
+// can detect the missing feature and stop calling it.
+reportRoutes.get('/chain', async (c) => {
+  return fail(
+    c,
+    'Deprecated',
+    'Commission report per channel has been retired. The /api/reports/chain endpoint is no longer available now that online channels have been removed.',
+    410,
   );
-
-  const rows: (string | number)[][] = [];
-  rows.push([`Z-Report — ${date}`]);
-  rows.push([`Branch: ${branch?.name || ''} (${branch?.code || ''})`]);
-  rows.push([]);
-  rows.push(['SECTION', 'METRIC', 'VALUE_CENTS', 'COUNT']);
-  rows.push(['Summary', 'Gross', paidAgg._sum.subtotalCents ?? 0, '']);
-  rows.push(['Summary', 'Discount', paidAgg._sum.discountCents ?? 0, '']);
-  rows.push(['Summary', 'Tax (PPN)', paidAgg._sum.taxCents ?? 0, '']);
-  rows.push(['Summary', 'Net Sales', paidAgg._sum.totalCents ?? 0, paidAgg._count._all]);
-  rows.push(['Summary', 'Voided', voidAgg._sum.totalCents ?? 0, voidAgg._count._all]);
-  rows.push(['Summary', 'Refunded', refundAgg._sum.totalCents ?? 0, refundAgg._count._all]);
-  rows.push([]);
-  rows.push(['Payment', 'Method', 'Amount', 'Count']);
-  for (const p of payments) {
-    rows.push(['Payment', p.method, p._sum.amountCents ?? 0, p._count._all]);
-  }
-  rows.push([]);
-  rows.push(['Items', 'Name', 'Qty', 'Revenue']);
-  for (const i of orderItems
-    .map((i) => ({ name: menuMap.get(i.menuItemId) || '(unknown)', qty: i._sum.quantity ?? 0, rev: i._sum.lineTotalCents ?? 0 }))
-    .sort((a, b) => b.rev - a.rev)) {
-    rows.push(['Items', i.name, i.qty, i.rev]);
-  }
-
-  return csvResponse(c, `z-report-${date}.csv`, rows);
-});
-
-// Sprint 4.4: chain report (OWNER only, aggregates across all branches)
-reportRoutes.get('/chain', requireRole('OWNER'), async (c) => {
-  const date = c.req.query('date') ?? new Date().toISOString().slice(0, 10);
-  const start = new Date(`${date}T00:00:00.000Z`);
-  const end = new Date(`${date}T23:59:59.999Z`);
-
-  const [branches, orders, allOrderIds, dailyCloses, commissionMismatches] = await Promise.all([
-    prisma.branch.findMany({
-      where: { isActive: true },
-      orderBy: { code: 'asc' },
-    }),
-    prisma.order.findMany({
-      where: { openedAt: { gte: start, lte: end } },
-      select: { id: true, branchId: true, status: true, totalCents: true },
-    }),
-    prisma.order.findMany({
-      where: { openedAt: { gte: start, lte: end } },
-      select: { id: true },
-    }),
-    prisma.dailyClose.findMany({
-      where: { businessDate: start },
-      select: { branchId: true, grossCents: true, netCents: true, status: true },
-    }),
-    prisma.commissionReport.findMany({
-      where: { businessDate: start, status: 'MISMATCH', resolvedAt: null },
-      select: { branchId: true, channel: true, deltaCents: true },
-    }),
-  ]);
-  const orderIdToBranch = new Map(orders.map((o) => [o.id, o.branchId]));
-  const payments = allOrderIds.length
-    ? await prisma.payment.findMany({
-        where: {
-          paidAt: { gte: start, lte: end },
-          orderId: { in: allOrderIds.map((o) => o.id) },
-        },
-        select: { orderId: true, method: true, amountCents: true },
-      })
-    : [];
-  const paymentsWithBranch = payments.map((p) => ({
-    ...p,
-    branchId: orderIdToBranch.get(p.orderId) ?? '',
-  }));
-
-  const byBranch = branches.map((b) => {
-    const branchOrders = orders.filter((o) => o.branchId === b.id);
-    const branchPayments = paymentsWithBranch.filter((p) => p.branchId === b.id);
-    const branchClose = dailyCloses.find((dc) => dc.branchId === b.id);
-    const branchMismatches = commissionMismatches.filter((cm) => cm.branchId === b.id);
-    return {
-      branch: { id: b.id, code: b.code, name: b.name, city: b.city },
-      orders: {
-        total: branchOrders.length,
-        paid: branchOrders.filter((o) => o.status === 'PAID').length,
-        voided: branchOrders.filter((o) => o.status === 'VOIDED').length,
-        refunded: branchOrders.filter((o) => o.status === 'REFUNDED').length,
-        grossCents: branchOrders
-          .filter((o) => o.status === 'PAID' || o.status === 'REFUNDED')
-          .reduce((s, o) => s + o.totalCents, 0),
-      },
-      payments: branchPayments.reduce(
-        (acc, p) => {
-          acc[p.method] = (acc[p.method] ?? 0) + p.amountCents;
-          return acc;
-        },
-        {} as Record<string, number>,
-      ),
-      dailyClose: branchClose
-        ? {
-            status: branchClose.status,
-            grossCents: branchClose.grossCents,
-            netCents: branchClose.netCents,
-          }
-        : null,
-      mismatches: branchMismatches.length,
-    };
-  });
-
-  const totals = {
-    branches: branches.length,
-    orders: orders.length,
-    grossCents: orders
-      .filter((o) => o.status === 'PAID' || o.status === 'REFUNDED')
-      .reduce((s, o) => s + o.totalCents, 0),
-    mismatches: commissionMismatches.length,
-  };
-
-  return ok(c, { date, totals, branches: byBranch });
 });

@@ -16,8 +16,6 @@ import { comboRoutes } from './routes/combos.js';
 import { promoRoutes } from './routes/promos.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { dailyCloseRoutes } from './routes/daily-close.js';
-import { transferRoutes } from './routes/transfers.js';
-import { branchRoutes } from './routes/branches.js';
 import { customerRoutes } from './routes/customers.js';
 import { receiptRoutes } from './routes/receipts.js';
 import { cashDrawerRoutes } from './routes/cash-drawer.js';
@@ -32,7 +30,6 @@ import { accountingExportRoutes } from './routes/accounting-export.js';
 import { wasteRoutes } from './routes/waste.js';
 import { handleWebSocketUpgrade } from './lib/ws.js';
 import { wsBus } from './lib/ws-bus.js';
-import { readToken } from './middleware/auth.js';
 import { requestContext } from './middleware/request-context.js';
 import { rateLimit, rateLimitAuth } from './middleware/rate-limit.js';
 import { securityHeaders } from './middleware/security-headers.js';
@@ -70,8 +67,6 @@ app.route('/api/combos', comboRoutes);
 app.route('/api/promos', promoRoutes);
 app.route('/api/webhooks', webhookRoutes);
 app.route('/api/daily-close', dailyCloseRoutes);
-app.route('/api/transfers', transferRoutes);
-app.route('/api/branches', branchRoutes);
 app.route('/api/customers', customerRoutes);
 app.route('/api/receipts', receiptRoutes);
 app.route('/api/cash-drawer', cashDrawerRoutes);
@@ -102,10 +97,8 @@ const server = createAdaptorServer({
   hostname: host,
 });
 
-// WebSocket upgrade: clients connect to /ws. Auth is best-effort — we read
-// the pos_session cookie from the upgrade request so we can scope events to
-// the user's branch. Unauthenticated clients still receive events for the
-// default branch (useful for the /display page).
+// WebSocket upgrade: clients connect to /ws. Single-instance system, so all
+// authenticated clients receive all events (no per-branch scoping).
 server.on('upgrade', (req, socket, head) => {
   if (!req.url) {
     socket.destroy();
@@ -116,34 +109,9 @@ server.on('upgrade', (req, socket, head) => {
     socket.destroy();
     return;
   }
-  // Resolve branchId via the cookie before the upgrade handshake so wsBus
-  // registers the client with the correct branch. The token in the cookie
-  // is signed with JWT_SECRET and is safe to verify here. We do it inside
-  // onOpen because readToken is async; the bus starts with branchId=null
-  // and updates once the auth check resolves.
   handleWebSocketUpgrade(req, socket, head, {
     onOpen: (ctx) => {
-      // best-effort: try to read the token, then update the bus
-      wsBus.add(ctx, null);
-      try {
-        const cookieHeader = req.headers.cookie || '';
-        const match = cookieHeader.match(/(?:^|;\s*)pos_session=([^;]+)/);
-        if (match) {
-          const token = decodeURIComponent(match[1]);
-          // readToken is async; the bus will start with branchId=null and
-          // update once it resolves. (Filter is per-broadcast, so a brief
-          // window of cross-branch delivery is acceptable.)
-          readToken(token)
-            .then((u) => {
-              if (u?.branchId) wsBus.setBranch(ctx, u.branchId);
-            })
-            .catch(() => {
-              // ignore
-            });
-        }
-      } catch {
-        // ignore
-      }
+      wsBus.add(ctx);
       try {
         ctx.send(JSON.stringify({ type: 'hello', at: Date.now() }));
       } catch {

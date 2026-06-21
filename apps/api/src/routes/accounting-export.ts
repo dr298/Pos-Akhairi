@@ -21,10 +21,10 @@
 //              product, pre-2022). Format similar to JURNAL but with English
 //              column headers and an extra "Project" column at the end.
 //
-//   GENERIC  — Our own canonical export. Date, Branch, Order#, Type, Amount
-//              (cents), Tax, Total, Payment. The simplest format for ad-hoc
-//              uploads. This is the one that survives format changes in
-//              the SaaS products.
+//   GENERIC  — Our own canonical export. Date, Restaurant Code, Order#,
+//              Type, Amount (cents), Tax, Total, Payment. The simplest
+//              format for ad-hoc uploads. This is the one that survives
+//              format changes in the SaaS products.
 //
 // All formats use a header row + data rows, with CRLF line endings (Excel-
 // friendly), UTF-8 with BOM (so Excel reads accented characters correctly),
@@ -33,9 +33,9 @@
 //
 // Endpoints (all require auth, OWNER+MANAGER):
 //   GET /api/accounting-export/sales-journal.csv
-//        ?branchId=X&from=YYYY-MM-DD&to=YYYY-MM-DD&format=JURNAL
+//        ?from=YYYY-MM-DD&to=YYYY-MM-DD&format=JURNAL
 //   GET /api/accounting-export/purchase-journal.csv
-//        ?branchId=X&from=YYYY-MM-DD&to=YYYY-MM-DD&format=JURNAL
+//        ?from=YYYY-MM-DD&to=YYYY-MM-DD&format=JURNAL
 //
 // Data sources:
 //   - sales-journal: paid Order rows (one row per order) + the
@@ -54,6 +54,12 @@ import { incCounter } from '../middleware/metrics.js';
 export const accountingExportRoutes = new Hono<AppEnv>();
 
 accountingExportRoutes.use('*', requireAuth, requireRole('OWNER', 'MANAGER'));
+
+// Single-restaurant deployment. The legacy `branch_code` column is kept
+// in the export for downstream template compatibility — it always emits
+// this constant value.
+const RESTAURANT_CODE = 'MAIN';
+const RESTAURANT_NAME = 'Main Restaurant';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -81,13 +87,6 @@ const COA = {
 } as const;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-
-function userHasBranchAccess(
-  branchAccess: Array<{ branchId: string }>,
-  branchId: string,
-): boolean {
-  return branchAccess.some((b) => b.branchId === branchId);
-}
 
 function parseDateOnly(input: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
@@ -163,15 +162,12 @@ function rupiahFromCents(cents: number | null | undefined): number {
 // ─── Sales journal ────────────────────────────────────────────────────────
 
 async function buildSalesJournal(
-  branchId: string,
-  branchCode: string,
   start: Date,
   end: Date,
   format: ExportFormat,
 ): Promise<ReadonlyArray<ReadonlyArray<unknown>>> {
   const orders = await prisma.order.findMany({
     where: {
-      branchId,
       status: 'PAID',
       closedAt: { gte: start, lte: end },
     },
@@ -189,14 +185,13 @@ async function buildSalesJournal(
   let header: ReadonlyArray<unknown>;
   let body: unknown[][] = [];
   let saleCounter = 0;
-  let refundCounter = 0;
 
   if (format === 'JURNAL') {
     header = ['Tanggal', 'Nomor Bukti', 'Deskripsi', 'Akun', 'Debit', 'Kredit', 'Catatan'];
     for (const o of orders) {
       const date = o.closedAt ? dateId(o.closedAt) : dateId(o.openedAt);
       const num = o.orderNumber;
-      const desc = `Penjualan ${branchCode} #${num}`;
+      const desc = `Penjualan ${RESTAURANT_NAME} #${num}`;
       const cashMethod = o.payments[0]?.method ?? 'CASH';
       const cashCoa = parsePaymentMethodForCoa(cashMethod);
       const netRevenue = rupiahFromCents(o.subtotalCents - o.discountCents);
@@ -232,7 +227,7 @@ async function buildSalesJournal(
     for (const o of orders) {
       const date = o.closedAt ? dateId(o.closedAt) : dateId(o.openedAt);
       const num = o.orderNumber;
-      const ket = `Penjualan ${branchCode} #${num}`;
+      const ket = `Penjualan ${RESTAURANT_NAME} #${num}`;
       const cashMethod = o.payments[0]?.method ?? 'CASH';
       const cashCoa = parsePaymentMethodForCoa(cashMethod);
       const totalCents = rupiahFromCents(o.totalCents);
@@ -253,16 +248,15 @@ async function buildSalesJournal(
         ]);
       }
     }
-    void refundCounter;
   } else if (format === 'MEKARI') {
     header = ['Date', 'Ref No', 'Description', 'Account', 'Debit', 'Credit', 'Project'];
     for (const o of orders) {
       const date = o.closedAt ? dateId(o.closedAt) : dateId(o.openedAt);
       const num = o.orderNumber;
-      const desc = `Penjualan ${branchCode} #${num}`;
+      const desc = `Penjualan ${RESTAURANT_NAME} #${num}`;
       const cashMethod = o.payments[0]?.method ?? 'CASH';
       const cashCoa = parsePaymentMethodForCoa(cashMethod);
-      const project = branchCode;
+      const project = RESTAURANT_CODE;
       const totalCents = rupiahFromCents(o.totalCents);
       body.push([date, num, desc, cashCoa, totalCents, 0, project]);
       saleCounter++;
@@ -292,13 +286,13 @@ async function buildSalesJournal(
     }
   } else {
     // GENERIC
-    header = ['date', 'branch_code', 'order_number', 'payment_method', 'subtotal_cents', 'discount_cents', 'tax_cents', 'total_cents'];
+    header = ['date', 'restaurant_code', 'order_number', 'payment_method', 'subtotal_cents', 'discount_cents', 'tax_cents', 'total_cents'];
     for (const o of orders) {
       const date = o.closedAt ? dateId(o.closedAt) : dateId(o.openedAt);
       const method = o.payments[0]?.method ?? '';
       body.push([
         date,
-        branchCode,
+        RESTAURANT_CODE,
         o.orderNumber,
         method,
         o.subtotalCents,
@@ -317,8 +311,6 @@ async function buildSalesJournal(
 // ─── Purchase journal ─────────────────────────────────────────────────────
 
 async function buildPurchaseJournal(
-  branchId: string,
-  branchCode: string,
   start: Date,
   end: Date,
   format: ExportFormat,
@@ -330,7 +322,6 @@ async function buildPurchaseJournal(
   // qtyReceived. We emit one row per PO line for the cumulative amount.
   const pos = await prisma.purchaseOrder.findMany({
     where: {
-      branchId,
       status: { in: ['PARTIAL', 'RECEIVED'] },
       receivedAt: { gte: start, lte: end },
     },
@@ -354,7 +345,7 @@ async function buildPurchaseJournal(
       const date = dateId(po.receivedAt);
       const num = po.poNumber;
       const supplier = po.supplier.name;
-      const desc = `Pembelian ${branchCode} #${num}`;
+      const desc = `Pembelian ${RESTAURANT_NAME} #${num}`;
       const totalCents = rupiahFromCents(Number(po.totalCents));
       // Debit Inventory (gross — VAT is folded into inventory cost for
       // non-PPN-registered businesses. For PPN-registered ones, separate
@@ -370,7 +361,7 @@ async function buildPurchaseJournal(
       const date = dateId(po.receivedAt);
       const num = po.poNumber;
       const supplier = po.supplier.name;
-      const ket = `Pembelian ${branchCode} #${num}`;
+      const ket = `Pembelian ${RESTAURANT_NAME} #${num}`;
       const totalCents = rupiahFromCents(Number(po.totalCents));
       body.push([date, num, supplier, ket, totalCents, 0, COA.purchaseInventory]);
       body.push([date, num, supplier, ket, 0, totalCents, COA.accountsPayable]);
@@ -382,8 +373,8 @@ async function buildPurchaseJournal(
       const date = dateId(po.receivedAt);
       const num = po.poNumber;
       const supplier = po.supplier.name;
-      const desc = `Pembelian ${branchCode} #${num}`;
-      const project = branchCode;
+      const desc = `Pembelian ${RESTAURANT_NAME} #${num}`;
+      const project = RESTAURANT_CODE;
       const totalCents = rupiahFromCents(Number(po.totalCents));
       body.push([date, num, supplier, desc, COA.purchaseInventory, totalCents, 0, project]);
       body.push([date, num, supplier, desc, COA.accountsPayable, 0, totalCents, project]);
@@ -392,7 +383,7 @@ async function buildPurchaseJournal(
     // GENERIC
     header = [
       'date',
-      'branch_code',
+      'restaurant_code',
       'po_number',
       'supplier',
       'supplier_id',
@@ -404,7 +395,7 @@ async function buildPurchaseJournal(
       const date = dateId(po.receivedAt);
       body.push([
         date,
-        branchCode,
+        RESTAURANT_CODE,
         po.poNumber,
         po.supplier.name,
         po.supplier.id,
@@ -420,12 +411,6 @@ async function buildPurchaseJournal(
 // ─── Routes ───────────────────────────────────────────────────────────────
 
 accountingExportRoutes.get('/sales-journal.csv', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
-  if (!userHasBranchAccess(user.branchAccess, branchId)) {
-    return fail(c, 'NoAccess', `No access to branch ${branchId}`, 403);
-  }
   const from = c.req.query('from');
   const to = c.req.query('to');
   if (!from || !to) {
@@ -447,35 +432,22 @@ accountingExportRoutes.get('/sales-journal.csv', async (c) => {
     return fail(c, 'ValidationError', (e as Error).message, 400);
   }
 
-  const branch = await prisma.branch.findUnique({
-    where: { id: branchId },
-    select: { id: true, code: true, name: true },
-  });
-  if (!branch) return fail(c, 'NotFound', 'Branch not found', 404);
-
-  const rows = await buildSalesJournal(branch.id, branch.code, start, end, format);
+  const rows = await buildSalesJournal(start, end, format);
   const csv = buildCsv(rows);
-  const filename = `sales-journal_${branch.code}_${from}_${to}_${format}.csv`;
+  const filename = `sales-journal_${RESTAURANT_CODE}_${from}_${to}_${format}.csv`;
 
   incCounter('pos_accounting_export_total', 'Accounting exports', {
     type: 'sales',
     format,
-    branchId,
   });
   logger.info(
-    { branchId, format, from, to, rowCount: rows.length - 1 },
+    { format, from, to, rowCount: rows.length - 1 },
     'accounting sales journal exported',
   );
   return csvResponse(c, filename, csv);
 });
 
 accountingExportRoutes.get('/purchase-journal.csv', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
-  if (!userHasBranchAccess(user.branchAccess, branchId)) {
-    return fail(c, 'NoAccess', `No access to branch ${branchId}`, 403);
-  }
   const from = c.req.query('from');
   const to = c.req.query('to');
   if (!from || !to) {
@@ -497,23 +469,16 @@ accountingExportRoutes.get('/purchase-journal.csv', async (c) => {
     return fail(c, 'ValidationError', (e as Error).message, 400);
   }
 
-  const branch = await prisma.branch.findUnique({
-    where: { id: branchId },
-    select: { id: true, code: true, name: true },
-  });
-  if (!branch) return fail(c, 'NotFound', 'Branch not found', 404);
-
-  const rows = await buildPurchaseJournal(branch.id, branch.code, start, end, format);
+  const rows = await buildPurchaseJournal(start, end, format);
   const csv = buildCsv(rows);
-  const filename = `purchase-journal_${branch.code}_${from}_${to}_${format}.csv`;
+  const filename = `purchase-journal_${RESTAURANT_CODE}_${from}_${to}_${format}.csv`;
 
   incCounter('pos_accounting_export_total', 'Accounting exports', {
     type: 'purchase',
     format,
-    branchId,
   });
   logger.info(
-    { branchId, format, from, to, rowCount: rows.length - 1 },
+    { format, from, to, rowCount: rows.length - 1 },
     'accounting purchase journal exported',
   );
   return csvResponse(c, filename, csv);

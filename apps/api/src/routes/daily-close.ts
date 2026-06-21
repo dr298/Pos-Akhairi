@@ -26,11 +26,8 @@ dailyCloseRoutes.post('/run', requireRole('OWNER', 'MANAGER'), async (c) => {
     return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
   }
   const businessDate = new Date(parsed.data.businessDate + 'T00:00:00Z');
-  const branchId = user.branchId ?? '';
-  if (!branchId) return fail(c, 'NoBranch', 'User has no branch assigned', 400);
   try {
     const result = await runDailyClose({
-      branchId,
       businessDate,
       timezone: parsed.data.timezone,
       closedBy: user.id ?? 'AUTO',
@@ -38,19 +35,15 @@ dailyCloseRoutes.post('/run', requireRole('OWNER', 'MANAGER'), async (c) => {
     });
     return ok(c, result);
   } catch (e) {
-    logger.error({ err: (e as Error).message, branchId, businessDate }, 'daily close run failed');
+    logger.error({ err: (e as Error).message, businessDate }, 'daily close run failed');
     return fail(c, 'DailyCloseError', (e as Error).message, 500);
   }
 });
 
-// GET /api/daily-close — list daily closes for this branch
+// GET /api/daily-close — list daily closes
 dailyCloseRoutes.get('/', requireRole('OWNER', 'MANAGER'), async (c) => {
-  const user = c.get('user');
-  const branchId = user.branchId ?? '';
-  if (!branchId) return fail(c, 'NoBranch', 'User has no branch assigned', 400);
   const limit = parseInt(c.req.query('limit') ?? '30', 10);
   const rows = await prisma.dailyClose.findMany({
-    where: { branchId },
     orderBy: { businessDate: 'desc' },
     take: Math.min(limit, 365),
   });
@@ -59,30 +52,21 @@ dailyCloseRoutes.get('/', requireRole('OWNER', 'MANAGER'), async (c) => {
 
 // GET /api/daily-close/:id — single daily close
 dailyCloseRoutes.get('/:id', requireRole('OWNER', 'MANAGER'), async (c) => {
-  const user = c.get('user');
   const id = c.req.param('id');
   const row = await prisma.dailyClose.findUnique({ where: { id } });
   if (!row) return fail(c, 'NotFound', 'Daily close not found', 404);
-  if (row.branchId !== user.branchId) {
-    return fail(c, 'Forbidden', 'Not your branch', 403);
-  }
   return ok(c, row);
 });
 
 // GET /api/daily-close/:id/export.csv — CSV export
 dailyCloseRoutes.get('/:id/export.csv', requireRole('OWNER', 'MANAGER'), async (c) => {
-  const user = c.get('user');
   const id = c.req.param('id');
   const row = await prisma.dailyClose.findUnique({ where: { id } });
   if (!row) return fail(c, 'NotFound', 'Daily close not found', 404);
-  if (row.branchId !== user.branchId) {
-    return fail(c, 'Forbidden', 'Not your branch', 403);
-  }
   const byChannel = (row.byChannelJson as Record<string, number>) ?? {};
   const byPayment = (row.byPaymentJson as Record<string, number>) ?? {};
   const lines: string[] = [];
   lines.push(`Bakmie POS — Daily Close — ${row.businessDate.toISOString().slice(0, 10)}`);
-  lines.push(`Branch ID: ${row.branchId}`);
   lines.push(`Status: ${row.status}`);
   lines.push(`Closed at: ${row.closedAt?.toISOString() ?? '—'}`);
   lines.push(`Closed by: ${row.closedBy ?? '—'}`);

@@ -91,14 +91,20 @@ export function calculateRedeemDiscount(points: number, cfg: RedeemConfig): numb
 // ─── Config loader (with safe defaults) ─────────────────────────────────────
 
 /**
- * Load loyalty config for a branch, returning sane defaults if missing or
+ * Load the global loyalty config, returning sane defaults if missing or
  * inactive. The caller can branch on `isActive` to decide whether to earn
  * points. We never throw on missing config — loyalty is optional.
  */
-export async function loadLoyaltyConfig(
-  branchId: string,
-): Promise<{ pointsPerRupiah: number; rupiahPerPoint: number; minRedeemPoints: number; isActive: boolean; signupBonusPoints: number; birthdayBonusPoints: number; raw: Awaited<ReturnType<typeof prisma.loyaltyConfig.findUnique>> }> {
-  const raw = await prisma.loyaltyConfig.findUnique({ where: { branchId } });
+export async function loadLoyaltyConfig(): Promise<{
+  pointsPerRupiah: number;
+  rupiahPerPoint: number;
+  minRedeemPoints: number;
+  isActive: boolean;
+  signupBonusPoints: number;
+  birthdayBonusPoints: number;
+  raw: Awaited<ReturnType<typeof prisma.loyaltyConfig.findFirst>>;
+}> {
+  const raw = await prisma.loyaltyConfig.findFirst();
   return {
     pointsPerRupiah: raw?.pointsPerRupiah ?? 1,
     rupiahPerPoint: raw?.rupiahPerPoint ?? 100,
@@ -131,7 +137,7 @@ export async function applyOnPayment(
   if (!Number.isFinite(amountCents) || amountCents <= 0) return null;
 
   try {
-    // Find the customer + branch.
+    // Find the customer.
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
     if (!customer) {
       logger.warn({ orderId, customerId }, 'loyalty.earn: customer not found, skipping');
@@ -141,17 +147,7 @@ export async function applyOnPayment(
       logger.warn({ orderId, customerId }, 'loyalty.earn: customer inactive, skipping');
       return null;
     }
-    const branchId = customer.branchId;
-    if (!branchId) {
-      // Chain-wide customer: use the order's branch to look up the config.
-      const order = await prisma.order.findUnique({ where: { id: orderId }, select: { branchId: true } });
-      if (!order) {
-        logger.warn({ orderId, customerId }, 'loyalty.earn: order not found for chain-wide customer');
-        return null;
-      }
-      return await earnForOrder({ orderId, customer, branchId: order.branchId, amountCents, createdById });
-    }
-    return await earnForOrder({ orderId, customer, branchId, amountCents, createdById });
+    return await earnForOrder({ orderId, customer, amountCents, createdById });
   } catch (e) {
     logger.warn({ err: (e as Error).message, orderId, customerId }, 'loyalty.earn: failed (non-fatal)');
     return null;
@@ -160,14 +156,13 @@ export async function applyOnPayment(
 
 interface EarnForOrderArgs {
   orderId: string;
-  customer: { id: string; branchId: string | null };
-  branchId: string;
+  customer: { id: string };
   amountCents: number;
   createdById: string | null;
 }
 
 async function earnForOrder(args: EarnForOrderArgs): Promise<EarnResult | null> {
-  const { orderId, customer, branchId, amountCents, createdById } = args;
+  const { orderId, customer, amountCents, createdById } = args;
 
   // Idempotency: skip if we already have an EARN row for this order.
   const existing = await prisma.loyaltyTransaction.findFirst({
@@ -182,7 +177,7 @@ async function earnForOrder(args: EarnForOrderArgs): Promise<EarnResult | null> 
     };
   }
 
-  const cfg = await loadLoyaltyConfig(branchId);
+  const cfg = await loadLoyaltyConfig();
   const points = calculateEarn(amountCents, cfg);
   if (points <= 0) {
     return null;
@@ -211,9 +206,9 @@ async function earnForOrder(args: EarnForOrderArgs): Promise<EarnResult | null> 
     return txRow;
   });
 
-  incCounter('pos_loyalty_earn_total', 'Loyalty points earned', { branchId });
+  incCounter('pos_loyalty_earn_total', 'Loyalty points earned');
   logger.info(
-    { orderId, customerId: customer.id, branchId, points, amountCents },
+    { orderId, customerId: customer.id, points, amountCents },
     'loyalty.earn: points credited',
   );
   return {
@@ -250,17 +245,7 @@ export async function redeem(
   if (!customer.isActive) {
     throw new Error('Pelanggan tidak aktif');
   }
-  // For branch-scoped customers, use their branch. For chain-wide
-  // customers, require an explicit orderId so we can look up the branch.
-  const branchId = customer.branchId
-    ? customer.branchId
-    : opts.orderId
-      ? (await prisma.order.findUnique({ where: { id: opts.orderId }, select: { branchId: true } }))?.branchId
-      : null;
-  if (!branchId) {
-    throw new Error('Tidak dapat menentukan cabang untuk redeem');
-  }
-  const cfg = await loadLoyaltyConfig(branchId);
+  const cfg = await loadLoyaltyConfig();
   const discountCents = calculateRedeemDiscount(points, cfg);
   if (customer.loyaltyPoints < points) {
     throw new Error(`Poin tidak cukup (${customer.loyaltyPoints} < ${points})`);
@@ -285,9 +270,9 @@ export async function redeem(
     return row;
   });
 
-  incCounter('pos_loyalty_redeem_total', 'Loyalty points redeemed', { branchId });
+  incCounter('pos_loyalty_redeem_total', 'Loyalty points redeemed');
   logger.info(
-    { customerId, branchId, points, discountCents },
+    { customerId, points, discountCents },
     'loyalty.redeem: points debited',
   );
   return {
@@ -345,7 +330,6 @@ export async function manualAdjust(
   });
 
   incCounter('pos_loyalty_adjust_total', 'Manual loyalty adjustments', {
-    branchId: customer.branchId ?? 'none',
     direction: delta > 0 ? 'credit' : 'debit',
   });
   logger.info(

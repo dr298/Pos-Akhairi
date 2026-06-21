@@ -34,7 +34,6 @@ export interface PromoValidationResult {
 
 export interface PromoLike {
   id: string;
-  branchId: string;
   code: string;
   name: string;
   type: 'PERCENT' | 'AMOUNT' | 'BUY_X_GET_Y' | 'BUNDLE';
@@ -207,13 +206,10 @@ export function computePromo(
 
 promoRoutes.get('/', async (c) => {
   const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   const onlyActive = c.req.query('isActive') === 'true';
 
   const promos = await prisma.promo.findMany({
     where: {
-      branchId,
       ...(onlyActive ? { isActive: true } : {}),
       // Cashiers see only active promos by default
       ...(user.role === 'CASHIER' && !onlyActive ? { isActive: true } : {}),
@@ -231,7 +227,6 @@ promoRoutes.get('/', async (c) => {
 
 const validateSchema = z.object({
   code: z.string().min(1).max(50),
-  branchId: z.string().min(1).optional(),
   items: z
     .array(
       z.object({
@@ -245,24 +240,21 @@ const validateSchema = z.object({
 });
 
 promoRoutes.post('/validate', async (c) => {
-  const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
   const parsed = validateSchema.safeParse(body);
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
   }
-  const branchId = parsed.data.branchId || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
   const promo = await prisma.promo.findFirst({
-    where: { code: parsed.data.code, branchId },
+    where: { code: parsed.data.code },
     include: { conditions: true, rewards: true },
   });
 
   // Compute subtotal and category lookup.
   const menuIds = Array.from(new Set(parsed.data.items.map((i) => i.menuItemId)));
   const items = await prisma.menuItem.findMany({
-    where: { id: { in: menuIds }, branchId },
+    where: { id: { in: menuIds } },
     select: { id: true, name: true, priceCents: true, categoryId: true },
   });
   const lookup = new Map(items.map((m) => [m.id, { name: m.name, categoryId: m.categoryId }]));
@@ -301,17 +293,12 @@ promoRoutes.post('/apply', requireRole('OWNER', 'MANAGER', 'CASHIER'), async (c)
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
   }
-  const branchId = parsed.data.branchId || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
   const order = await prisma.order.findUnique({
     where: { id: parsed.data.orderId },
     include: { items: true },
   });
   if (!order) return fail(c, 'NotFound', 'Order not found', 404);
-  if (order.branchId !== branchId) {
-    return fail(c, 'NoAccess', 'Order belongs to another branch', 403);
-  }
   if (order.status !== 'OPEN') {
     return fail(c, 'OrderClosed', `Order is ${order.status}`, 409);
   }
@@ -324,7 +311,7 @@ promoRoutes.post('/apply', requireRole('OWNER', 'MANAGER', 'CASHIER'), async (c)
   }));
   const menuIds = Array.from(new Set(orderItems.map((i) => i.menuItemId)));
   const itemsMeta = await prisma.menuItem.findMany({
-    where: { id: { in: menuIds }, branchId },
+    where: { id: { in: menuIds } },
     select: { id: true, name: true, categoryId: true },
   });
   const lookup = new Map(itemsMeta.map((m) => [m.id, { name: m.name, categoryId: m.categoryId }]));
@@ -334,7 +321,7 @@ promoRoutes.post('/apply', requireRole('OWNER', 'MANAGER', 'CASHIER'), async (c)
   );
 
   const promo = await prisma.promo.findFirst({
-    where: { code: parsed.data.code, branchId },
+    where: { code: parsed.data.code },
     include: { conditions: true, rewards: true },
   });
 
@@ -375,7 +362,6 @@ promoRoutes.post('/apply', requireRole('OWNER', 'MANAGER', 'CASHIER'), async (c)
   });
 
   incCounter('pos_promos_applied_total', 'Promos applied', {
-    branchId,
     type: promo?.type ?? 'UNKNOWN',
   });
   logger.info(
@@ -432,7 +418,6 @@ promoRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid promo payload', 400, parsed.error.issues);
   }
-  if (!user.branchId) return fail(c, 'NoBranch', 'User has no branch assigned', 400);
 
   // Cross-field validation: type-specific value fields.
   if (parsed.data.type === 'PERCENT' && (parsed.data.percentBp === undefined || parsed.data.percentBp < 0)) {
@@ -442,7 +427,7 @@ promoRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
     return fail(c, 'ValidationError', 'AMOUNT type requires valueCents', 400);
   }
 
-  // Verify referenced menu items belong to this branch
+  // Verify referenced menu items exist
   const refMenuIds = Array.from(
     new Set(
       [
@@ -453,13 +438,13 @@ promoRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
   );
   if (refMenuIds.length) {
     const found = await prisma.menuItem.findMany({
-      where: { id: { in: refMenuIds }, branchId: user.branchId },
+      where: { id: { in: refMenuIds } },
       select: { id: true },
     });
     const foundSet = new Set(found.map((m) => m.id));
     for (const id of refMenuIds) {
       if (!foundSet.has(id)) {
-        return fail(c, 'MenuItemNotFound', `Menu item ${id} not in this branch`, 400);
+        return fail(c, 'MenuItemNotFound', `Menu item ${id} not found`, 400);
       }
     }
   }
@@ -470,7 +455,6 @@ promoRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
 
   const promo = await prisma.promo.create({
     data: {
-      branchId: user.branchId,
       code: parsed.data.code,
       name: parsed.data.name,
       type: parsed.data.type,
@@ -504,8 +488,8 @@ promoRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
     include: { conditions: true, rewards: true },
   });
 
-  incCounter('pos_promos_created_total', 'Promos created', { branchId: user.branchId, type: parsed.data.type });
-  logger.info({ promoId: promo.id, branchId: user.branchId, actor: user.id }, 'promo created');
+  incCounter('pos_promos_created_total', 'Promos created', { type: parsed.data.type });
+  logger.info({ promoId: promo.id, actor: user.id }, 'promo created');
   return ok(c, promo, 201);
 });
 

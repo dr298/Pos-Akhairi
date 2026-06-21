@@ -1,6 +1,6 @@
 // apps/api/src/routes/waste.ts
 //
-// Sprint 9.9 — Waste tracking. Branch-scoped, soft-delete via `status`.
+// Sprint 9.9 — Waste tracking. Soft-delete via `status`.
 //
 // Use cases:
 //   - Kitchen staff log mistakes ("ruang masak kepanasan, 3 porsi nasgor
@@ -9,11 +9,11 @@
 //   - Owner reviews monthly waste cost in the /pos/waste summary.
 //
 // Endpoints (all require auth):
-//   GET    /api/waste?branchId=X&from=YYYY-MM-DD&to=YYYY-MM-DD&type=FOOD
+//   GET    /api/waste?from=YYYY-MM-DD&to=YYYY-MM-DD&type=FOOD
 //   POST   /api/waste                         (CASHIER+)
 //   PATCH  /api/waste/:id                     (OWNER, MANAGER)
 //   DELETE /api/waste/:id                     (OWNER) — soft delete (status)
-//   GET    /api/waste/summary?branchId=X&days=30
+//   GET    /api/waste/summary?days=30
 //
 // Cost computation: if `unitCostCents` is omitted and a `menuItemId` is set,
 // we look up `MenuItem.costCents` and compute `totalCostCents` server-side.
@@ -33,13 +33,6 @@ wasteRoutes.use('*', requireAuth);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function userHasBranchAccess(
-  branchAccess: Array<{ branchId: string }>,
-  branchId: string,
-): boolean {
-  return branchAccess.some((b) => b.branchId === branchId);
-}
-
 function parseDateOnly(input: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
   if (!m) throw new Error(`Invalid date string: ${input} (expected YYYY-MM-DD)`);
@@ -55,7 +48,6 @@ function endOfDay(d: Date): Date {
 // ─── Schemas ──────────────────────────────────────────────────────────────
 
 const createSchema = z.object({
-  branchId: z.string().min(1).max(50),
   type: z.enum(['FOOD', 'INGREDIENT', 'PACKAGING']),
   menuItemId: z.string().min(1).max(50).optional().nullable(),
   inventoryItemId: z.string().min(1).max(50).optional().nullable(),
@@ -136,12 +128,6 @@ async function resolveCost(
 // ─── List ─────────────────────────────────────────────────────────────────
 
 wasteRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
-  if (!userHasBranchAccess(user.branchAccess, branchId)) {
-    return fail(c, 'NoAccess', `No access to branch ${branchId}`, 403);
-  }
   const from = c.req.query('from');
   const to = c.req.query('to');
   const type = c.req.query('type');
@@ -162,7 +148,6 @@ wasteRoutes.get('/', async (c) => {
 
   const entries = await prisma.wasteEntry.findMany({
     where: {
-      branchId,
       ...(type ? { type: type as 'FOOD' | 'INGREDIENT' | 'PACKAGING' } : {}),
       ...(includeDeleted ? {} : { status: 'ACTIVE' }),
       ...(start || end
@@ -230,29 +215,20 @@ wasteRoutes.post(
       return fail(c, 'ValidationError', 'Invalid waste payload', 400, parsed.error.issues);
     }
     const input = parsed.data;
-    if (!userHasBranchAccess(user.branchAccess, input.branchId)) {
-      return fail(c, 'NoAccess', `No access to branch ${input.branchId}`, 403);
-    }
-    // Validate the related items belong to this branch (when set).
+    // Validate the related items exist (when set).
     if (input.menuItemId) {
       const mi = await prisma.menuItem.findUnique({
         where: { id: input.menuItemId },
-        select: { id: true, branchId: true },
+        select: { id: true },
       });
       if (!mi) return fail(c, 'NotFound', 'Menu item not found', 404);
-      if (mi.branchId !== input.branchId) {
-        return fail(c, 'ValidationError', 'Menu item belongs to a different branch', 400);
-      }
     }
     if (input.inventoryItemId) {
       const inv = await prisma.inventoryItem.findUnique({
         where: { id: input.inventoryItemId },
-        select: { id: true, branchId: true },
+        select: { id: true },
       });
       if (!inv) return fail(c, 'NotFound', 'Inventory item not found', 404);
-      if (inv.branchId !== input.branchId) {
-        return fail(c, 'ValidationError', 'Inventory item belongs to a different branch', 400);
-      }
     }
     if (!input.menuItemId && !input.inventoryItemId) {
       return fail(
@@ -276,7 +252,6 @@ wasteRoutes.post(
     }
     const entry = await prisma.wasteEntry.create({
       data: {
-        branchId: input.branchId,
         type: input.type,
         status: 'ACTIVE',
         menuItemId: input.menuItemId ?? null,
@@ -291,11 +266,10 @@ wasteRoutes.post(
       },
     });
     incCounter('pos_waste_entries_created_total', 'Waste entries created', {
-      branchId: input.branchId,
       type: input.type,
     });
     logger.info(
-      { wasteId: entry.id, branchId: input.branchId, type: input.type, qty: input.quantity },
+      { wasteId: entry.id, type: input.type, qty: input.quantity },
       'waste entry created',
     );
     return ok(
@@ -314,7 +288,6 @@ wasteRoutes.patch(
   '/:id',
   requireRole('OWNER', 'MANAGER'),
   async (c) => {
-    const user = c.get('user');
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
     const parsed = updateSchema.safeParse(body);
@@ -323,9 +296,6 @@ wasteRoutes.patch(
     }
     const existing = await prisma.wasteEntry.findUnique({ where: { id } });
     if (!existing) return fail(c, 'NotFound', 'Waste entry not found', 404);
-    if (!userHasBranchAccess(user.branchAccess, existing.branchId)) {
-      return fail(c, 'NoAccess', 'No access to this waste entry', 403);
-    }
     if (existing.status === 'DELETED') {
       return fail(c, 'InvalidState', 'Cannot update a deleted entry', 409);
     }
@@ -379,7 +349,6 @@ wasteRoutes.patch(
       return fail(c, 'ValidationError', 'No fields to update', 400);
     }
     const updated = await prisma.wasteEntry.update({ where: { id }, data });
-    void user;
     return ok(c, { entry: { ...updated, quantity: updated.quantity.toString() } });
   },
 );
@@ -390,13 +359,9 @@ wasteRoutes.delete(
   '/:id',
   requireRole('OWNER'),
   async (c) => {
-    const user = c.get('user');
     const id = c.req.param('id');
     const existing = await prisma.wasteEntry.findUnique({ where: { id } });
     if (!existing) return fail(c, 'NotFound', 'Waste entry not found', 404);
-    if (!userHasBranchAccess(user.branchAccess, existing.branchId)) {
-      return fail(c, 'NoAccess', 'No access to this waste entry', 403);
-    }
     if (existing.status === 'DELETED') {
       return fail(c, 'InvalidState', 'Already deleted', 409);
     }
@@ -405,7 +370,7 @@ wasteRoutes.delete(
       data: { status: 'DELETED' },
     });
     logger.info(
-      { wasteId: id, branchId: existing.branchId, by: user.id },
+      { wasteId: id, by: c.get('user').id },
       'waste entry soft-deleted',
     );
     return ok(c, { entry: { ...updated, quantity: updated.quantity.toString() } });
@@ -415,12 +380,6 @@ wasteRoutes.delete(
 // ─── Summary (OWNER, MANAGER) ─────────────────────────────────────────────
 
 wasteRoutes.get('/summary', requireRole('OWNER', 'MANAGER'), async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
-  if (!userHasBranchAccess(user.branchAccess, branchId)) {
-    return fail(c, 'NoAccess', `No access to branch ${branchId}`, 403);
-  }
   const days = Math.min(365, Math.max(1, Number(c.req.query('days') || 30)));
   const now = new Date();
   const start = new Date(now);
@@ -429,7 +388,6 @@ wasteRoutes.get('/summary', requireRole('OWNER', 'MANAGER'), async (c) => {
 
   const entries = await prisma.wasteEntry.findMany({
     where: {
-      branchId,
       status: 'ACTIVE',
       recordedAt: { gte: start, lte: now },
     },
@@ -540,7 +498,6 @@ wasteRoutes.get('/summary', requireRole('OWNER', 'MANAGER'), async (c) => {
     periodDays: days,
     from: start.toISOString(),
     to: now.toISOString(),
-    branchId,
     totalCount,
     totalCostCents,
     byType,

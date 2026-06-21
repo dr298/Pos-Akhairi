@@ -9,7 +9,7 @@
 //
 // Endpoints (all require auth):
 //   POST  /api/menu-engineering/snapshot          (OWNER, MANAGER)
-//   GET   /api/menu-engineering/snapshots?branchId=X&limit=12
+//   GET   /api/menu-engineering/snapshots?limit=12
 //   GET   /api/menu-engineering/snapshots/:id
 //
 // Quadrants (Indonesian labels in the web UI):
@@ -59,7 +59,6 @@ export interface MenuEngineeringTotals {
 // ─── Schemas ───────────────────────────────────────────────────────────────
 
 const snapshotCreate = z.object({
-  branchId: z.string().min(1).max(50),
   periodStart: z.string().min(1).max(40), // ISO date
   periodEnd: z.string().min(1).max(40),
 });
@@ -101,14 +100,6 @@ menuEngineeringRoutes.post(
     if (!parsed.success) {
       return fail(c, 'ValidationError', 'Invalid snapshot payload', 400, parsed.error.issues);
     }
-    if (user.branchId && user.branchId !== parsed.data.branchId) {
-      const hasAccess = (user.branchAccess ?? []).some(
-        (a) => a.branchId === parsed.data.branchId,
-      );
-      if (!hasAccess) {
-        return fail(c, 'NoAccess', `No access to branch ${parsed.data.branchId}`, 403);
-      }
-    }
     let periodStart: Date;
     let periodEnd: Date;
     try {
@@ -124,7 +115,6 @@ menuEngineeringRoutes.post(
     // Load paid orders in the period
     const orders = await prisma.order.findMany({
       where: {
-        branchId: parsed.data.branchId,
         status: 'PAID',
         closedAt: { gte: periodStart, lte: periodEnd },
       },
@@ -239,7 +229,6 @@ menuEngineeringRoutes.post(
 
     const snapshot = await prisma.menuEngineeringSnapshot.create({
       data: {
-        branchId: parsed.data.branchId,
         periodStart,
         periodEnd,
         itemsJson: items as unknown as object,
@@ -248,13 +237,10 @@ menuEngineeringRoutes.post(
       },
     });
 
-    incCounter('pos_menu_engineering_snapshots_total', 'Menu engineering snapshots', {
-      branchId: parsed.data.branchId,
-    });
+    incCounter('pos_menu_engineering_snapshots_total', 'Menu engineering snapshots');
     logger.info(
       {
         snapshotId: snapshot.id,
-        branchId: parsed.data.branchId,
         itemCount: items.length,
         totalRevenueCents,
       },
@@ -268,14 +254,10 @@ menuEngineeringRoutes.post(
 // ─── List snapshots ────────────────────────────────────────────────────────
 
 menuEngineeringRoutes.get('/snapshots', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   const limitStr = c.req.query('limit');
   const limit = Math.min(Math.max(parseInt(limitStr || '12', 10) || 12, 1), 100);
 
   const snapshots = await prisma.menuEngineeringSnapshot.findMany({
-    where: { branchId },
     orderBy: { generatedAt: 'desc' },
     take: limit,
   });

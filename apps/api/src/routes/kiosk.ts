@@ -9,13 +9,13 @@
 // claim & pay.
 //
 // Endpoints (all PUBLIC, no auth):
-//   GET    /api/kiosk/menu?branchId=X              — list active menu for the branch
-//   POST   /api/kiosk/cart                         — start a new session, returns sessionId + cart
-//   GET    /api/kiosk/cart/:sessionId              — read current cart
-//   POST   /api/kiosk/cart/:sessionId/items        — add/update an item
+//   GET    /api/kiosk/menu                      — list active menu
+//   POST   /api/kiosk/cart                     — start a new session, returns sessionId + cart
+//   GET    /api/kiosk/cart/:sessionId          — read current cart
+//   POST   /api/kiosk/cart/:sessionId/items    — add/update an item
 //   DELETE /api/kiosk/cart/:sessionId/items/:itemId — remove an item
-//   POST   /api/kiosk/cart/:sessionId/checkout     — convert cart to Order (type=KIOSK, status=OPEN)
-//   GET    /api/kiosk/order/:kioskOrderId          — poll order status (for the status tracker page)
+//   POST   /api/kiosk/cart/:sessionId/checkout — convert cart to Order (type=KIOSK, status=OPEN)
+//   GET    /api/kiosk/order/:kioskOrderId      — poll order status (for the status tracker page)
 //
 // All routes are rate-limited (300 req/min/IP) by the global middleware in
 // apps/api/src/index.ts. The kiosk pages are public, so we do NOT mount
@@ -109,7 +109,6 @@ const itemSchema = z.object({
 });
 
 const cartCreateSchema = z.object({
-  branchId: z.string().min(1).max(50),
   // Optional: seed the cart with items in one shot. The cashier usually
   // creates the session empty, but we support a body for parity with the
   // documented API.
@@ -125,19 +124,7 @@ const cartAddItemSchema = z.object({
 // ─── 1. GET /api/kiosk/menu ─────────────────────────────────────────────────
 
 kioskRoutes.get('/menu', async (c) => {
-  const branchId = c.req.query('branchId');
-  if (!branchId) {
-    return fail(c, 'ValidationError', 'branchId wajib diisi', 400);
-  }
-  // Confirm the branch exists & is active. We deliberately do not leak
-  // more info — just enough to render the menu or a "branch closed" page.
-  const branch = await prisma.branch.findFirst({
-    where: { id: branchId, isActive: true },
-    select: { id: true, name: true, code: true, address: true, city: true },
-  });
-  if (!branch) {
-    return fail(c, 'NotFound', 'Branch tidak ditemukan atau tidak aktif', 404);
-  }
+  // Menu is global now (single restaurant, no branches).
   const categories = await prisma.menuCategory.findMany({
     where: { isActive: true },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
@@ -146,7 +133,7 @@ kioskRoutes.get('/menu', async (c) => {
       name: true,
       sortOrder: true,
       items: {
-        where: { branchId, isActive: true, isAvailable: true },
+        where: { isActive: true, isAvailable: true },
         orderBy: { name: 'asc' },
         select: {
           id: true,
@@ -160,8 +147,8 @@ kioskRoutes.get('/menu', async (c) => {
     },
   });
   // Strip empty categories so the kiosk doesn't show tabs with no items.
-  const filtered = categories.filter((c) => c.items.length > 0);
-  return ok(c, { branch, categories: filtered });
+  const filtered = categories.filter((cat) => cat.items.length > 0);
+  return ok(c, { categories: filtered });
 });
 
 // ─── 2. POST /api/kiosk/cart ────────────────────────────────────────────────
@@ -172,21 +159,13 @@ kioskRoutes.post('/cart', async (c) => {
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid cart payload', 400, parsed.error.issues);
   }
-  const { branchId, items: seedItems = [] } = parsed.data;
-
-  const branch = await prisma.branch.findFirst({
-    where: { id: branchId, isActive: true },
-    select: { id: true },
-  });
-  if (!branch) {
-    return fail(c, 'NotFound', 'Branch tidak ditemukan atau tidak aktif', 404);
-  }
+  const { items: seedItems = [] } = parsed.data;
 
   let cart: KioskCart = emptyCart();
   if (seedItems.length > 0) {
     const menuIds = Array.from(new Set(seedItems.map((i) => i.menuItemId)));
     const menuItems = await prisma.menuItem.findMany({
-      where: { id: { in: menuIds }, branchId, isActive: true, isAvailable: true },
+      where: { id: { in: menuIds }, isActive: true, isAvailable: true },
       select: { id: true, name: true, priceCents: true },
     });
     const menuMap = new Map(menuItems.map((m) => [m.id, m]));
@@ -213,21 +192,17 @@ kioskRoutes.post('/cart', async (c) => {
   await prisma.kioskSession.create({
     data: {
       id: sessionId,
-      branchId,
       itemsJson: cart as unknown as Prisma.InputJsonValue,
       status: 'ACTIVE',
       lastActivityAt: now,
       expiresAt,
     },
   });
-  incCounter('pos_kiosk_sessions_created_total', 'Kiosk sessions created', {
-    branchId,
-  });
+  incCounter('pos_kiosk_sessions_created_total', 'Kiosk sessions created');
   return ok(
     c,
     {
       sessionId,
-      branchId,
       cart,
       subtotalCents: cartSubtotalCents(cart),
       expiresAt: expiresAt.toISOString(),
@@ -256,7 +231,6 @@ kioskRoutes.get('/cart/:sessionId', async (c) => {
   const cart = readCart(session.itemsJson);
   return ok(c, {
     sessionId,
-    branchId: session.branchId,
     cart,
     subtotalCents: cartSubtotalCents(cart),
     expiresAt: session.expiresAt.toISOString(),
@@ -284,7 +258,7 @@ kioskRoutes.post('/cart/:sessionId/items', async (c) => {
   }
 
   const menu = await prisma.menuItem.findFirst({
-    where: { id: menuItemId, branchId: session.branchId, isActive: true, isAvailable: true },
+    where: { id: menuItemId, isActive: true, isAvailable: true },
     select: { id: true, name: true, priceCents: true },
   });
   if (!menu) {
@@ -358,7 +332,7 @@ kioskRoutes.delete('/cart/:sessionId/items/:itemId', async (c) => {
 
 // ─── 6. POST /api/kiosk/cart/:sessionId/checkout ───────────────────────────
 
-async function nextKioskOrderNumber(branchId: string): Promise<string> {
+async function nextKioskOrderNumber(): Promise<string> {
   // Use a distinct prefix so the cashier can spot kiosk orders at a glance.
   const today = new Date();
   const ymd =
@@ -367,7 +341,7 @@ async function nextKioskOrderNumber(branchId: string): Promise<string> {
     String(today.getDate()).padStart(2, '0');
   const prefix = `K-${ymd}-`;
   const last = await prisma.order.findFirst({
-    where: { branchId, orderNumber: { startsWith: prefix } },
+    where: { orderNumber: { startsWith: prefix } },
     orderBy: { orderNumber: 'desc' },
   });
   let seq = 1;
@@ -398,7 +372,7 @@ kioskRoutes.post('/cart/:sessionId/checkout', async (c) => {
   // the cart was built must not propagate as a phantom line.
   const menuIds = Array.from(new Set(cart.items.map((it) => it.menuItemId)));
   const menuItems = await prisma.menuItem.findMany({
-    where: { id: { in: menuIds }, branchId: session.branchId, isActive: true, isAvailable: true },
+    where: { id: { in: menuIds }, isActive: true, isAvailable: true },
   });
   const menuMap = new Map(menuItems.map((m) => [m.id, m]));
   for (const it of cart.items) {
@@ -412,21 +386,12 @@ kioskRoutes.post('/cart/:sessionId/checkout', async (c) => {
     }
   }
 
-  // Compute PPN using the branch's config (mirrors orders.ts logic, simplified).
-  const branchCfg = await prisma.branch.findUnique({
-    where: { id: session.branchId },
-    select: { ppnPercent: true, ppnInclusive: true },
-  });
-  const branchPpnBp = branchCfg?.ppnPercent ?? 0;
-  const branchPpnInclusive = branchCfg?.ppnInclusive ?? false;
-  function effectivePpnBp(m: { taxRateBp: number; useBranchPpn: boolean }): number {
-    if (m.taxRateBp > 0 && !m.useBranchPpn) return m.taxRateBp;
-    if (m.taxRateBp > 0 && m.useBranchPpn) return m.taxRateBp;
-    if (branchPpnBp > 0 && m.useBranchPpn) return branchPpnBp;
-    return 0;
+  // PPN is per-item (MenuItem.taxRateBp). No more "branch default" PPN.
+  function effectivePpnBp(m: { taxRateBp: number }): number {
+    return m.taxRateBp > 0 ? m.taxRateBp : 0;
   }
 
-  const orderNumber = await nextKioskOrderNumber(session.branchId);
+  const orderNumber = await nextKioskOrderNumber();
   let subtotal = 0;
   let tax = 0;
   const lineItems: Array<{
@@ -442,7 +407,7 @@ kioskRoutes.post('/cart/:sessionId/checkout', async (c) => {
     const lineTotal = m.priceCents * it.quantity;
     subtotal += lineTotal;
     const rateBp = effectivePpnBp(m);
-    if (rateBp > 0 && !branchPpnInclusive) {
+    if (rateBp > 0) {
       tax += Math.floor((lineTotal * rateBp) / 10000);
     }
     lineItems.push({
@@ -454,46 +419,24 @@ kioskRoutes.post('/cart/:sessionId/checkout', async (c) => {
       lineTotalCents: lineTotal,
     });
   }
-  // Inclusive: tax already inside the price.
-  if (branchPpnInclusive && lineItems.length > 0) {
-    let inclusiveSubtotal = 0;
-    let maxRateBp = 0;
-    for (const li of lineItems) {
-      const m = menuMap.get(li.menuItemId);
-      if (!m) continue;
-      const r = effectivePpnBp(m);
-      if (r > 0) {
-        inclusiveSubtotal += m.priceCents * li.quantity;
-        if (r > maxRateBp) maxRateBp = r;
-      }
-    }
-    if (maxRateBp > 0 && inclusiveSubtotal > 0) {
-      tax = inclusiveSubtotal - Math.floor((inclusiveSubtotal * 10000) / (10000 + maxRateBp));
-    }
-  }
   const total = Math.max(0, subtotal + tax);
 
   // We need a real user to "open" the order. The kiosk has no user, so we
-  // create a sentinel OPENED_BY system user? No — the schema requires a
-  // non-null `openedById` referencing `User`. Instead, we look up an
-  // existing system/owner user for the branch. If none exists, we return
-  // a config error. The pragmatic fallback: use the first OWNER/MANAGER
-  // of the branch. If that is also missing, return a clear error message.
+  // fall back to the first OWNER/MANAGER of the system.
   const opener = await prisma.user.findFirst({
     where: {
       isActive: true,
-      branchAccess: { some: { branchId: session.branchId } },
       role: { in: ['OWNER', 'MANAGER'] },
     },
     select: { id: true },
     orderBy: { createdAt: 'asc' },
   });
   if (!opener) {
-    logger.error({ branchId: session.branchId }, 'kiosk checkout: no opener user');
+    logger.error('kiosk checkout: no opener user');
     return fail(
       c,
       'ConfigError',
-      'Belum ada OWNER/MANAGER untuk branch ini. Hubungi atasan.',
+      'Belum ada OWNER/MANAGER di sistem. Hubungi atasan.',
       500,
     );
   }
@@ -501,7 +444,6 @@ kioskRoutes.post('/cart/:sessionId/checkout', async (c) => {
   const order = await prisma.$transaction(async (tx) => {
     const ord = await tx.order.create({
       data: {
-        branchId: session.branchId,
         orderNumber,
         type: 'KIOSK',
         status: 'OPEN',
@@ -536,30 +478,22 @@ kioskRoutes.post('/cart/:sessionId/checkout', async (c) => {
     return ord;
   });
 
-  incCounter('pos_kiosk_orders_total', 'Kiosk orders created', {
-    branchId: session.branchId,
-  });
+  incCounter('pos_kiosk_orders_total', 'Kiosk orders created');
   incCounter('pos_orders_created_total', 'Total orders created', {
-    branchId: session.branchId,
     type: 'KIOSK',
   });
-  wsBus.broadcast(
-    {
-      type: 'order.created',
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      totalCents: order.totalCents,
-      status: order.status,
-      branchId: order.branchId,
-      at: Date.now(),
-    },
-    order.branchId,
-  );
+  wsBus.broadcast({
+    type: 'order.created',
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    totalCents: order.totalCents,
+    status: order.status,
+    at: Date.now(),
+  });
 
   return ok(c, {
     orderId: order.id,
     orderNumber: order.orderNumber,
-    branchId: order.branchId,
     totalCents: order.totalCents,
     subtotalCents: order.subtotalCents,
     taxCents: order.taxCents,

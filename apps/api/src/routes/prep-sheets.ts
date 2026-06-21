@@ -21,8 +21,8 @@
 //
 // Endpoints (all require auth):
 //   POST /api/prep-sheets/generate     (OWNER, MANAGER)
-//        body: { branchId, date: YYYY-MM-DD, lookbackDays?: number }
-//   GET  /api/prep-sheets?branchId=X&date=YYYY-MM-DD
+//        body: { date: YYYY-MM-DD, lookbackDays?: number }
+//   GET  /api/prep-sheets?date=YYYY-MM-DD
 //   GET  /api/prep-sheets/:id
 
 import { Hono } from 'hono';
@@ -37,13 +37,6 @@ export const prepSheetRoutes = new Hono<AppEnv>();
 prepSheetRoutes.use('*', requireAuth);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-
-function userHasBranchAccess(
-  branchAccess: Array<{ branchId: string }>,
-  branchId: string,
-): boolean {
-  return branchAccess.some((b) => b.branchId === branchId);
-}
 
 function parseDateOnly(input: string): Date {
   // Accepts YYYY-MM-DD. Returns a Date at 00:00:00 local.
@@ -74,7 +67,6 @@ export interface PrepSheetItem {
 // ─── Schemas ───────────────────────────────────────────────────────────────
 
 const generateSchema = z.object({
-  branchId: z.string().min(1).max(50),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   lookbackDays: z.number().int().min(3).max(60).optional(),
   notes: z.string().max(500).optional().nullable(),
@@ -93,9 +85,6 @@ prepSheetRoutes.post(
       return fail(c, 'ValidationError', 'Invalid generate payload', 400, parsed.error.issues);
     }
     const input = parsed.data;
-    if (!userHasBranchAccess(user.branchAccess, input.branchId)) {
-      return fail(c, 'NoAccess', `No access to branch ${input.branchId}`, 403);
-    }
     const targetDate = parseDateOnly(input.date);
     const lookbackDays = input.lookbackDays ?? 14;
     const windowStart = new Date(targetDate);
@@ -116,7 +105,6 @@ prepSheetRoutes.post(
     // Pull paid orders in the window
     const orders = await prisma.order.findMany({
       where: {
-        branchId: input.branchId,
         status: 'PAID',
         closedAt: { gte: windowStart, lt: targetDate },
       },
@@ -200,7 +188,6 @@ prepSheetRoutes.post(
 
     const sheet = await prisma.prepSheet.create({
       data: {
-        branchId: input.branchId,
         date: targetDate,
         lookbackDays,
         itemsJson: items as unknown as object,
@@ -208,11 +195,9 @@ prepSheetRoutes.post(
         notes: input.notes ?? null,
       },
     });
-    incCounter('pos_prep_sheets_generated_total', 'Prep sheets generated', {
-      branchId: input.branchId,
-    });
+    incCounter('pos_prep_sheets_generated_total', 'Prep sheets generated');
     logger.info(
-      { sheetId: sheet.id, branchId: input.branchId, itemCount: items.length, lookbackDays },
+      { sheetId: sheet.id, itemCount: items.length, lookbackDays },
       'prep sheet generated',
     );
     return ok(
@@ -226,12 +211,6 @@ prepSheetRoutes.post(
 // ─── List ──────────────────────────────────────────────────────────────────
 
 prepSheetRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
-  if (!userHasBranchAccess(user.branchAccess, branchId)) {
-    return fail(c, 'NoAccess', `No access to branch ${branchId}`, 403);
-  }
   const dateStr = c.req.query('date');
   let dateFilter: Date | undefined;
   if (dateStr) {
@@ -243,7 +222,6 @@ prepSheetRoutes.get('/', async (c) => {
   }
   const sheets = await prisma.prepSheet.findMany({
     where: {
-      branchId,
       ...(dateFilter ? { date: dateFilter } : {}),
     },
     orderBy: [{ date: 'desc' }, { generatedAt: 'desc' }],
@@ -255,12 +233,8 @@ prepSheetRoutes.get('/', async (c) => {
 // ─── Detail ────────────────────────────────────────────────────────────────
 
 prepSheetRoutes.get('/:id', async (c) => {
-  const user = c.get('user');
   const id = c.req.param('id');
   const sheet = await prisma.prepSheet.findUnique({ where: { id } });
   if (!sheet) return fail(c, 'NotFound', 'Prep sheet not found', 404);
-  if (!userHasBranchAccess(user.branchAccess, sheet.branchId)) {
-    return fail(c, 'NoAccess', 'No access to this prep sheet', 403);
-  }
   return ok(c, sheet);
 });

@@ -3,13 +3,13 @@
 // Sprint 9.3 — Waiter Handheld (Table Management).
 //
 // Endpoints (all require auth):
-//   GET    /api/tables?branchId=X&status=AVAILABLE         — list tables + current session
-//   GET    /api/tables/:id                                   — table detail + active session
-//   POST   /api/tables                     (MANAGER+)        — create table
-//   PATCH  /api/tables/:id                 (MANAGER+)        — update capacity/area/position/status
-//   POST   /api/tables/:id/open            (CASHIER+)        — open a table session (+ optional order)
-//   POST   /api/tables/:id/close           (CASHIER+)        — close the active session
-//   POST   /api/tables/:id/transfer        (CASHIER+)        — move session to another table
+//   GET    /api/tables?status=AVAILABLE            — list tables + current session
+//   GET    /api/tables/:id                          — table detail + active session
+//   POST   /api/tables                (MANAGER+)    — create table
+//   PATCH  /api/tables/:id            (MANAGER+)    — update capacity/area/position/status
+//   POST   /api/tables/:id/open       (CASHIER+)    — open a table session (+ optional order)
+//   POST   /api/tables/:id/close      (CASHIER+)    — close the active session
+//   POST   /api/tables/:id/transfer   (CASHIER+)    — move session to another table
 //
 // Table lifecycle:
 //   AVAILABLE → OCCUPIED   on /open
@@ -39,7 +39,6 @@ tableRoutes.use('*', requireAuth);
 // ─── Schemas ───────────────────────────────────────────────────────────────
 
 const tableCreate = z.object({
-  branchId: z.string().min(1).max(50),
   number: z.string().min(1).max(20),
   capacity: z.number().int().min(1).max(99).optional(),
   area: z.string().max(50).optional(),
@@ -81,7 +80,7 @@ const tableTransfer = z.object({
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-async function nextOrderNumber(branchId: string): Promise<string> {
+async function nextOrderNumber(): Promise<string> {
   const today = new Date();
   const ymd =
     today.getFullYear().toString() +
@@ -89,7 +88,7 @@ async function nextOrderNumber(branchId: string): Promise<string> {
     String(today.getDate()).padStart(2, '0');
   const prefix = `ORD-${ymd}-`;
   const last = await prisma.order.findFirst({
-    where: { branchId, orderNumber: { startsWith: prefix } },
+    where: { orderNumber: { startsWith: prefix } },
     orderBy: { orderNumber: 'desc' },
   });
   let seq = 1;
@@ -111,13 +110,10 @@ async function getActiveSession(tableId: string) {
 // ─── List ──────────────────────────────────────────────────────────────────
 
 tableRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   const status = c.req.query('status');
   const includeInactive = c.req.query('includeInactive') === 'true';
 
-  const where: Record<string, unknown> = { branchId };
+  const where: Record<string, unknown> = {};
   if (status) where.status = status;
   if (!includeInactive) where.isActive = true;
 
@@ -190,23 +186,15 @@ tableRoutes.post(
   '/',
   requireRole('OWNER', 'MANAGER'),
   async (c) => {
-    const user = c.get('user');
     const body = await c.req.json().catch(() => ({}));
     const parsed = tableCreate.safeParse(body);
     if (!parsed.success) {
       return fail(c, 'ValidationError', 'Invalid table payload', 400, parsed.error.issues);
     }
     const data = parsed.data;
-    if (user.branchId && user.branchId !== data.branchId) {
-      const hasAccess = (user.branchAccess ?? []).some((a) => a.branchId === data.branchId);
-      if (!hasAccess) {
-        return fail(c, 'NoAccess', `No access to branch ${data.branchId}`, 403);
-      }
-    }
     try {
       const table = await prisma.table.create({
         data: {
-          branchId: data.branchId,
           number: data.number,
           capacity: data.capacity ?? 4,
           area: data.area,
@@ -214,16 +202,14 @@ tableRoutes.post(
           positionY: data.positionY,
         },
       });
-      incCounter('pos_tables_created_total', 'Tables created', {
-        branchId: data.branchId,
-      });
+      incCounter('pos_tables_created_total', 'Tables created');
       return ok(c, table, 201);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         return fail(
           c,
           'DuplicateTable',
-          `Meja "${data.number}" sudah ada di branch ini`,
+          `Meja "${data.number}" sudah ada`,
           409,
         );
       }
@@ -271,13 +257,9 @@ tableRoutes.post(
     if (!parsed.success) {
       return fail(c, 'ValidationError', 'Invalid open payload', 400, parsed.error.issues);
     }
-    if (!user.branchId) return fail(c, 'NoBranch', 'User has no branch', 400);
 
     const table = await prisma.table.findUnique({ where: { id } });
     if (!table) return fail(c, 'NotFound', 'Table not found', 404);
-    if (table.branchId !== user.branchId) {
-      return fail(c, 'NoAccess', 'Table belongs to another branch', 403);
-    }
     if (!table.isActive) {
       return fail(c, 'TableInactive', 'Meja tidak aktif', 409);
     }
@@ -297,7 +279,7 @@ tableRoutes.post(
     const menuIds = items.map((i) => i.menuItemId);
     const menuItems = menuIds.length
       ? await prisma.menuItem.findMany({
-          where: { id: { in: menuIds }, branchId: user.branchId, isActive: true },
+          where: { id: { in: menuIds }, isActive: true },
         })
       : [];
     const menuMap = new Map(menuItems.map((m) => [m.id, m]));
@@ -306,7 +288,7 @@ tableRoutes.post(
         return fail(
           c,
           'MenuItemNotFound',
-          `Menu item ${it.menuItemId} not in this branch`,
+          `Menu item ${it.menuItemId} not found`,
           400,
         );
       }
@@ -314,16 +296,15 @@ tableRoutes.post(
 
     // Optionally attach to active shift
     const shift = await prisma.shift.findFirst({
-      where: { userId: user.id, branchId: user.branchId, status: 'OPEN' },
+      where: { userId: user.id, status: 'OPEN' },
     });
 
-    const orderNumber = await nextOrderNumber(user.branchId);
+    const orderNumber = await nextOrderNumber();
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create the OPEN Order
       const order = await tx.order.create({
         data: {
-          branchId: user.branchId!,
           shiftId: shift?.id,
           orderNumber,
           type: 'DINE_IN',
@@ -381,9 +362,7 @@ tableRoutes.post(
       return { order: orderUpdated, session };
     });
 
-    incCounter('pos_table_sessions_opened_total', 'Table sessions opened', {
-      branchId: user.branchId ?? 'none',
-    });
+    incCounter('pos_table_sessions_opened_total', 'Table sessions opened');
     logger.info(
       {
         tableId: table.id,
@@ -394,18 +373,14 @@ tableRoutes.post(
       },
       'table session opened',
     );
-    wsBus.broadcast(
-      {
-        type: 'table.opened',
-        tableId: table.id,
-        tableNumber: table.number,
-        sessionId: result.session.id,
-        orderId: result.order.id,
-        branchId: user.branchId,
-        at: Date.now(),
-      },
-      user.branchId,
-    );
+    wsBus.broadcast({
+      type: 'table.opened',
+      tableId: table.id,
+      tableNumber: table.number,
+      sessionId: result.session.id,
+      orderId: result.order.id,
+      at: Date.now(),
+    });
 
     return ok(c, { table, session: result.session, order: result.order }, 201);
   },
@@ -417,13 +392,9 @@ tableRoutes.post(
   '/:id/close',
   requireRole('OWNER', 'MANAGER', 'CASHIER'),
   async (c) => {
-    const user = c.get('user');
     const id = c.req.param('id');
     const table = await prisma.table.findUnique({ where: { id } });
     if (!table) return fail(c, 'NotFound', 'Table not found', 404);
-    if (table.branchId !== user.branchId) {
-      return fail(c, 'NoAccess', 'Table belongs to another branch', 403);
-    }
 
     const active = await getActiveSession(id);
     if (!active) {
@@ -447,24 +418,18 @@ tableRoutes.post(
       return session;
     });
 
-    incCounter('pos_table_sessions_closed_total', 'Table sessions closed', {
-      branchId: user.branchId ?? 'none',
-    });
+    incCounter('pos_table_sessions_closed_total', 'Table sessions closed');
     logger.info(
       { tableId: table.id, sessionId: active.id },
       'table session closed',
     );
-    wsBus.broadcast(
-      {
-        type: 'table.closed',
-        tableId: table.id,
-        tableNumber: table.number,
-        sessionId: active.id,
-        ...(user.branchId ? { branchId: user.branchId } : {}),
-        at: Date.now(),
-      },
-      user.branchId,
-    );
+    wsBus.broadcast({
+      type: 'table.closed',
+      tableId: table.id,
+      tableNumber: table.number,
+      sessionId: active.id,
+      at: Date.now(),
+    });
 
     return ok(c, { table: { ...table, status: 'CLEANING' }, session: updated });
   },
@@ -476,28 +441,20 @@ tableRoutes.post(
   '/:id/transfer',
   requireRole('OWNER', 'MANAGER', 'CASHIER'),
   async (c) => {
-    const user = c.get('user');
     const id = c.req.param('id');
     const body = await c.req.json().catch(() => ({}));
     const parsed = tableTransfer.safeParse(body);
     if (!parsed.success) {
       return fail(c, 'ValidationError', 'Invalid transfer payload', 400, parsed.error.issues);
     }
-    if (!user.branchId) return fail(c, 'NoBranch', 'User has no branch', 400);
 
     const fromTable = await prisma.table.findUnique({ where: { id } });
     if (!fromTable) return fail(c, 'NotFound', 'Source table not found', 404);
-    if (fromTable.branchId !== user.branchId) {
-      return fail(c, 'NoAccess', 'Source table belongs to another branch', 403);
-    }
     if (id === parsed.data.toTableId) {
       return fail(c, 'ValidationError', 'Source and destination tables are the same', 400);
     }
     const toTable = await prisma.table.findUnique({ where: { id: parsed.data.toTableId } });
     if (!toTable) return fail(c, 'NotFound', 'Destination table not found', 404);
-    if (toTable.branchId !== user.branchId) {
-      return fail(c, 'NoAccess', 'Destination table belongs to another branch', 403);
-    }
     if (!toTable.isActive) {
       return fail(c, 'TableInactive', 'Meja tujuan tidak aktif', 409);
     }
@@ -545,23 +502,18 @@ tableRoutes.post(
         fromTableId: fromTable.id,
         toTableId: toTable.id,
         sessionId: active.id,
-        by: user.id,
       },
       'table session transferred',
     );
-    wsBus.broadcast(
-      {
-        type: 'table.transferred',
-        fromTableId: fromTable.id,
-        toTableId: toTable.id,
-        fromNumber: fromTable.number,
-        toNumber: toTable.number,
-        sessionId: active.id,
-        branchId: user.branchId,
-        at: Date.now(),
-      },
-      user.branchId,
-    );
+    wsBus.broadcast({
+      type: 'table.transferred',
+      fromTableId: fromTable.id,
+      toTableId: toTable.id,
+      fromNumber: fromTable.number,
+      toNumber: toTable.number,
+      sessionId: active.id,
+      at: Date.now(),
+    });
 
     return ok(c, { session: result, fromTable, toTable });
   },

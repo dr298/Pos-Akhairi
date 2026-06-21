@@ -1,12 +1,12 @@
 // Daily close / EOD auto-close service.
 //
-// Computes end-of-day totals for a branch on a business date and persists
-// them in DailyClose. Run manually (POST /api/daily-close/run) or via cron
-// at a configured hour per branch timezone.
+// Computes end-of-day totals for a business date and persists them in
+// DailyClose. Run manually (POST /api/daily-close/run) or via cron at a
+// configured hour per timezone.
 //
-// The "business date" is the local date in the branch's timezone — not UTC.
-// For Asia/Jakarta (UTC+7), the business date 2026-06-20 covers 2026-06-20
-// 17:00:00 UTC through 2026-06-21 16:59:59 UTC.
+// The "business date" is the local date in the timezone — not UTC.
+// For Asia/Jakarta (UTC+7), the business date 2026-06-20 covers
+// 2026-06-20 17:00:00 UTC through 2026-06-21 16:59:59 UTC.
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@pos/db';
@@ -14,8 +14,7 @@ import { logger } from '../logger.js';
 import { wsBus } from '../lib/ws-bus.js';
 
 export interface DailyCloseInput {
-  branchId: string;
-  businessDate: Date; // a date in the branch's local TZ, truncated to midnight
+  businessDate: Date; // a date in the local TZ, truncated to midnight
   timezone?: string;
   closedBy?: string; // userId or "AUTO"
   autoCloseShifts?: boolean;
@@ -43,32 +42,30 @@ export interface DailyCloseResult {
 }
 
 /**
- * Compute and persist a DailyClose for a (branch, businessDate).
+ * Compute and persist a DailyClose for a businessDate.
  * Idempotent: re-running the same date updates the same row.
  */
 export async function runDailyClose(input: DailyCloseInput): Promise<DailyCloseResult> {
-  const { branchId, closedBy = 'AUTO', autoCloseShifts = true } = input;
+  const { closedBy = 'AUTO', autoCloseShifts = true } = input;
   const timezone = input.timezone ?? 'Asia/Jakarta';
   const businessDate = truncateToDate(input.businessDate);
 
-  // Compute UTC range covering businessDate in the branch's timezone
+  // Compute UTC range covering businessDate in the timezone
   const { startUtc, endUtc } = businessDateRangeUtc(businessDate, timezone);
 
   logger.info(
-    { branchId, businessDate: businessDate.toISOString().slice(0, 10), timezone, closedBy, startUtc, endUtc },
+    { businessDate: businessDate.toISOString().slice(0, 10), timezone, closedBy, startUtc, endUtc },
     'running daily close',
   );
 
-  // 1) Pull local orders
+  // 1) Pull orders in the date range
   const orders = await prisma.order.findMany({
     where: {
-      branchId,
       openedAt: { gte: startUtc, lt: endUtc },
     },
     include: { payments: true },
   });
 
-  // Sprint 10 — channel orders removed (online ordering dropped).
   // byChannel is now derived only from local Order.type (DINE_IN /
   // TAKEAWAY / KIOSK). deliveryFeeCents / serviceFeeCents /
   // commissionCents / netAfterCommCents remain in the schema for
@@ -114,11 +111,11 @@ export async function runDailyClose(input: DailyCloseInput): Promise<DailyCloseR
 
   totals.netAfterCommCents = totals.netCents;
 
-  // 5) Auto-close any open shifts for this branch
+  // 5) Auto-close any open shifts in this date range
   let closedShiftId: string | null = null;
   if (autoCloseShifts) {
     const openShifts = await prisma.shift.findMany({
-      where: { branchId, status: 'OPEN' },
+      where: { status: 'OPEN' },
     });
     for (const s of openShifts) {
       if (s.openedAt >= startUtc && s.openedAt < endUtc) {
@@ -135,9 +132,9 @@ export async function runDailyClose(input: DailyCloseInput): Promise<DailyCloseR
     }
   }
 
-  // 6) Persist
+  // 6) Persist (idempotent by businessDate — find existing and update,
+  //    or create new)
   const data: Prisma.DailyCloseUncheckedCreateInput = {
-    branchId,
     shiftId: closedShiftId,
     businessDate,
     timezone,
@@ -159,29 +156,24 @@ export async function runDailyClose(input: DailyCloseInput): Promise<DailyCloseR
     byChannelJson: byChannel as Prisma.InputJsonValue,
   };
 
-  const row = await prisma.dailyClose.upsert({
-    where: { branchId_businessDate: { branchId, businessDate } },
-    create: data,
-    update: data,
-  });
+  const existing = await prisma.dailyClose.findFirst({ where: { businessDate } });
+  const row = existing
+    ? await prisma.dailyClose.update({ where: { id: existing.id }, data })
+    : await prisma.dailyClose.create({ data });
 
   logger.info(
-    { id: row.id, branchId, businessDate, totals, byChannel, byPayment, closedShiftId },
+    { id: row.id, businessDate, totals, byChannel, byPayment, closedShiftId },
     'daily close completed',
   );
 
   // 7) WS broadcast
-  wsBus.broadcast(
-    {
-      type: 'day.closed',
-      dailyCloseId: row.id,
-      branchId,
-      businessDate: businessDate.toISOString().slice(0, 10),
-      totals,
-      at: Date.now(),
-    },
-    branchId,
-  );
+  wsBus.broadcast({
+    type: 'day.closed',
+    dailyCloseId: row.id,
+    businessDate: businessDate.toISOString().slice(0, 10),
+    totals,
+    at: Date.now(),
+  });
 
   return {
     id: row.id,
@@ -204,30 +196,11 @@ function truncateToDate(d: Date): Date {
  * the Intl API to compute the offset for the given date.
  */
 function businessDateRangeUtc(date: Date, timezone: string): { startUtc: Date; endUtc: Date } {
-  // Format date in the target TZ, parse offset
   const yyyy = date.getUTCFullYear();
   const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(date.getUTCDate()).padStart(2, '0');
-  // Local midnight in TZ = ?
-  // Strategy: figure out the UTC offset at noon of that date, then midnight = noon - 12h
-  // Simpler: use Intl to get offset string
-  const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-  // Local date components
-  const localDateStr = `${yyyy}-${mm}-${dd}`;
-  // Get local time for "midnight" of that date
-  const localMidnight = new Date(`${localDateStr}T00:00:00Z`); // interpret as UTC
-  // Adjust by the TZ offset at that local time
+  const localMidnight = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`); // interpret as UTC
   const offsetMin = getTzOffsetMinutes(timezone, localMidnight);
-  // Local midnight in UTC = localMidnight - offsetMin*60s
   const startUtc = new Date(localMidnight.getTime() - offsetMin * 60 * 1000);
   const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
   return { startUtc, endUtc };

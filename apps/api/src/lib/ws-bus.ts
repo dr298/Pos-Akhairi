@@ -18,7 +18,6 @@ export interface OrderEvent {
   orderNumber?: string;
   totalCents?: number;
   status?: string;
-  branchId?: string;
   dailyCloseId?: string;
   businessDate?: string;
   totals?: Record<string, number | string>;
@@ -35,35 +34,22 @@ export interface OrderEvent {
 
 class WSBus {
   private clients = new Set<WSContext>();
-  private branchIndex = new Map<WSContext, string | null>();
 
-  add(ctx: WSContext, branchId: string | null = null) {
+  add(ctx: WSContext) {
     this.clients.add(ctx);
-    this.branchIndex.set(ctx, branchId);
-  }
-
-  setBranch(ctx: WSContext, branchId: string | null) {
-    if (this.clients.has(ctx)) {
-      this.branchIndex.set(ctx, branchId);
-    }
   }
 
   remove(ctx: WSContext) {
     this.clients.delete(ctx);
-    this.branchIndex.delete(ctx);
   }
 
   size(): number {
     return this.clients.size;
   }
 
-  broadcast(event: OrderEvent, branchId?: string | null) {
+  broadcast(event: OrderEvent) {
     const payload = JSON.stringify(event);
     for (const client of this.clients) {
-      if (branchId !== undefined) {
-        const clientBranch = this.branchIndex.get(client);
-        if (clientBranch && clientBranch !== branchId) continue;
-      }
       try {
         client.send(payload);
       } catch {

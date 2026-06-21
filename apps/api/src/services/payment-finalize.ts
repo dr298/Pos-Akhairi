@@ -167,7 +167,7 @@ export async function finalizeOrderPayment(input: FinalizeInput): Promise<Finali
   // Post-commit: collect low-stock alerts (best-effort, non-blocking).
   try {
     const invItems = await prisma.inventoryItem.findMany({
-      where: { branchId: order.branchId, isActive: true },
+      where: { isActive: true },
     });
     for (const i of invItems) {
       const q = new Prisma.Decimal(i.quantity as unknown as string);
@@ -195,18 +195,14 @@ export async function finalizeOrderPayment(input: FinalizeInput): Promise<Finali
     'event: order.paid (finalized)'
   );
 
-  wsBus.broadcast(
-    {
-      type: 'order.paid',
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      totalCents: order.totalCents,
-      status: 'PAID',
-      branchId: order.branchId,
-      at: Date.now(),
-    },
-    order.branchId,
-  );
+  wsBus.broadcast({
+    type: 'order.paid',
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    totalCents: order.totalCents,
+    status: 'PAID',
+    at: Date.now(),
+  });
 
   // Sprint 8.8 — loyalty earn hook. Defensive: loyalty is a downstream
   // effect of the payment, never a precondition. Wrap in try/catch and

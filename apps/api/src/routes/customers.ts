@@ -3,7 +3,7 @@
 // Sprint 8.8 — Customer / Member + Loyalty routes.
 //
 // Endpoints (all require auth):
-//   GET    /api/customers?branchId=X&search=Q&limit=50
+//   GET    /api/customers?search=Q&limit=50
 //   GET    /api/customers/:id
 //   POST   /api/customers                          (CASHIER+)
 //   PATCH  /api/customers/:id                      (CASHIER+)
@@ -46,21 +46,11 @@ function normalizePhone(p: string): string {
 // ─── list ──────────────────────────────────────────────────────────────────
 
 customerRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   const search = c.req.query('search')?.trim();
   const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '50', 10) || 50, 1), 200);
   const includeInactive = c.req.query('includeInactive') === 'true';
 
   const where: Prisma.CustomerWhereInput = { isActive: includeInactive ? undefined : true };
-  // Branch scoping: scope to user's branch by default; if a query branchId
-  // is provided AND the user has access, allow it (requireAuth has already
-  // enforced branch access).
-  where.OR = [
-    { branchId: null }, // chain-wide
-    { branchId },
-  ];
   if (search && search.length > 0) {
     const phoneQ = normalizePhone(search);
     where.AND = [
@@ -115,7 +105,6 @@ const createSchema = z
       .optional(),
     address: z.string().max(500).optional(),
     notes: z.string().max(1000).optional(),
-    branchId: z.string().optional(),
   })
   .refine((o) => Boolean(o.phone) || Boolean(o.email), {
     message: 'phone atau email wajib diisi',
@@ -130,33 +119,15 @@ customerRoutes.post('/', requireRole('CASHIER', 'MANAGER', 'OWNER'), async (c) =
   }
   const data = parsed.data;
 
-  // Default branch to user's branch. Allow null (chain-wide) for OWNER.
-  let branchId: string | null;
-  if (data.branchId) {
-    if (data.branchId !== user.branchId && user.role !== 'OWNER') {
-      return fail(c, 'NoAccess', 'Tidak bisa membuat pelanggan untuk cabang lain', 403);
-    }
-    branchId = data.branchId;
-  } else {
-    branchId = user.branchId;
-  }
-
-  // De-dup: if a customer with the same phone or email already exists in
-  // this scope, return it (idempotent) instead of erroring. Lookup matches
-  // phone (normalized) OR email case-insensitively, scoped to the same
-  // branchId-or-null. This matches the existing customer model behaviour
-  // and avoids a unique constraint + race-condition crash.
+  // De-dup: if a customer with the same phone or email already exists,
+  // return it (idempotent) instead of erroring. Lookup matches
+  // phone (normalized) OR email case-insensitively.
   const phoneNorm = data.phone ? normalizePhone(data.phone) : null;
   const existing = await prisma.customer.findFirst({
     where: {
-      AND: [
-        { OR: [{ branchId }, { branchId: null }] },
-        {
-          OR: [
-            ...(phoneNorm ? [{ phone: phoneNorm }, { phone: data.phone }] : []),
-            ...(data.email ? [{ email: { equals: data.email, mode: 'insensitive' as const } }] : []),
-          ],
-        },
+      OR: [
+        ...(phoneNorm ? [{ phone: phoneNorm }, { phone: data.phone }] : []),
+        ...(data.email ? [{ email: { equals: data.email, mode: 'insensitive' as const } }] : []),
       ],
     },
   });
@@ -166,7 +137,6 @@ customerRoutes.post('/', requireRole('CASHIER', 'MANAGER', 'OWNER'), async (c) =
 
   const customer = await prisma.customer.create({
     data: {
-      branchId,
       name: data.name,
       phone: phoneNorm ?? data.phone,
       email: data.email,
@@ -176,35 +146,33 @@ customerRoutes.post('/', requireRole('CASHIER', 'MANAGER', 'OWNER'), async (c) =
     },
   });
 
-  // Best-effort signup bonus (if the branch's LoyaltyConfig grants one).
+  // Best-effort signup bonus (if the global LoyaltyConfig grants one).
   // Failures here are non-fatal — the customer is created either way.
-  if (branchId) {
-    try {
-      const cfg = await prisma.loyaltyConfig.findUnique({ where: { branchId } });
-      if (cfg && cfg.isActive && cfg.signupBonusPoints > 0) {
-        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          await tx.loyaltyTransaction.create({
-            data: {
-              customerId: customer.id,
-              type: 'BONUS',
-              pointsDelta: cfg.signupBonusPoints,
-              notes: 'Bonus pendaftaran',
-              createdById: user.id,
-            },
-          });
-          await tx.customer.update({
-            where: { id: customer.id },
-            data: { loyaltyPoints: { increment: cfg.signupBonusPoints } },
-          });
+  try {
+    const cfg = await prisma.loyaltyConfig.findFirst();
+    if (cfg && cfg.isActive && cfg.signupBonusPoints > 0) {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        await tx.loyaltyTransaction.create({
+          data: {
+            customerId: customer.id,
+            type: 'BONUS',
+            pointsDelta: cfg.signupBonusPoints,
+            notes: 'Bonus pendaftaran',
+            createdById: user.id,
+          },
         });
-        incCounter('pos_loyalty_signup_bonus_total', 'Signup bonus awarded', { branchId });
-      }
-    } catch (e) {
-      logger.warn({ err: (e as Error).message, customerId: customer.id }, 'signup bonus failed (non-fatal)');
+        await tx.customer.update({
+          where: { id: customer.id },
+          data: { loyaltyPoints: { increment: cfg.signupBonusPoints } },
+        });
+      });
+      incCounter('pos_loyalty_signup_bonus_total', 'Signup bonus awarded');
     }
+  } catch (e) {
+    logger.warn({ err: (e as Error).message, customerId: customer.id }, 'signup bonus failed (non-fatal)');
   }
 
-  logger.info({ customerId: customer.id, branchId, by: user.id }, 'customer created');
+  logger.info({ customerId: customer.id, by: user.id }, 'customer created');
   return ok(c, customer, 201);
 });
 
@@ -288,23 +256,19 @@ customerRoutes.get('/:id/balance', async (c) => {
 
 const lookupSchema = z.object({
   phone: z.string().min(3).max(30),
-  branchId: z.string().optional(),
 });
 
 customerRoutes.post('/lookup', async (c) => {
-  const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
   const parsed = lookupSchema.safeParse(body);
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'phone wajib diisi', 400, parsed.error.issues);
   }
   const phoneNorm = normalizePhone(parsed.data.phone);
-  const branchId = parsed.data.branchId || user.branchId;
   const customer = await prisma.customer.findFirst({
     where: {
       AND: [
         { isActive: true },
-        { OR: [{ branchId: null }, ...(branchId ? [{ branchId }] : [])] },
         { OR: [{ phone: phoneNorm }, { phone: parsed.data.phone }] },
       ],
     },

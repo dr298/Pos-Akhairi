@@ -45,7 +45,7 @@ function sanitizeContext(ctx: Record<string, unknown> | undefined): Record<strin
 export function captureError(c: Context, capture: ErrorCapture): void {
   const err = capture.err as Error | undefined;
   const statusCode = (c.res && c.res.status) || 500;
-  const user = c.get('user' as any) as { id?: string; branchId?: string } | undefined;
+  const user = c.get('user' as any) as { id?: string } | undefined;
   const route = `${c.req.method} ${c.req.path}`;
 
   // Log structured
@@ -74,7 +74,6 @@ export function captureError(c: Context, capture: ErrorCapture): void {
           method: c.req.method,
           statusCode,
           userId: user?.id ?? null,
-          branchId: user?.branchId ?? null,
           message: truncate(capture.message, MAX_MESSAGE_LEN) ?? 'unknown',
           stack: truncate(err?.stack, MAX_STACK_LEN),
           context: sanitizeContext(capture.context) as any,
@@ -112,7 +111,6 @@ export function captureBare(capture: ErrorCapture, extra?: { route?: string; met
           method: extra?.method ?? null,
           statusCode: null,
           userId: null,
-          branchId: null,
           message: truncate(capture.message, MAX_MESSAGE_LEN) ?? 'unknown',
           stack: truncate((capture.err as Error | undefined)?.stack, MAX_STACK_LEN),
           context: sanitizeContext(capture.context) as any,

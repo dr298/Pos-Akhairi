@@ -126,13 +126,8 @@ menuRoutes.get('/items', async (c) => {
   const category = c.req.query('category');
   const available = c.req.query('available');
   const search = c.req.query('search');
-  const branchId = c.req.query('branchId') || user.branchId;
 
-  if (!branchId) {
-    return fail(c, 'NoBranch', 'User has no branch assigned', 400);
-  }
-
-  const where: any = { branchId };
+  const where: any = {};
   if (category) where.categoryId = category;
   if (available === 'true') where.isAvailable = true;
   if (available === 'false') where.isAvailable = false;
@@ -186,15 +181,9 @@ menuRoutes.get('/items/by-barcode/:barcode', async (c) => {
     return fail(c, 'ValidationError', 'barcode terlalu panjang (maks 64 karakter)', 400);
   }
   const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) {
-    return fail(c, 'NoBranch', 'User has no branch assigned', 400);
-  }
-  // Limit lookup to the user's active branch. The barcode is unique per
-  // branch (schema constraint `@@unique([branchId, barcode])`), so we
-  // can't accidentally match a different branch's item.
-  const item = await prisma.menuItem.findUnique({
-    where: { branchId_barcode: { branchId, barcode } },
+  // Barcode is globally unique (single restaurant, no branches).
+  const item = await prisma.menuItem.findFirst({
+    where: { barcode },
     include: {
       category: true,
       modifiers: { where: { isActive: true } },
@@ -215,30 +204,22 @@ menuRoutes.post(
   '/items',
   requireRole('OWNER', 'MANAGER'),
   async (c) => {
-    const user = c.get('user');
     const body = await c.req.json().catch(() => ({}));
     const parsed = itemCreate.safeParse(body);
     if (!parsed.success) {
       return fail(c, 'ValidationError', 'Invalid item payload', 400, parsed.error.issues);
     }
-    if (!user.branchId) {
-      return fail(c, 'NoBranch', 'User has no branch assigned', 400);
-    }
     const cat = await prisma.menuCategory.findUnique({ where: { id: parsed.data.categoryId } });
     if (!cat) return fail(c, 'CategoryNotFound', 'Category does not exist', 400);
 
-    const dup = await prisma.menuItem.findUnique({
-      where: { branchId_sku: { branchId: user.branchId, sku: parsed.data.sku } },
-    });
-    if (dup) return fail(c, 'SkuTaken', 'SKU already exists in this branch', 409);
+    const dup = await prisma.menuItem.findFirst({ where: { sku: parsed.data.sku } });
+    if (dup) return fail(c, 'SkuTaken', 'SKU already exists', 409);
 
-    // Sprint 8.11 — also reject a duplicate barcode within the branch.
+    // Sprint 8.11 — also reject a duplicate barcode.
     if (parsed.data.barcode) {
-      const dupBarcode = await prisma.menuItem.findUnique({
-        where: { branchId_barcode: { branchId: user.branchId, barcode: parsed.data.barcode } },
-      });
+      const dupBarcode = await prisma.menuItem.findFirst({ where: { barcode: parsed.data.barcode } });
       if (dupBarcode) {
-        return fail(c, 'BarcodeTaken', 'Barcode sudah dipakai item lain di branch ini', 409);
+        return fail(c, 'BarcodeTaken', 'Barcode sudah dipakai item lain', 409);
       }
     }
 
@@ -246,7 +227,6 @@ menuRoutes.post(
     const item = await prisma.menuItem.create({
       data: {
         ...rest,
-        branchId: user.branchId,
         ...(modifierIds
           ? {
               modifiers: {
@@ -274,14 +254,12 @@ menuRoutes.patch(
     const existing = await prisma.menuItem.findUnique({ where: { id } });
     if (!existing) return fail(c, 'NotFound', 'Item not found', 404);
 
-    // Sprint 8.11 — prevent collision with another item's barcode in the
-    // same branch. Empty string / null is allowed (clearing the field).
+    // Sprint 8.11 — prevent collision with another item's barcode.
+    // Empty string / null is allowed (clearing the field).
     if (parsed.data.barcode && parsed.data.barcode !== existing.barcode) {
-      const dupBarcode = await prisma.menuItem.findUnique({
-        where: { branchId_barcode: { branchId: existing.branchId, barcode: parsed.data.barcode } },
-      });
+      const dupBarcode = await prisma.menuItem.findFirst({ where: { barcode: parsed.data.barcode } });
       if (dupBarcode && dupBarcode.id !== existing.id) {
-        return fail(c, 'BarcodeTaken', 'Barcode sudah dipakai item lain di branch ini', 409);
+        return fail(c, 'BarcodeTaken', 'Barcode sudah dipakai item lain', 409);
       }
     }
     const { modifierIds, ...rest } = parsed.data;
@@ -299,7 +277,6 @@ menuRoutes.patch(
       },
       include: { category: true, modifiers: true },
     });
-    // Sprint 10 — channel menu sync removed (online ordering dropped).
     return ok(c, item);
   },
 );
@@ -336,118 +313,21 @@ menuRoutes.post(
   }
 );
 
-// ---------- Sprint 5.4 — bulk-copy menu between branches ----------
-
-const cloneSchema = z.object({
-  sourceBranchId: z.string().min(1),
-  targetBranchId: z.string().min(1),
-  // Optional per-SKU price override. If absent, use source price as-is.
-  // Map: sourceSku -> { priceCents?: number, costCents?: number }
-  // If map is empty, all items use source prices.
-  priceOverrides: z.record(z.string(), z.object({
-    priceCents: z.number().int().positive().optional(),
-    costCents: z.number().int().nonnegative().optional(),
-  })).optional(),
-  // If true, skip items that already exist in target branch (by SKU).
-  // If false (default), overwrite target's price/cost with source/override.
-  skipExisting: z.boolean().optional(),
-});
+// ---------- Sprint 5.4 — bulk-copy menu between branches (legacy) ----------
+// The /api/menu/clone endpoint was for cloning menus between branches.
+// With branches removed, this endpoint is now a no-op that returns a
+// deprecation notice. We keep the route registered so the web admin can
+// detect it and stop calling it.
 
 menuRoutes.post(
   '/clone',
   requireRole('OWNER', 'MANAGER'),
   async (c) => {
-    const user = c.get('user');
-    const body = await c.req.json().catch(() => ({}));
-    const parsed = cloneSchema.safeParse(body);
-    if (!parsed.success) {
-      return fail(c, 'ValidationError', parsed.error.message, 400);
-    }
-    const { sourceBranchId, targetBranchId, priceOverrides = {}, skipExisting = false } = parsed.data;
-    if (sourceBranchId === targetBranchId) {
-      return fail(c, 'ValidationError', 'source and target branch must differ', 400);
-    }
-    // Verify user has access to both branches
-    const access = user.branchAccess || [];
-    const hasSrc = access.some((a) => a.branchId === sourceBranchId);
-    const hasTgt = access.some((a) => a.branchId === targetBranchId);
-    if (!hasSrc || !hasTgt) {
-      return fail(c, 'NoAccess', 'No access to one of the branches', 403);
-    }
-    // Verify branches exist
-    const [src, tgt] = await Promise.all([
-      prisma.branch.findUnique({ where: { id: sourceBranchId } }),
-      prisma.branch.findUnique({ where: { id: targetBranchId } }),
-    ]);
-    if (!src || !tgt) return fail(c, 'NotFound', 'Branch not found', 404);
-    // Also copy categories from source to target if missing (by name)
-    const srcCats = await prisma.menuCategory.findMany({
-      where: { items: { some: { branchId: sourceBranchId, isActive: true } } },
-      orderBy: { sortOrder: 'asc' },
-    });
-    const tgtCats = await prisma.menuCategory.findMany({});
-    const tgtCatByName = new Map(tgtCats.map((c) => [c.name, c]));
-    const catIdMap = new Map<string, string>();
-    for (const sc of srcCats) {
-      let tc = tgtCatByName.get(sc.name);
-      if (!tc) {
-        tc = await prisma.menuCategory.create({
-          data: { name: sc.name, sortOrder: sc.sortOrder, isActive: sc.isActive },
-        });
-      }
-      catIdMap.set(sc.id, tc.id);
-    }
-    // Copy active items
-    const srcItems = await prisma.menuItem.findMany({
-      where: { branchId: sourceBranchId, isActive: true },
-      include: { modifiers: true },
-    });
-    let created = 0;
-    let updated = 0;
-    let skipped = 0;
-    for (const it of srcItems) {
-      const override = priceOverrides[it.sku];
-      const priceCents = override?.priceCents ?? it.priceCents;
-      const costCents = override?.costCents ?? it.costCents;
-      const newCatId = catIdMap.get(it.categoryId);
-      if (!newCatId) continue;
-      const existing = await prisma.menuItem.findUnique({
-        where: { branchId_sku: { branchId: targetBranchId, sku: it.sku } },
-      });
-      if (existing) {
-        if (skipExisting) {
-          skipped++;
-          continue;
-        }
-        await prisma.menuItem.update({
-          where: { id: existing.id },
-          data: { priceCents, costCents, isAvailable: it.isAvailable },
-        });
-        updated++;
-      } else {
-        await prisma.menuItem.create({
-          data: {
-            branchId: targetBranchId,
-            categoryId: newCatId,
-            sku: it.sku,
-            name: it.name,
-            description: it.description,
-            priceCents,
-            costCents,
-            taxRateBp: it.taxRateBp,
-            useBranchPpn: it.useBranchPpn,
-            isActive: it.isActive,
-            isAvailable: it.isAvailable,
-            imageUrl: it.imageUrl,
-          },
-        });
-        created++;
-      }
-    }
-    logger.info(
-      { actor: user.id, sourceBranchId, targetBranchId, created, updated, skipped },
-      'menu cloned between branches',
+    return fail(
+      c,
+      'Deprecated',
+      'Menu cloning between branches is no longer supported. The /api/menu/clone endpoint has been retired now that branches have been removed.',
+      410,
     );
-    return ok(c, { sourceBranchId, targetBranchId, created, updated, skipped });
   }
 );

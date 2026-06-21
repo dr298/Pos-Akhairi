@@ -3,8 +3,8 @@
 // Sprint 9.2 — Table reservation routes.
 //
 // Endpoints (all require auth; CASHIER+ for create):
-//   GET    /api/reservations?branchId=X&date=YYYY-MM-DD&status=BOOKED
-//   GET    /api/reservations/availability?branchId=X&date=YYYY-MM-DD&partySize=N
+//   GET    /api/reservations?date=YYYY-MM-DD&status=BOOKED
+//   GET    /api/reservations/availability?date=YYYY-MM-DD&partySize=N
 //   GET    /api/reservations/:id
 //   POST   /api/reservations                       (CASHIER+)
 //   PATCH  /api/reservations/:id
@@ -37,7 +37,6 @@ const TZ = 'Asia/Jakarta';
 // ─── Schemas ───────────────────────────────────────────────────────────────
 
 const reservationCreate = z.object({
-  branchId: z.string().min(1).max(50),
   customerName: z.string().min(1).max(100),
   customerPhone: z.string().min(3).max(30),
   partySize: z.number().int().min(1).max(50),
@@ -83,7 +82,6 @@ function dayBounds(dateStr: string): { start: Date; end: Date } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
   if (!m) return null;
   const [, y, mo, d] = m;
-  // Use noon UTC for stability: 12:00Z = 19:00 Jakarta, well within the day.
   const start = new Date(`${y}-${mo}-${d}T00:00:00+07:00`);
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { start, end };
@@ -130,13 +128,10 @@ function computeAvailableSlots(
 // ─── List + get ────────────────────────────────────────────────────────────
 
 reservationRoutes.get('/', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   const date = c.req.query('date');
   const status = c.req.query('status');
 
-  const where: Record<string, unknown> = { branchId };
+  const where: Record<string, unknown> = {};
   if (status) where.status = status;
   if (date) {
     const bounds = dayBounds(date);
@@ -153,12 +148,8 @@ reservationRoutes.get('/', async (c) => {
 });
 
 // Availability MUST be declared before the /:id dynamic route so the
-// static path doesn't get shadowed. (Same pattern as /api/menu/items/
-// by-barcode/:barcode.)
+// static path doesn't get shadowed.
 reservationRoutes.get('/availability', async (c) => {
-  const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   const date = c.req.query('date');
   const partySizeStr = c.req.query('partySize');
   if (!date) return fail(c, 'ValidationError', 'date wajib diisi (YYYY-MM-DD)', 400);
@@ -173,7 +164,6 @@ reservationRoutes.get('/availability', async (c) => {
   // Load every active (BOOKED / SEATED) reservation for the day.
   const active = await prisma.reservation.findMany({
     where: {
-      branchId,
       reservedAt: { gte: bounds.start, lt: bounds.end },
       status: { in: ['BOOKED', 'SEATED'] },
     },
@@ -185,7 +175,6 @@ reservationRoutes.get('/availability', async (c) => {
   }));
   const slots = computeAvailableSlots(date, busy, 90); // assume 90-min duration for the slot list
   return ok(c, {
-    branchId,
     date,
     partySize,
     slotMinutes: SLOT_MINUTES,
@@ -215,18 +204,6 @@ reservationRoutes.post(
     }
     const data = parsed.data;
 
-    // Branch scope: if the user has a branch, the reservation is constrained
-    // to it. If the request specifies a different branchId, the user must
-    // have branch access to it.
-    if (user.branchId && user.branchId !== data.branchId) {
-      const hasAccess = (user.branchAccess ?? []).some(
-        (a) => a.branchId === data.branchId,
-      );
-      if (!hasAccess) {
-        return fail(c, 'NoAccess', `No access to branch ${data.branchId}`, 403);
-      }
-    }
-
     let reservedAt: Date;
     try {
       reservedAt = parseReservedAt(data.reservedAt);
@@ -234,12 +211,8 @@ reservationRoutes.post(
       return fail(c, 'ValidationError', (e as Error).message, 400);
     }
 
-    const branch = await prisma.branch.findUnique({ where: { id: data.branchId } });
-    if (!branch) return fail(c, 'NotFound', 'Branch not found', 404);
-
     const reservation = await prisma.reservation.create({
       data: {
-        branchId: data.branchId,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         partySize: data.partySize,
@@ -252,11 +225,9 @@ reservationRoutes.post(
         status: 'BOOKED',
       },
     });
-    incCounter('pos_reservations_created_total', 'Reservations created', {
-      branchId: data.branchId,
-    });
+    incCounter('pos_reservations_created_total', 'Reservations created');
     logger.info(
-      { reservationId: reservation.id, branchId: data.branchId, partySize: data.partySize },
+      { reservationId: reservation.id, partySize: data.partySize },
       'reservation created',
     );
     return ok(c, reservation, 201);
@@ -337,9 +308,7 @@ reservationRoutes.post(
         orderId: parsed.data.orderId ?? existing.orderId,
       },
     });
-    incCounter('pos_reservations_seated_total', 'Reservations seated', {
-      branchId: existing.branchId,
-    });
+    incCounter('pos_reservations_seated_total', 'Reservations seated');
     return ok(c, updated);
   },
 );

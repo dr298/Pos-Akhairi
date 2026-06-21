@@ -86,13 +86,10 @@ export async function computeComboPrice(comboId: string): Promise<ComboPriceBrea
 
 comboRoutes.get('/', async (c) => {
   const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
   const includeInactive = c.req.query('includeInactive') === 'true';
 
   const combos = await prisma.combo.findMany({
     where: {
-      branchId,
       ...(includeInactive || user.role !== 'CASHIER' ? {} : { isActive: true }),
     },
     include: {
@@ -154,24 +151,22 @@ comboRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid combo payload', 400, parsed.error.issues);
   }
-  if (!user.branchId) return fail(c, 'NoBranch', 'User has no branch assigned', 400);
 
-  // Verify all menu items exist (and belong to the same branch)
+  // Verify all menu items exist
   const menuIds = Array.from(new Set(parsed.data.items.map((i) => i.menuItemId)));
   const found = await prisma.menuItem.findMany({
-    where: { id: { in: menuIds }, branchId: user.branchId, isActive: true },
+    where: { id: { in: menuIds }, isActive: true },
     select: { id: true },
   });
   const foundSet = new Set(found.map((m) => m.id));
   for (const id of menuIds) {
     if (!foundSet.has(id)) {
-      return fail(c, 'MenuItemNotFound', `Menu item ${id} not in this branch`, 400);
+      return fail(c, 'MenuItemNotFound', `Menu item ${id} not found`, 400);
     }
   }
 
   const combo = await prisma.combo.create({
     data: {
-      branchId: user.branchId,
       name: parsed.data.name,
       description: parsed.data.description,
       priceCents: parsed.data.priceCents,
@@ -190,8 +185,8 @@ comboRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
     include: { items: true },
   });
 
-  incCounter('pos_combos_created_total', 'Combos created', { branchId: user.branchId });
-  logger.info({ comboId: combo.id, branchId: user.branchId, actor: user.id }, 'combo created');
+  incCounter('pos_combos_created_total', 'Combos created');
+  logger.info({ comboId: combo.id, actor: user.id }, 'combo created');
   return ok(c, combo, 201);
 });
 
@@ -241,7 +236,7 @@ comboRoutes.patch('/:id', requireRole('OWNER', 'MANAGER'), async (c) => {
       // validate the menu items exist
       const menuIds = Array.from(new Set(parsed.data.items!.map((i) => i.menuItemId)));
       const found = await tx.menuItem.findMany({
-        where: { id: { in: menuIds }, branchId: existing.branchId, isActive: true },
+        where: { id: { in: menuIds }, isActive: true },
         select: { id: true },
       });
       const foundSet = new Set(found.map((m) => m.id));
@@ -269,7 +264,7 @@ comboRoutes.patch('/:id', requireRole('OWNER', 'MANAGER'), async (c) => {
     }).catch((e: unknown) => {
       const msg = (e as Error).message || 'Update failed';
       if (msg.startsWith('MenuItemNotFound:')) {
-        return fail(c, 'MenuItemNotFound', `Menu item ${msg.split(':')[1]} not in this branch`, 400);
+        return fail(c, 'MenuItemNotFound', `Menu item ${msg.split(':')[1]} not found`, 400);
       }
       logger.error({ err: e, comboId: id }, 'combo update failed');
       return fail(c, 'UpdateFailed', msg, 500);

@@ -90,11 +90,9 @@ export function computeDiscount(
 
 discountRoutes.get('/', async (c) => {
   const user = c.get('user');
-  const branchId = c.req.query('branchId') || user.branchId;
-  if (!branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
   // Cashiers see only active; managers/owners see all
-  const where: Prisma.DiscountWhereInput = { branchId };
+  const where: Prisma.DiscountWhereInput = {};
   if (user.role === 'CASHIER') where.isActive = true;
 
   const discounts = await prisma.discount.findMany({
@@ -113,16 +111,13 @@ const validateSchema = z.object({
 });
 
 discountRoutes.post('/validate', async (c) => {
-  const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
   const parsed = validateSchema.safeParse(body);
   if (!parsed.success) return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
   const { code, subtotalCents, discountId } = parsed.data;
-  if (!user.branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
   const d = await prisma.discount.findFirst({
     where: {
-      branchId: user.branchId,
       ...(discountId ? { id: discountId } : { code }),
     },
   });
@@ -146,11 +141,9 @@ const createSchema = z.object({
 });
 
 discountRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
-  const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
-  if (!user.branchId) return fail(c, 'NoBranch', 'No branch context', 400);
 
   if (parsed.data.type === 'PERCENTAGE' && parsed.data.value > 100) {
     return fail(c, 'ValidationError', 'PERCENTAGE value must be 0-100', 400);
@@ -158,14 +151,13 @@ discountRoutes.post('/', requireRole('OWNER', 'MANAGER'), async (c) => {
 
   if (parsed.data.code) {
     const dup = await prisma.discount.findFirst({
-      where: { branchId: user.branchId, code: parsed.data.code },
+      where: { code: parsed.data.code },
     });
     if (dup) return fail(c, 'CodeTaken', 'Discount code already exists', 409);
   }
 
   const d = await prisma.discount.create({
     data: {
-      branchId: user.branchId,
       code: parsed.data.code,
       name: parsed.data.name,
       type: parsed.data.type,
