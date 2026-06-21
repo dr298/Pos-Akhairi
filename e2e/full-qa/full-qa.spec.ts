@@ -195,6 +195,7 @@ const FEATURES: Array<{ key: string; category: string; url: string; expected: st
   { key: 'login', category: 'Auth', url: '/login', expected: 'login form, 4 test users can authenticate', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
   { key: 'pos-main', category: 'Core POS', url: '/pos', expected: 'menu grid, cart, branch switcher, language switcher', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
   { key: 'shift-page', category: 'Core POS', url: '/pos/shift', expected: 'shift status, open/close controls', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
+  { key: 'shift-history', category: 'Core POS', url: '/pos/shifts/history', expected: 'shift session history list, date/status filter, detail dialog with order list', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
   { key: 'history', category: 'Core POS', url: '/pos/history', expected: 'past orders list, filters', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
   { key: 'customer-display', category: 'Core POS', url: '/display', expected: 'large display, order info, public access', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
 

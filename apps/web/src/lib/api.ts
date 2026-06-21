@@ -558,6 +558,31 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ closingCash, notes }),
     }),
+  listShifts: (params?: { from?: string; to?: string; status?: 'OPEN' | 'CLOSED'; branchId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.branchId) qs.set('branchId', params.branchId);
+    const q = qs.toString();
+    return request<{ data: Shift[] }>(`/api/shifts${q ? `?${q}` : ''}`);
+  },
+  getShift: (id: string) =>
+    request<{
+      data: Shift & {
+        orders: Array<{
+          id: string;
+          orderNumber: string;
+          status: string;
+          type: string;
+          totalCents: number;
+          openedAt: string;
+          closedAt: string | null;
+          items: Array<{ id: string; name: string; quantity: number; totalCents: number }>;
+          payments: Array<{ id: string; method: string; amountCents: number; createdAt: string }>;
+        }>;
+      };
+    }>(`/api/shifts/${id}`),
 
   // Orders
   createOrder: (payload: {

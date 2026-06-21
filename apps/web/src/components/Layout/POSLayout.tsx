@@ -39,6 +39,7 @@ const NAV: NavGroup[] = [
       { href: '/pos/history',      label: 'Riwayat',      icon: 'history',  match: p => p.startsWith('/pos/history'),          show: () => true,        shortcut: 'H' },
       { href: '/pos/reservations', label: 'Reservasi',    icon: 'calendar', match: p => p.startsWith('/pos/reservations'),     show: () => true,        shortcut: 'R' },
       { href: '/pos/shift',        label: 'Shift',        icon: 'clock',    match: p => p.startsWith('/pos/shift'),            show: () => true,        shortcut: 'S' },
+      { href: '/pos/shifts/history', label: 'Histori Shift', icon: 'history', match: p => p.startsWith('/pos/shifts/history'),  show: () => true },
       { href: '/pos/waiter',       label: 'Waiter',       icon: 'bell',     match: p => p.startsWith('/pos/waiter'),           show: () => true },
       { href: '/pos/waste',        label: 'Waste',        icon: 'trash',    match: p => p.startsWith('/pos/waste'),            show: r => isManager(r) },
     ],
