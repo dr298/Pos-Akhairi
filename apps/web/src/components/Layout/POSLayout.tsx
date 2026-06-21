@@ -230,9 +230,9 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
     : [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100">
+    <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100 print:bg-white">
       <header
-        className="sticky top-0 z-30 border-b border-white/5 bg-neutral-950/80 backdrop-blur-md"
+        className="sticky top-0 z-30 border-b border-white/5 bg-neutral-950/80 backdrop-blur-md print:hidden"
         style={{ fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
       >
         <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-5 h-14">
