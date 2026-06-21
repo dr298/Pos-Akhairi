@@ -52,9 +52,9 @@ test('debug: cookie + auth/me across navigation', async ({ browser }) => {
   const cookies1 = await ctx.cookies();
   log.push(`cookies: ${JSON.stringify(cookies1)}`);
 
-  // Navigate to /pos/chain
-  log.push('=== NAV TO /pos/chain ===');
-  await page.goto(`${BASE}/pos/chain`, { waitUntil: 'networkidle' });
+  // Navigate to /pos/shift
+  log.push('=== NAV TO /pos/shift ===');
+  await page.goto(`${BASE}/pos/shift`, { waitUntil: 'networkidle' });
   const cookies2 = await ctx.cookies();
   log.push(`cookies: ${JSON.stringify(cookies2)}`);
   const localStorage = await page.evaluate(() => window.localStorage.getItem('pos:authed'));

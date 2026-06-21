@@ -20,18 +20,14 @@ Rate-limited: 20 attempts / minute / IP.
 ```json
 { "email": "owner@bkj.id", "password": "password123" }
 ```
-Returns: `{ user: { id, email, name, role, branchId, branch } }`
+Returns: `{ user: { id, email, name, role } }`
 Sets cookie: `pos_session` (HttpOnly, SameSite=Lax, 7d).
 
 ### `POST /api/auth/logout`
 Clears the `pos_session` cookie. Always 200.
 
 ### `GET /api/auth/me`
-Returns current user (incl. branch access list). Used by AuthProvider on every page.
-
-### `POST /api/auth/me/branch`
-Switch active branch. Body: `{ branchId: "cusks5ank6bkavx8mmacqg1er" }`.
-Sets cookie `pos_branch`. Affects all subsequent reads (menu, orders, etc.).
+Returns current user. Used by AuthProvider on every page.
 
 ### `POST /api/auth/refresh` *(legacy)*
 Rate-limited: 20/min. Re-issues session cookie if valid.
@@ -41,35 +37,22 @@ Rate-limited: 20/min. Re-issues session cookie if valid.
 ## Menu (`/api/menu`)
 
 ### `GET /api/menu/categories`
-Returns all menu categories for the active branch.
+Returns all menu categories.
 
-### `GET /api/menu/items?branchId=X&category=Y&search=Z`
-Returns menu items. `branchId` defaults to user's effective branch.
+### `GET /api/menu/items?category=Y&search=Z`
+Returns menu items. Supports category and search filters.
 
 ### `POST /api/menu/items` *(OWNER, MANAGER)*
-Create menu item. Body: `{ name, priceCents, categoryId, description?, taxRateBp?, useBranchPpn? }`.
+Create menu item. Body: `{ name, priceCents, categoryId, description?, taxRateBp? }`.
 
 ### `PATCH /api/menu/items/:id` *(OWNER, MANAGER)*
-Update price/name/etc. Useful for per-branch price adjustment.
-
-### `POST /api/menu/clone` *(OWNER, MANAGER)*
-**Sprint 5.4** — Bulk-copy menu from one branch to another.
-```json
-{
-  "fromBranchId": "cmqlvwrtb00008c1k6vif6268",
-  "toBranchId": "cusks5ank6bkavx8mmacqg1er",
-  "categoryMap": { "oldCatId": "newCatId" },
-  "priceOverrides": { "menuItemIdA": 30000, "menuItemIdB": 32000 },
-  "skipExisting": true
-}
-```
-Returns: `{ created: 8, skipped: 2, errors: [] }`
+Update price/name/etc.
 
 ---
 
 ## Orders (`/api/orders`)
 
-All routes require auth. Branch scoped via effective branch.
+All routes require auth.
 
 ### `POST /api/orders`
 Create new order. Body:
@@ -97,7 +80,7 @@ present, the legacy discount wins and the promo is skipped (logged).
 Returns: `{ order: { id, orderNumber, totalCents, status } }`
 
 ### `GET /api/orders?status=OPEN&from=2026-06-20&to=2026-06-20&limit=50`
-List orders filtered by status/date/branch.
+List orders filtered by status/date.
 
 ### `GET /api/orders/:id`
 Order detail with line items + payment.
@@ -140,12 +123,11 @@ Body: `{ actualClosingCash: 250000, notes: "..." }`. Returns shift with variance
 ## Reports (`/api/reports`)
 
 ### `GET /api/reports/z-report?date=2026-06-20`
-**Sprint 5.7** — Full Z-report for a business date at the active branch.
+**Sprint 5.7** — Full Z-report for a business date.
 Returns:
 ```json
 {
   "date": "2026-06-20",
-  "branchId": "...",
   "summary": {
     "grossSalesCents": 1234000,
     "netSalesCents": 1112000,
@@ -172,9 +154,6 @@ Returns:
 
 ### `GET /api/reports/z-report/export.csv?date=2026-06-20`
 Same data, CSV format for accountant/spreadsheet.
-
-### `GET /api/reports/chain-summary?days=7`
-**Sprint 5.3** — Cross-branch HQ dashboard data.
 
 ---
 
@@ -218,33 +197,12 @@ Aggregator performance: orders, revenue, commission, on-time rate.
 
 ---
 
-## Branches (`/api/branches`)
-
-### `GET /api/branches`
-List branches the user has access to (via UserBranchAccess).
-
-### `GET /api/branches/:id`
-Branch detail. Returns 403 if user has no access.
-
-### `PATCH /api/branches/:id` *(OWNER)*
-Update branch info: name, address, city, phone.
-
-### `PATCH /api/branches/:id/ppn` *(OWNER)*
-**Sprint 5.6** — Set branch PPN. Body:
-```json
-{ "ppnPercent": 1100, "ppnInclusive": false }
-```
-- `ppnPercent` is basis points: 1100 = 11%, 0 = no PPN
-- `ppnInclusive=true` means tax is INCLUDED in displayed prices
-
----
-
 ## Combos (`/api/combos`) — Sprint 8.6
 
 Set meal bundles. A combo is a fixed-price bundle of menu items.
 
-### `GET /api/combos?branchId=X&includeInactive=true`
-List combos for a branch. Cashiers see only active ones by default.
+### `GET /api/combos?includeInactive=true`
+List combos. Cashiers see only active ones by default.
 Each combo includes its `items[]` (ComboItem rows).
 
 ### `GET /api/combos/:id/price`
@@ -302,7 +260,7 @@ Flexible discount engine. A `Promo` has conditions (must all be satisfied)
 and rewards (applied when conditions are met). Four types:
 `PERCENT` | `AMOUNT` | `BUY_X_GET_Y` | `BUNDLE`.
 
-### `GET /api/promos?branchId=X&isActive=true`
+### `GET /api/promos?isActive=true`
 List promos. Cashiers see only active by default. Includes
 `conditions[]` and `rewards[]`.
 
@@ -347,7 +305,6 @@ Pure validation (no DB mutation). Body:
 ```json
 {
   "code": "HEMAT20",
-  "branchId": "...",          // optional — uses user's branch if omitted
   "items": [
     { "menuItemId": "...", "quantity": 1, "unitPriceCents": 50000 }
   ],
@@ -380,37 +337,6 @@ Mutually exclusive with legacy `discountCode` (legacy wins if both passed).
 
 ---
 
-## Transfers (`/api/transfers`) — Sprint 5.2
-
-### `GET /api/transfers?status=PENDING&fromBranch=X&toBranch=Y`
-List stock transfers with filters.
-
-### `GET /api/transfers/inventory/:branchId`
-Get inventory items + stock for source branch (used when creating a transfer).
-
-### `POST /api/transfers` *(MANAGER, OWNER)*
-Create transfer. Body:
-```json
-{
-  "fromBranchId": "...",
-  "toBranchId": "...",
-  "notes": "Restock mingguan",
-  "items": [{ "inventoryItemId": "...", "qtyTransferred": 50, "costCents": 15000 }]
-}
-```
-
-### `POST /api/transfers/:id/send`
-Mark transfer as IN_TRANSIT (subtracts qty from source).
-
-### `POST /api/transfers/:id/receive`
-Body: `{ receivedItems: [{ "itemId": "...", "qtyReceived": 50 }] }`.
-Adds qty to destination.
-
-### `POST /api/transfers/:id/cancel`
-Cancel a PENDING transfer.
-
----
-
 ## Errors (`/api/errors`) — Sprint 7.2 (self-hosted Sentry alt)
 
 ### `GET /api/errors?severity=ERROR&route=/api/orders&limit=50&since=2026-06-20T00:00:00Z` *(OWNER)*
@@ -418,7 +344,7 @@ List recent error events with filters. Returns:
 ```json
 {
   "data": {
-    "items": [{ "id": "...", "severity": "ERROR", "route": "POST /api/orders", "message": "...", "stack": "...", "requestId": "...", "userId": "...", "branchId": "...", "createdAt": "..." }],
+    "items": [{ "id": "...", "severity": "ERROR", "route": "POST /api/orders", "message": "...", "stack": "...", "requestId": "...", "userId": "...", "createdAt": "..." }],
     "total": 42,
     "summary": { "bySeverity": [...], "topRoutes": [...] }
   }
@@ -437,7 +363,7 @@ Prometheus text format. Public (no auth) for scraping.
 ```
 # HELP pos_orders_created_total Total orders created
 # TYPE pos_orders_created_total counter
-pos_orders_created_total{branchId="cmqlvwrtb...",type="DINE_IN"} 42
+pos_orders_created_total{type="DINE_IN"} 42
 
 # HELP pos_payment_latency_ms Time from order open to paid
 # TYPE pos_payment_latency_ms histogram
@@ -447,9 +373,9 @@ pos_orders_created_total{branchId="cmqlvwrtb...",type="DINE_IN"} 42
 Exposed metrics:
 - `http_requests_total{method,route,status}` — request count
 - `http_request_duration_seconds{method,route,status}` — request latency
-- `pos_orders_created_total{branchId,type}` — business KPI
+- `pos_orders_created_total{type}` — business KPI
 - `pos_order_subtotal_cents` (histogram) — order size distribution
-- `pos_payments_completed_total{branchId,method}` — payment count
+- `pos_payments_completed_total{method}` — payment count
 - `pos_payment_latency_ms` (histogram) — order → paid duration
 
 ---
@@ -470,12 +396,9 @@ Process liveness. No dependencies probed.
 
 ## Customers / Loyalty (`/api/customers`) — Sprint 8.8
 
-Membership + loyalty points program. Customers are scoped to a branch
-(when `branchId` is set) or chain-wide (when `branchId` is null). Loyalty
-is branch-configured via `LoyaltyConfig` (one row per branch, created
-lazily on first access). All loyalty side-effects from order payment
-are best-effort — an order is never blocked or rolled back because of
-a loyalty failure.
+Membership + loyalty points program. Customers are chain-wide (no per-branch
+scoping). All loyalty side-effects from order payment are best-effort — an
+order is never blocked or rolled back because of a loyalty failure.
 
 ### Earn formula
 ```
@@ -490,10 +413,9 @@ discountCents = points * rupiahPerPoint
 Default: 1 point = Rp 100 of discount (`rupiahPerPoint=100`). Subject
 to `minRedeemPoints` (default 100).
 
-### `GET /api/customers?branchId=X&search=Q&limit=50`
+### `GET /api/customers?search=Q&limit=50`
 List customers. `search` matches name, phone (normalized), or email
-(case-insensitive). Scoped to user's effective branch by default.
-Returns latest-active first.
+(case-insensitive). Returns latest-active first.
 
 ### `GET /api/customers/:id`
 Customer detail. Includes `loyaltyTransactions[]` (latest 50 by default;
@@ -508,14 +430,13 @@ Create customer. Body:
   "email": "budi@email.com",    // one of phone|email required
   "birthday": "1990-05-15",     // optional ISO date
   "address": "Jakarta",         // optional
-  "notes": "Pelanggan VIP",     // optional
-  "branchId": "..."             // optional; defaults to user's branch
+  "notes": "Pelanggan VIP"      // optional
 }
 ```
-If a customer with the same phone/email already exists in the same
-scope, returns 200 with the existing record (idempotent). If the
-branch's `LoyaltyConfig` grants a `signupBonusPoints`, the bonus is
-credited automatically and a `BONUS` `LoyaltyTransaction` is written.
+If a customer with the same phone/email already exists, returns 200
+with the existing record (idempotent). If a global `LoyaltyConfig` grants
+a `signupBonusPoints`, the bonus is credited automatically and a `BONUS`
+`LoyaltyTransaction` is written.
 
 ### `PATCH /api/customers/:id` *(CASHIER+)*
 Partial update. Pass `isActive: false` to soft-delete.
@@ -572,7 +493,6 @@ all of them and returns the created rows.
 ### Indonesian receipt text format
 ```
 === BAKMIE KOTA JUANG ===
-[Branch name]
 [Address]
 
 No. Order: ORD-20251220-0001
@@ -744,15 +664,12 @@ uses the Web Bluetooth API directly (see
 
 ## Menu (Sprint 8.11 additions)
 
-The MenuItem model gained an optional `barcode` field. The barcode
-is unique per branch (so two branches can use the same code, but
-the same branch can't have two items with one code).
+The MenuItem model gained an optional `barcode` field.
 
 ### `GET /api/menu/items/by-barcode/:barcode` *(auth)*
-Look up a menu item by barcode in the caller's active branch. Returns
-404 if no item matches, or 404 (deliberately) for cashiers if the
-matching item is `isActive=false` or `isAvailable=false`.
-Optional query: `?branchId=...` (defaults to the user's active branch).
+Look up a menu item by barcode. Returns 404 if no item matches, or 404
+(deliberately) for cashiers if the matching item is `isActive=false` or
+`isAvailable=false`.
 ```json
 {
   "data": {
@@ -761,7 +678,7 @@ Optional query: `?branchId=...` (defaults to the user's active branch).
     "barcode": "8991001",
     "priceCents": 25000,
     "categoryId": "...",
-    "category": { "...": "..." },
+    "category": { "id": "...", "name": "Makanan" },
     "modifiers": []
   }
 }
@@ -772,12 +689,12 @@ static path doesn't get shadowed by the param route.
 
 ### Item create / update
 The `barcode` field is now part of the `POST /api/menu/items` and
-`PATCH /api/menu/items/:id` payloads. A duplicate `barcode` in the
-same branch returns `409 BarcodeTaken`:
+`PATCH /api/menu/items/:id` payloads. A duplicate `barcode` returns
+`409 BarcodeTaken`:
 ```json
 {
   "error": "BarcodeTaken",
-  "message": "Barcode sudah dipakai item lain di branch ini"
+  "message": "Barcode sudah dipakai item lain"
 }
 ```
 
@@ -805,12 +722,11 @@ scans the QR / types the order number to take payment via the regular
 
 Sessions expire after 30 min of inactivity and are marked `ABANDONED`.
 
-### `GET /api/kiosk/menu?branchId=X`
-Returns the active menu for a branch (categories + items). No auth.
+### `GET /api/kiosk/menu`
+Returns the active menu (categories + items). No auth.
 ```json
 {
   "data": {
-    "branch": { "id": "...", "name": "...", "code": "..." },
     "categories": [
       {
         "id": "...",
@@ -826,7 +742,7 @@ Returns the active menu for a branch (categories + items). No auth.
 
 ### `POST /api/kiosk/cart`
 Create a new kiosk session. Returns the session id and an empty cart.
-Body (optional): `{ branchId, items?: [{ menuItemId, quantity, notes? }] }`.
+Body (optional): `{ items?: [{ menuItemId, quantity, notes? }] }`.
 Returns 201 with `{ sessionId, cart, subtotalCents, expiresAt, ttlMinutes }`.
 
 ### `GET /api/kiosk/cart/:sessionId`
@@ -850,7 +766,6 @@ Body: empty. Returns:
   "data": {
     "orderId": "...",
     "orderNumber": "K-20260620-0001",
-    "branchId": "...",
     "subtotalCents": 50000,
     "taxCents": 5500,
     "totalCents": 55500,
@@ -874,8 +789,8 @@ Status flow: `OPEN → SENT_TO_KDS → IN_PROGRESS → READY → SERVED → PAID
 - `MenuItemUnavailable` (409) — cart has an item that is no longer in
   the menu (price/availability changed). The customer must remove the
   stale line.
-- `ConfigError` (500) — branch has no OWNER/MANAGER to attribute the
-  order to (kiosk checkout requires a real user as `openedBy`).
+- `ConfigError` (500) — no OWNER/MANAGER user available to attribute
+  the order to (kiosk checkout requires a real user as `openedBy`).
 
 ---
 
@@ -885,20 +800,18 @@ Table reservations. All routes require auth. Create / update / seat /
 cancel / no-show require `CASHIER`+ (any active POS role). List /
 detail / availability are read-only.
 
-### `GET /api/reservations?branchId=X&date=YYYY-MM-DD&status=BOOKED`
-List reservations. `branchId` defaults to the user's effective branch.
-`date` is a single calendar day (Asia/Jakarta, `YYYY-MM-DD`).
+### `GET /api/reservations?date=YYYY-MM-DD&status=BOOKED`
+List reservations. `date` is a single calendar day (Asia/Jakarta, `YYYY-MM-DD`).
 `status` optional filter (`BOOKED` | `SEATED` | `COMPLETED` | `CANCELLED` | `NO_SHOW`).
 Returns at most 200 rows ordered by `reservedAt`.
 
-### `GET /api/reservations/availability?branchId=X&date=YYYY-MM-DD&partySize=N`
+### `GET /api/reservations/availability?date=YYYY-MM-DD&partySize=N`
 Returns 30-min free slots in `[09:00, 22:00)` local Jakarta. A slot is
 free when no existing `BOOKED` / `SEATED` reservation overlaps with
 `[slotStart, slotStart + 90m)`. Past slots are filtered out.
 ```json
 {
   "data": {
-    "branchId": "...",
     "date": "2026-06-20",
     "partySize": 2,
     "slotMinutes": 30,
@@ -915,7 +828,6 @@ Fetch one reservation. 404 if not found.
 Create a reservation. Body:
 ```json
 {
-  "branchId": "...",
   "customerName": "Budi",
   "customerPhone": "0812…",
   "partySize": 4,
@@ -962,9 +874,8 @@ Waiter handheld — table-first floor management. All routes require auth.
 Create / update require `MANAGER`+; open / close / transfer require `CASHIER`+;
 list / detail are read-only.
 
-### `GET /api/tables?branchId=X&status=OCCUPIED&includeInactive=false`
-List tables. `branchId` defaults to the user's effective branch. `status`
-optional filter (`AVAILABLE` | `OCCUPIED` | `RESERVED` | `CLEANING`).
+### `GET /api/tables?status=OCCUPIED&includeInactive=false`
+List tables. `status` optional filter (`AVAILABLE` | `OCCUPIED` | `RESERVED` | `CLEANING`).
 `includeInactive=true` includes soft-deleted tables. Each row includes
 `currentSession` (the active `TableSession`, if any) and `currentOrder`
 (the attached Order, if any) so the floor view can be rendered in one fetch.
@@ -977,7 +888,6 @@ order (if any).
 Create a table.
 ```json
 {
-  "branchId": "...",
   "number": "5",
   "capacity": 4,
   "area": "Outdoor",
@@ -985,8 +895,8 @@ Create a table.
   "positionY": 60
 }
 ```
-`number` is unique per branch. `positionX` / `positionY` are normalized
-0..100 for floor-map rendering. 409 on duplicate `(branchId, number)`.
+`number` is unique. `positionX` / `positionY` are normalized 0..100
+for floor-map rendering. 409 on duplicate `number`.
 
 ### `PATCH /api/tables/:id` *(MANAGER+)*
 Partial update. Any of `number`, `capacity`, `area` (string | null),
@@ -1024,7 +934,7 @@ via the regular order flow. The table is moved to `CLEANING` (manager
 later PATCHes it back to `AVAILABLE`). 404 if no active session.
 
 ### `POST /api/tables/:id/transfer` *(CASHIER+)*
-Move the active session to a different table in the same branch. Body:
+Move the active session to a different table. Body:
 ```json
 { "toTableId": "..." }
 ```
@@ -1034,16 +944,15 @@ the destination is already occupied.
 
 ### WebSocket events (Sprint 9.3)
 New event types on the existing `/ws` channel: `table.opened`,
-`table.closed`, `table.transferred`. Each carries `branchId`,
-`tableId` / `tableNumber`, and `sessionId` so the waiter floor view can
-auto-update across devices.
+`table.closed`, `table.transferred`. Each carries `tableId` / `tableNumber`,
+and `sessionId` so the waiter floor view can auto-update across devices.
 
 ### Table error codes
 - `TableInactive` (409) — table is `isActive = false`
 - `TableAlreadyOpen` (409) — table already has an OPEN session
 - `NoActiveSession` (404) — close/transfer called with no open session
 - `DestinationOccupied` (409) — transfer target is occupied
-- `DuplicateTable` (409) — `(branchId, number)` collision
+- `DuplicateTable` (409) — `number` collision on Table create/update
 
 ---
 
@@ -1058,7 +967,6 @@ Quadrants: `STAR` (Bintang), `PLOWHORSE` (Kuda), `PUZZLE` (Teka-teki),
 Generate and persist a snapshot. Body:
 ```json
 {
-  "branchId": "...",
   "periodStart": "2026-06-01T00:00:00+07:00",
   "periodEnd":   "2026-06-20T23:59:59+07:00"
 }
@@ -1072,7 +980,7 @@ groups OrderItems by `menuItemId`, computes per-item:
 
 Returns 201 with the full snapshot including `items` and `totals`.
 
-### `GET /api/menu-engineering/snapshots?branchId=X&limit=12`
+### `GET /api/menu-engineering/snapshots?limit=12`
 List recent snapshots, newest first. `limit` clamped to 1..100 (default 12).
 
 ### `GET /api/menu-engineering/snapshots/:id`
@@ -1082,13 +990,13 @@ Fetch one snapshot. Returns the same shape as the create response.
 
 ## Suppliers (`/api/suppliers`) — Sprint 9.5
 
-Branch-scoped supplier directory. Soft-delete via `isActive=false`.
+Supplier directory. Soft-delete via `isActive=false`.
 
-### `GET /api/suppliers?branchId=X&includeInactive=true&search=…`
-List suppliers for the branch.
+### `GET /api/suppliers?includeInactive=true&search=…`
+List suppliers.
 
 ### `POST /api/suppliers` *(OWNER, MANAGER)*
-Create. Body: `{ branchId, name, contactName?, phone?, email?, address?, notes?, isActive? }`.
+Create. Body: `{ name, contactName?, phone?, email?, address?, notes?, isActive? }`.
 
 ### `PATCH /api/suppliers/:id` *(OWNER, MANAGER)*
 Partial update of any supplier field.
@@ -1099,11 +1007,10 @@ Partial update of any supplier field.
 
 Status flow: `DRAFT → SENT → PARTIAL → RECEIVED`, with `CANCELLED`
 allowed from `DRAFT` or `SENT` (OWNER only). PO numbers are auto-generated
-as `PO-YYYYMMDD-NNNN` per (branch, day) with collision retry on
-concurrent creation.
+as `PO-YYYYMMDD-NNNN` per day with collision retry on concurrent creation.
 
-### `GET /api/purchase-orders?branchId=X&status=DRAFT&supplierId=…`
-List POs for a branch (optional status / supplier filter).
+### `GET /api/purchase-orders?status=DRAFT&supplierId=…`
+List POs (optional status / supplier filter).
 
 ### `GET /api/purchase-orders/:id`
 Get PO detail with items + enriched inventory item summaries.
@@ -1113,7 +1020,6 @@ Get PO detail with items + enriched inventory item summaries.
 Create DRAFT PO. Body:
 ```json
 {
-  "branchId": "...",
   "supplierId": "...",
   "notes": "Restock mingguan",
   "expectedAt": "2026-06-25T00:00:00Z",
@@ -1122,9 +1028,8 @@ Create DRAFT PO. Body:
   ]
 }
 ```
-Validates supplier is in branch and active, items exist in branch,
-computes subtotal/total in cents. `qtyOrdered` accepts decimals
-(stored as String for forward compat).
+Validates supplier is active, items exist, computes subtotal/total in cents.
+`qtyOrdered` accepts decimals (stored as String for forward compat).
 
 ### `PATCH /api/purchase-orders/:id` *(OWNER, MANAGER)*
 DRAFT only. Update notes/expectedAt and/or replace items (delete+create).
@@ -1153,7 +1058,7 @@ Kitchen prep guidance based on past N days of paid order items.
 Per-menu-item recommendation with day-of-week adjustment.
 
 ### `POST /api/prep-sheets/generate` *(OWNER, MANAGER)*
-Body: `{ branchId, date: "YYYY-MM-DD", lookbackDays?: number, notes? }`.
+Body: `{ date: "YYYY-MM-DD", lookbackDays?: number, notes? }`.
 `lookbackDays` defaults to 14, range 3..60. Persists a `PrepSheet` row
 with `itemsJson` containing the per-item recommendation.
 
@@ -1168,7 +1073,6 @@ Returns the created sheet with `items` array:
 ```json
 {
   "id": "...",
-  "branchId": "...",
   "date": "2026-06-20",
   "lookbackDays": 14,
   "items": [
@@ -1186,7 +1090,7 @@ Returns the created sheet with `items` array:
 }
 ```
 
-### `GET /api/prep-sheets?branchId=X&date=YYYY-MM-DD`
+### `GET /api/prep-sheets?date=YYYY-MM-DD`
 List prep sheets (newest first, optional date filter).
 
 ### `GET /api/prep-sheets/:id`
@@ -1227,7 +1131,7 @@ on the SaaS side):
 
 ### `GET /api/accounting-export/sales-journal.csv`
 
-Query params: `branchId`, `from` (`YYYY-MM-DD`), `to` (`YYYY-MM-DD`),
+Query params: `from` (`YYYY-MM-DD`), `to` (`YYYY-MM-DD`),
 `format`.
 
 Returns one sales journal CSV. Each `PAID` order in the period produces
@@ -1264,9 +1168,8 @@ Track food waste, ingredient waste, and packaging waste. Soft-delete
 via `status` (set to `DELETED` on `DELETE`); `GET` excludes
 `DELETED` rows unless `?includeDeleted=true`.
 
-### `GET /api/waste?branchId=X&from=YYYY-MM-DD&to=YYYY-MM-DD&type=FOOD`
+### `GET /api/waste?from=YYYY-MM-DD&to=YYYY-MM-DD&type=FOOD`
 List waste entries. Query params:
-- `branchId` — defaults to current user's branch
 - `from` / `to` — `YYYY-MM-DD`; inclusive bounds on `recordedAt`
 - `type` — `FOOD` | `INGREDIENT` | `PACKAGING` (optional)
 - `includeDeleted` — `true` to also return `DELETED` rows
@@ -1281,7 +1184,6 @@ enriched with `menuItem` / `inventoryItem` (name + sku) and
 Body:
 ```json
 {
-  "branchId": "...",
   "type": "FOOD",
   "menuItemId": "...",
   "quantity": 2,
@@ -1318,7 +1220,7 @@ entry.
 Soft delete: sets `status = 'DELETED'`. The row is preserved for audit
 and excluded from default list + summary queries.
 
-### `GET /api/waste/summary?branchId=X&days=30` *(OWNER, MANAGER)*
+### `GET /api/waste/summary?days=30` *(OWNER, MANAGER)*
 
 Aggregated waste for the last `days` days (default 30, max 365).
 Returns:
@@ -1328,7 +1230,6 @@ Returns:
   "periodDays": 30,
   "from": "2026-05-21T00:00:00Z",
   "to": "2026-06-20T23:59:59Z",
-  "branchId": "...",
   "totalCount": 47,
   "totalCostCents": 245000,
   "byType": {
@@ -1385,7 +1286,7 @@ translated.
 |------|------|---------|
 | `InvalidCredentials` | 401 | Bad email/password |
 | `Unauthenticated` | 401 | Missing/expired session |
-| `Forbidden` | 403 | Role/branch access denied |
+| `Forbidden` | 403 | Role check failed |
 | `NotFound` | 404 | Resource not found |
 | `ValidationError` | 400 | Request body fails Zod schema |
 | `OrderClosed` | 409 | Order already PAID/VOIDED/REFUNDED |
@@ -1398,12 +1299,12 @@ translated.
 | `MenuItemUnavailable` | 409 | Cart contains an item no longer available |
 | `ReservationClosed` | 409 | Reservation already COMPLETED / CANCELLED |
 | `InvalidStatus` | 409 | Reservation in wrong status for the requested action |
-| `ConfigError` | 500 | Branch has no OWNER/MANAGER user (kiosk checkout) |
+| `ConfigError` | 500 | No OWNER/MANAGER user available (kiosk checkout) |
 | `TableInactive` | 409 | Table is `isActive = false` |
 | `TableAlreadyOpen` | 409 | Table already has an OPEN session |
 | `NoActiveSession` | 404 | Close/transfer called with no open session |
 | `DestinationOccupied` | 409 | Transfer target is occupied |
-| `DuplicateTable` | 409 | `(branchId, number)` collision on Table create/update |
+| `DuplicateTable` | 409 | `number` collision on Table create/update |
 | `TooManyRequests` | 429 | Rate limit exceeded |
 | `Internal Server Error` | 500 | Unhandled — see error_events |
 

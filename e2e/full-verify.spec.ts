@@ -80,7 +80,7 @@ test('S2-S4: navigate all pages, no errors anywhere', async ({ browser }) => {
   console.log(`[after-login] cookies=${cookies1.length} ls=${ls1}`);
 
   // Visit all main pages (routes that exist in the app)
-  const pages = ['/pos', '/pos/history', '/pos/chain', '/pos/shift', '/pos/discounts', '/display'];
+  const pages = ['/pos', '/pos/history', '/pos/shift', '/pos/discounts', '/display'];
   for (const path of pages) {
     console.log(`→ ${path}`);
     await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' });

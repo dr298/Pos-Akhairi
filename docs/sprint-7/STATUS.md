@@ -28,14 +28,13 @@
 
 ## Login (test users)
 
-| Role | Email | Password | Branch |
-|------|-------|----------|--------|
-| Owner | owner@bkj.id | password123 | All |
-| Manager | manager@bkj.id | password123 | All |
-| Cashier | cashier@bkj.id | password123 | BKJ-PASAR-LAMA |
-| Cashier 2 | cashier2@bkj.id | password123 | BKJ-CIPUTAT-01 |
+| Role | Email | Password |
+|------|-------|----------|
+| Owner | owner@bkj.id | password123 |
+| Manager | manager@bkj.id | password123 |
+| Cashier | cashier@bkj.id | password123 |
 
-(2 branches seeded: BKJ-PASAR-LAMA + BKJ-CIPUTAT-01)
+(3 test users, single location)
 
 ---
 
@@ -49,8 +48,6 @@
 | Payments | Cash, QRIS (Midtrans+Xendit), split | /pos/orders/[id] |
 | Customer display | 2nd screen via WS | /display |
 | Delivery aggregators | GoFood, GrabFood, ShopeeFood | /pos/delivery, /pos/channels |
-| Multi-branch | Switcher, transfers, per-branch PPN | /pos/chain |
-| Commission reconciliation | Per-channel, weekly | /pos/chain |
 | Z-report + daily close | End-of-day reconciliation | /pos/shift |
 | **Combo/set meals** | Server-side resolution, /pos/menu/combos | /pos/menu/combos |
 | **Promo engine** | 4 types, 9 conditions | /pos/promos |

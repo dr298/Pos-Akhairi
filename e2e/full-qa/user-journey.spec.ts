@@ -143,7 +143,7 @@ test.describe('User Journeys (real E2E)', () => {
    * Login → ensure shift open → add item → fill table → pay cash → success page → verify in history.
    */
   test('J1 Cashier: take dine-in order, pay cash, verify PAID', async ({ browser }) => {
-    const EMAIL = 'cashier2@bkj.id';
+    const EMAIL = 'cashier@bkj.id';
     const PASS = 'password123';
     const TABLE = 'T' + String(Date.now()).slice(-8); // ≤ 20 chars, unique suffix
     const OPENING = 200000; // Rp 200,000 modal awal
@@ -507,7 +507,8 @@ test.describe('User Journeys (real E2E)', () => {
       }
 
       // 6. Role-gated view: open a second context as cashier and compare
-      // cashier UI rows to owner UI rows (both via /pos/shifts/history)
+      // cashier API rows to owner API rows (both via /pos/shifts/history).
+      // Single-location: cashier may see their own shifts only.
       const cashierCtx = await browser.newContext();
       const cashierPage = await cashierCtx.newPage();
       await loginViaApi(cashierCtx, 'cashier@bkj.id', 'password123');
@@ -519,7 +520,7 @@ test.describe('User Journeys (real E2E)', () => {
       const cashierRows = await cashierPage.locator('table tbody tr').count();
       const ownerRows = await page.locator('table tbody tr').count();
       const cashierOnlyOwn = cashierRows <= ownerRows;
-      await step(cashierPage, journey, 'Role-gated: cashier UI sees own only',
+      await step(cashierPage, journey, 'Role-gated: cashier sees own shifts only',
         `owner UI: ${ownerRows}, cashier UI: ${cashierRows}`,
         cashierOnlyOwn ? 'cashier rows ≤ owner rows' : 'cashier sees more than owner!',
         cashierOnlyOwn);

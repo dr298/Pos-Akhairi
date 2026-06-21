@@ -92,7 +92,7 @@ Use Grafana Cloud free tier or Better Stack. Point scrape to:
 Import the dashboard ID `18419` (basic Node.js metrics) as a base, then add:
 
 ### Panel 1: Orders per hour
-Query: `sum by (branchId) (rate(pos_orders_created_total[1h]))`
+Query: `sum(rate(pos_orders_created_total[1h]))`
 
 ### Panel 2: P95 payment latency
 Query: `histogram_quantile(0.95, sum by (le, method) (rate(pos_payment_latency_ms_bucket[5m])))`
@@ -106,8 +106,8 @@ Query: `sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_reques
 ### Panel 5: Top routes by traffic
 Query: `topk(10, sum by (route) (rate(http_requests_total[5m])))`
 
-### Panel 6: Branch revenue (last 24h)
-Query: `sum by (branchId) (increase(pos_order_subtotal_cents_sum[24h])) / 100`
+### Panel 6: Revenue (last 24h)
+Query: `sum(increase(pos_order_subtotal_cents_sum[24h])) / 100`
 
 ---
 

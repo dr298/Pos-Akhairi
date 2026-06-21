@@ -27,7 +27,6 @@ test('S2: menu + create order + pay', async ({ request }) => {
 
   const order = await request.post(`${BASE}/api/orders`, {
     data: {
-      branchId: items[0].branchId,
       type: 'DINE_IN',
       items: [{ menuItemId: items[0].id, quantity: 1 }],
     },
@@ -46,13 +45,4 @@ test('S3: prep sheets (channels/delivery removed in Sprint 10)', async ({ reques
   const prep = await request.get(`${BASE}/api/prep-sheets`);
   // Prep sheets is a real backend endpoint; just sanity-check auth + status.
   expect([200, 204, 404]).toContain(prep.status());
-});
-
-test('S4: chain report + daily close', async ({ request }) => {
-  await request.post(`${BASE}/api/auth/login`, { data: { email: EMAIL, password: PASS } });
-  const chain = await request.get(`${BASE}/api/reports/chain?date=2026-06-20`);
-  expect(chain.ok()).toBeTruthy();
-  const data = (await chain.json()).data;
-  expect(data.totals.branches).toBeGreaterThanOrEqual(1);
-  expect(data.totals.orders).toBeGreaterThan(0);
 });

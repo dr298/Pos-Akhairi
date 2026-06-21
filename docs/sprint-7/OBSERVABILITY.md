@@ -152,15 +152,15 @@ Prometheus text format at `GET /api/metrics`. Public (no auth) for scraping.
 - `http_request_duration_seconds{method,route,status}` — histogram
 
 #### Business KPIs
-- `pos_orders_created_total{branchId,type}` — counter
+- `pos_orders_created_total{type}` — counter
 - `pos_order_subtotal_cents` — histogram (order size distribution)
-- `pos_payments_completed_total{branchId,method}` — counter
+- `pos_payments_completed_total{method}` — counter
 - `pos_payment_latency_ms` — histogram (order open → paid time)
 
 ### Cardinality notes
 - `route` uses the path pattern (e.g. `/api/orders/:id`), not actual IDs
   → bounded cardinality
-- `branchId` and `method` are low-cardinality (2 branches, 4 methods)
+- `method` is low-cardinality (4 methods)
 
 ### Usage
 Scrape with Prometheus (see GRAFANA-SETUP.md) or `curl` ad-hoc:
@@ -195,12 +195,12 @@ specific severities. Hook into `onError` handler in `index.ts`.
 4. Common causes:
    - Inventory insufficient (check `inventory_items.stock` for items)
    - Shift not open (check `shifts.status` for the cashier)
-   - Branch mismatch (cashier switched branches mid-order)
+   - User attempted to act outside their role
 
 ### "Menu items not showing"
-1. Check effective branch: `GET /api/auth/me` — see `branchId`
-2. `SELECT count(*) FROM menu_items WHERE branch_id = '<id>' AND is_active = true;`
-3. If 0: menu not seeded for that branch → use `/pos/menu` → "Copy antar Cabang"
+1. Check the user role: `GET /api/auth/me` — see `role`
+2. `SELECT count(*) FROM menu_items WHERE is_active = true;`
+3. If 0: menu not seeded → re-run `npm run db:seed -w @pos/db`
 
 ### "Channel orders stuck in PENDING"
 1. Check `channel_configs.enabled` for the channel

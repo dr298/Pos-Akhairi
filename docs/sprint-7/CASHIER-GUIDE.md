@@ -138,7 +138,7 @@ If you forgot to close at end of day: manager/owner can force-close with reconci
 
 Every PAID order prints a receipt (system printer or PDF if no printer).
 Receipt shows:
-- Branch name + address
+- Address
 - Order number, date/time
 - Cashier name
 - Line items with qty + price

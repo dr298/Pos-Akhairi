@@ -51,7 +51,6 @@ const allResults: Record<string, RoleSession> = {
   owner: { results: [], consoleErrors: [], networkErrors: [] },
   manager: { results: [], consoleErrors: [], networkErrors: [] },
   cashier: { results: [], consoleErrors: [], networkErrors: [] },
-  cashier2: { results: [], consoleErrors: [], networkErrors: [] },
 };
 
 function attachListeners(page: Page, role: string) {
@@ -192,12 +191,12 @@ async function visitAndCheck(role: string, page: Page, feature: string, category
 
 const FEATURES: Array<{ key: string; category: string; url: string; expected: string; roles: string[] }> = [
   // Core POS
-  { key: 'login', category: 'Auth', url: '/login', expected: 'login form, 4 test users can authenticate', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
-  { key: 'pos-main', category: 'Core POS', url: '/pos', expected: 'menu grid, cart, branch switcher, language switcher', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
-  { key: 'shift-page', category: 'Core POS', url: '/pos/shift', expected: 'shift status, open/close controls', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
-  { key: 'shift-history', category: 'Core POS', url: '/pos/shifts/history', expected: 'shift session history list, date/status filter, detail dialog with order list', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
-  { key: 'history', category: 'Core POS', url: '/pos/history', expected: 'past orders list, filters', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
-  { key: 'customer-display', category: 'Core POS', url: '/display', expected: 'large display, order info, public access', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
+  { key: 'login', category: 'Auth', url: '/login', expected: 'login form, 3 test users can authenticate', roles: ['owner', 'manager', 'cashier'] },
+  { key: 'pos-main', category: 'Core POS', url: '/pos', expected: 'menu grid, cart, language switcher', roles: ['owner', 'manager', 'cashier'] },
+  { key: 'shift-page', category: 'Core POS', url: '/pos/shift', expected: 'shift status, open/close controls', roles: ['owner', 'manager', 'cashier'] },
+  { key: 'shift-history', category: 'Core POS', url: '/pos/shifts/history', expected: 'shift session history list, date/status filter, detail dialog with order list', roles: ['owner', 'manager', 'cashier'] },
+  { key: 'history', category: 'Core POS', url: '/pos/history', expected: 'past orders list, filters', roles: ['owner', 'manager', 'cashier'] },
+  { key: 'customer-display', category: 'Core POS', url: '/display', expected: 'large display, order info, public access', roles: ['owner', 'manager', 'cashier'] },
 
   // Menu management
   { key: 'menu-mgmt', category: 'Menu', url: '/pos/menu', expected: 'CRUD categories + items, barcode field, cost', roles: ['owner', 'manager'] },
@@ -212,11 +211,6 @@ const FEATURES: Array<{ key: string; category: string; url: string; expected: st
   { key: 'customers', category: 'Customers', url: '/pos/customers', expected: 'customer list, points, tier, CRUD', roles: ['owner', 'manager', 'cashier'] },
 
   // Sprint 10 — online ordering (GoFood/GrabFood/ShopeeFood) removed.
-
-  // Multi-branch
-  { key: 'chain', category: 'Multi-branch', url: '/pos/chain', expected: 'branch report, commission reconciliation', roles: ['owner', 'manager'] },
-  { key: 'branches', category: 'Multi-branch', url: '/pos/branches', expected: 'branch CRUD, PPN settings', roles: ['owner'] },
-  { key: 'transfers', category: 'Multi-branch', url: '/pos/transfers', expected: 'stock transfer workflow', roles: ['owner', 'manager'] },
 
   // Reports
   { key: 'z-report', category: 'Reports', url: '/pos/z-report', expected: 'Z-report view + CSV export', roles: ['owner', 'manager'] },
@@ -235,14 +229,13 @@ const FEATURES: Array<{ key: string; category: string; url: string; expected: st
   { key: 'accounting-export', category: 'Sprint 9+', url: '/pos/accounting-export', expected: 'date range + format selector + download', roles: ['owner', 'manager'] },
 
   // Public
-  { key: 'kiosk', category: 'Public', url: '/kiosk', expected: 'public kiosk, category tabs, big buttons', roles: ['owner', 'manager', 'cashier', 'cashier2'] },
+  { key: 'kiosk', category: 'Public', url: '/kiosk', expected: 'public kiosk, category tabs, big buttons', roles: ['owner', 'manager', 'cashier'] },
 ];
 
 const USERS: Record<string, { email: string; password: string }> = {
   owner: { email: 'owner@bkj.id', password: 'password123' },
   manager: { email: 'manager@bkj.id', password: 'password123' },
   cashier: { email: 'cashier@bkj.id', password: 'password123' },
-  cashier2: { email: 'cashier2@bkj.id', password: 'password123' },
 };
 
 for (const role of Object.keys(USERS)) {

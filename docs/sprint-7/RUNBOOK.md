@@ -17,13 +17,11 @@
 | Delivery orders (GoFood/GrabFood/ShopeeFood) | `/pos/delivery` |
 | Add/edit menu | `/pos/menu` |
 | End-of-day report | `/pos/shift` → "Tutup Shift" |
-| 2 branches (Pasar Lama + Ciputat) | Top bar branch switcher |
 
 Test logins:
-- `owner@bkj.id` / `password123` — all branches, all features
-- `manager@bkj.id` / `password123` — all branches, operational
-- `cashier@bkj.id` / `password123` — Pasar Lama only
-- `cashier2@bkj.id` / `password123` — Ciputat only
+- `owner@bkj.id` / `password123` — all features
+- `manager@bkj.id` / `password123` — operational
+- `cashier@bkj.id` / `password123` — cashier
 
 ---
 
@@ -37,8 +35,7 @@ Test logins:
 ## Per-cashier setup
 
 1. Login → `/pos/shift` (or first time will prompt)
-2. If branch switcher is wrong → click branch name top-bar → pick correct branch
-3. Take orders via `/pos`
+2. Take orders via `/pos`
 
 ---
 
@@ -171,7 +168,6 @@ If a channel is misbehaving: `/pos/channels` → "Test" or "Poll Now"
 
 ## Weekly (Manager)
 
-- **Commission reconciliation**: `/pos/chain` → 7-day window → verify aggregator commission against bank statement
 - **Menu engineering review**: `/pos/menu/engineering` → generate snapshot → identify Bintang (Star) to promote, Anjing (Dog) to retire
 - **Waste tracking**: `/pos/waste` → review top 5 waste items, adjust prep quantities
 - **Prep sheet**: `/pos/prep-sheets` → generate tomorrow's prep based on DOW
