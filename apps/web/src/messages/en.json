@@ -9,13 +9,11 @@
   "nav": {
     "order": "Order",
     "history": "History",
-    "delivery": "Delivery",
     "shift": "Shift",
     "transfer": "Transfer",
     "zreport": "Z-Report",
     "discounts": "Discounts",
     "reservations": "Reservations",
-    "channels": "Channels",
     "chain": "Chain",
     "display": "Display",
     "prepsheets": "Prep Sheet",

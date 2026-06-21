@@ -68,15 +68,15 @@ test('S2: history page renders with orders', async ({ browser }) => {
   await ctx.close();
 });
 
-test('S3: delivery inbox page renders', async ({ browser }) => {
+test('S3: prep-sheet (delivery inbox removed in Sprint 10)', async ({ browser }) => {
   const ctx = await browser.newContext();
   await loginViaApiAndInject(ctx);
   const page = await ctx.newPage();
-  await page.goto(`${BASE}/pos/delivery`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/pos/prep-sheets`, { waitUntil: 'networkidle' });
   await openAndWaitForUser(page);
-  await page.screenshot({ path: 'e2e/screenshots/r-04-delivery.png', fullPage: true });
+  await page.screenshot({ path: 'e2e/screenshots/r-04-prep-sheets.png', fullPage: true });
   const body = await page.locator('body').innerText();
-  console.log('delivery body sample:', body.slice(0, 200));
+  console.log('prep-sheet body sample:', body.slice(0, 200));
   await ctx.close();
 });
 

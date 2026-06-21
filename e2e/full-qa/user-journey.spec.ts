@@ -178,42 +178,8 @@ test.describe('User Journeys', () => {
     allJourneys.push(journey);
   });
 
-  // JOURNEY 3: Manager — Process delivery order, view promo, manage inventory
-  test('J3 Manager: process delivery, manage promo, view prep sheet', async ({ page }) => {
-    const journey: JourneyResult = {
-      journey: 'J3 Manager Operational', role: 'manager',
-      steps: [], passed: true, durationMs: 0,
-      consoleErrors: [], networkErrors: [],
-    };
-    attachJourneyListeners(page, journey);
-    const start = Date.now();
-
-    const loggedIn = await login(page, 'manager@bkj.id', 'password123');
-    await step(page, journey, 'Login', 'manager login', `url=${page.url().replace(BASE, '')}`, loggedIn);
-    if (!loggedIn) { journey.passed = false; allJourneys.push(journey); return; }
-
-    // Delivery inbox
-    await page.goto(`${BASE}/pos/delivery`);
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
-    const delText = await page.locator('body').innerText();
-    await step(page, journey, 'Open delivery inbox', 'delivery page loads', `body has ${delText.length} chars`, delText.length > 50);
-
-    // Promos
-    await page.goto(`${BASE}/pos/promos`);
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
-    const promoText = await page.locator('body').innerText();
-    await step(page, journey, 'Open promos', 'promo management visible', `body has ${promoText.length} chars`, promoText.length > 50);
-
-    // Prep sheets
-    await page.goto(`${BASE}/pos/prep-sheets`);
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
-    const prepText = await page.locator('body').innerText();
-    await step(page, journey, 'Open prep sheets', 'prep sheet generator visible', `body has ${prepText.length} chars`, prepText.length > 50);
-
-    journey.durationMs = Date.now() - start;
-    journey.passed = journey.steps.every(s => s.passed);
-    allJourneys.push(journey);
-  });
+  // Sprint 10 — J3 (manager delivery workflow) removed: GoFood/GrabFood
+  // integration dropped per user request 2026-06-21.
 });
 
 test.afterAll(async () => {

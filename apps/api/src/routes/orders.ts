@@ -33,11 +33,11 @@ const orderComboItemSchema = z.object({
 // key) and `type` (canonical) — silently preferring `orderType` first if
 // both are present. All optional string fields are `.nullable()` so the
 // frontend can send `null` to explicitly clear a value (instead of having
-// to omit the field). Enum matches the DB column (`DINE_IN | TAKEAWAY |
-// DELIVERY`); the frontend's `TAKEOUT` is mapped to `TAKEAWAY` below.
+// Enum matches the DB column (`DINE_IN | TAKEAWAY | KIOSK`); the
+// frontend's `TAKEOUT` is mapped to `TAKEAWAY` below.
 const orderCreateSchema = z.object({
-  type: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']).nullable().optional(),
-  orderType: z.enum(['DINE_IN', 'TAKEOUT', 'TAKEAWAY', 'DELIVERY']).nullable().optional(),
+  type: z.enum(['DINE_IN', 'TAKEAWAY', 'KIOSK']).nullable().optional(),
+  orderType: z.enum(['DINE_IN', 'TAKEOUT', 'TAKEAWAY', 'KIOSK']).nullable().optional(),
   tableNumber: z.string().max(20).nullable().optional(),
   customerName: z.string().max(100).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
@@ -125,7 +125,7 @@ orderRoutes.post('/', async (c) => {
   // canonical `TAKEAWAY`. `orderType` wins if both are present.
   const rawType = parsed.data.orderType ?? parsed.data.type ?? null;
   const normalizedType =
-    rawType === 'TAKEOUT' ? 'TAKEAWAY' : (rawType as 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY' | null);
+    rawType === 'TAKEOUT' ? 'TAKEAWAY' : (rawType as 'DINE_IN' | 'TAKEAWAY' | 'KIOSK' | null);
 
   const regularItems = parsed.data.items ?? [];
   const comboItems = parsed.data.comboItems ?? [];

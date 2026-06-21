@@ -21,7 +21,7 @@ const STATUS_TONES: Record<string, 'success' | 'warning' | 'danger' | 'muted' | 
 const TYPE_LABEL: Record<string, string> = {
   DINE_IN: 'Dine In',
   TAKEOUT: 'Takeout',
-  DELIVERY: 'Delivery',
+  TAKEAWAY: 'Takeout',
 };
 
 export default function HistoryPage() {

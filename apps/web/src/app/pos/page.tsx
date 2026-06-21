@@ -197,7 +197,7 @@ export default function PosPage() {
       })),
       tableNumber: cart.orderType === 'DINE_IN' ? (cart.tableNumber.trim() || undefined) : undefined,
       customerName:
-        cart.orderType === 'TAKEOUT' || cart.orderType === 'DELIVERY'
+        cart.orderType === 'TAKEOUT'
           ? (cart.customerName.trim() || undefined)
           : undefined,
       notes: cart.notes.trim() || undefined,

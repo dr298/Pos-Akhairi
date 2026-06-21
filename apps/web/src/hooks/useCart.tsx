@@ -16,7 +16,7 @@ export interface CartLine {
   notes?: string;
 }
 
-export type OrderType = 'DINE_IN' | 'TAKEOUT' | 'DELIVERY';
+export type OrderType = 'DINE_IN' | 'TAKEOUT'; // UI types: DINE_IN | TAKEOUT (server normalizes to DINE_IN | TAKEAWAY | KIOSK)
 
 export interface AppliedDiscount {
   code: string;

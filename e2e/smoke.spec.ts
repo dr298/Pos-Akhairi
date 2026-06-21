@@ -41,14 +41,11 @@ test('S2: menu + create order + pay', async ({ request }) => {
   expect([200, 400]).toContain(pay.status());
 });
 
-test('S3: channels + delivery inbox', async ({ request }) => {
+test('S3: prep sheets (channels/delivery removed in Sprint 10)', async ({ request }) => {
   await request.post(`${BASE}/api/auth/login`, { data: { email: EMAIL, password: PASS } });
-  const ch = await request.get(`${BASE}/api/channels`);
-  expect(ch.ok()).toBeTruthy();
-  const channels = (await ch.json()).data;
-  expect(channels.length).toBeGreaterThanOrEqual(3);
-  const inbox = await request.get(`${BASE}/api/channel-orders?limit=10`);
-  expect(inbox.ok()).toBeTruthy();
+  const prep = await request.get(`${BASE}/api/prep-sheets`);
+  // Prep sheets is a real backend endpoint; just sanity-check auth + status.
+  expect([200, 204, 404]).toContain(prep.status());
 });
 
 test('S4: chain report + daily close', async ({ request }) => {

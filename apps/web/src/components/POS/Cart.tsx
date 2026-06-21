@@ -14,7 +14,6 @@ import { api } from '@/lib/api';
 const ORDER_TYPES: { value: OrderType; label: string }[] = [
   { value: 'DINE_IN', label: 'Dine In' },
   { value: 'TAKEOUT', label: 'Takeout' },
-  { value: 'DELIVERY', label: 'Delivery' },
 ];
 
 interface Props {
@@ -192,7 +191,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
             />
           </div>
         )}
-        {(cart.orderType === 'TAKEOUT' || cart.orderType === 'DELIVERY') && (
+        {cart.orderType === 'TAKEOUT' && (
           <div>
             <label className="text-xs text-neutral-400 mb-1 block" htmlFor="cust">
               Nama Pelanggan

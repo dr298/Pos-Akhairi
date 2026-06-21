@@ -299,15 +299,7 @@ menuRoutes.patch(
       },
       include: { category: true, modifiers: true },
     });
-    // If availability flipped, push to enabled channels (best-effort, async)
-    if (parsed.data.isAvailable !== undefined && parsed.data.isAvailable !== existing.isAvailable) {
-      // Lazy import to avoid cycle
-      import('../services/menu-sync.js')
-        .then(({ toggleItemAvailabilityOnChannels }) =>
-          toggleItemAvailabilityOnChannels(existing.branchId, item.id, item.isAvailable),
-        )
-        .catch((e) => logger.warn({ err: (e as Error).message }, 'menu-sync failed'));
-    }
+    // Sprint 10 — channel menu sync removed (online ordering dropped).
     return ok(c, item);
   },
 );

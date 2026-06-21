@@ -68,13 +68,11 @@ export async function runDailyClose(input: DailyCloseInput): Promise<DailyCloseR
     include: { payments: true },
   });
 
-  // 2) Pull channel orders (for delivery + commission calc)
-  const channelOrders = await prisma.channelOrder.findMany({
-    where: {
-      branchId,
-      receivedAt: { gte: startUtc, lt: endUtc },
-    },
-  });
+  // Sprint 10 — channel orders removed (online ordering dropped).
+  // byChannel is now derived only from local Order.type (DINE_IN /
+  // TAKEAWAY / KIOSK). deliveryFeeCents / serviceFeeCents /
+  // commissionCents / netAfterCommCents remain in the schema for
+  // historical daily_closes rows but always 0 going forward.
 
   // 3) Aggregate
   const totals = {
@@ -101,11 +99,9 @@ export async function runDailyClose(input: DailyCloseInput): Promise<DailyCloseR
     totals.taxCents += o.taxCents;
     if (o.status !== 'REFUNDED') {
       totals.netCents += o.totalCents;
-    } else {
-      // refunded: still count gross for reporting
     }
     // Channel: derive from order type
-    const ch = o.type; // DINE_IN, TAKEOUT, DELIVERY
+    const ch = o.type; // DINE_IN | TAKEAWAY | KIOSK
     byChannel[ch] = (byChannel[ch] ?? 0) + o.totalCents;
     // Payment
     for (const p of o.payments) {
@@ -116,17 +112,7 @@ export async function runDailyClose(input: DailyCloseInput): Promise<DailyCloseR
     }
   }
 
-  // 4) Channel-order specific (delivery): commission + service + delivery fees
-  for (const co of channelOrders) {
-    if (co.status === 'CANCELLED' || co.status === 'REJECTED') continue;
-    totals.deliveryFeeCents += co.deliveryFeeCents;
-    totals.serviceFeeCents += co.serviceFeeCents;
-    totals.commissionCents += co.commissionCents;
-    byChannel[co.channel] = (byChannel[co.channel] ?? 0) + co.totalCents;
-  }
-
-  totals.netAfterCommCents =
-    totals.netCents + totals.deliveryFeeCents + totals.serviceFeeCents - totals.commissionCents;
+  totals.netAfterCommCents = totals.netCents;
 
   // 5) Auto-close any open shifts for this branch
   let closedShiftId: string | null = null;

@@ -37,7 +37,6 @@ const NAV: NavGroup[] = [
     items: [
       { href: '/pos',              label: 'Order',        icon: 'cart',     match: p => p === '/pos',                          show: () => true,        shortcut: 'O' },
       { href: '/pos/history',      label: 'Riwayat',      icon: 'history',  match: p => p.startsWith('/pos/history'),          show: () => true,        shortcut: 'H' },
-      { href: '/pos/delivery',     label: 'Delivery',     icon: 'truck',    match: p => p.startsWith('/pos/delivery'),         show: () => true,        shortcut: 'D' },
       { href: '/pos/reservations', label: 'Reservasi',    icon: 'calendar', match: p => p.startsWith('/pos/reservations'),     show: () => true,        shortcut: 'R' },
       { href: '/pos/shift',        label: 'Shift',        icon: 'clock',    match: p => p.startsWith('/pos/shift'),            show: () => true,        shortcut: 'S' },
       { href: '/pos/waiter',       label: 'Waiter',       icon: 'bell',     match: p => p.startsWith('/pos/waiter'),           show: () => true },
@@ -78,7 +77,6 @@ const NAV: NavGroup[] = [
     id: 'network',
     label: 'Network',
     items: [
-      { href: '/pos/channels',  label: 'Channels',   icon: 'channel', match: p => p.startsWith('/pos/channels'), show: r => isManager(r) },
       { href: '/pos/chain',     label: 'Chain',      icon: 'branch',  match: p => p.startsWith('/pos/chain'),    show: r => isOwner(r),   shortcut: 'C' },
       { href: '/pos/branches',  label: 'Cabang',     icon: 'branch',  match: p => p.startsWith('/pos/branches'), show: r => isOwner(r) },
     ],

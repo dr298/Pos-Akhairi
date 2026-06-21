@@ -76,7 +76,7 @@ function attachListeners(page: Page, role: string) {
       persistResults();
     } else if (status >= 400 && !url.includes('/login') && !url.includes('/auth/')) {
       // 401/403 on auth-checked endpoints expected when not logged in; skip
-      if (status === 401 && (url.includes('/auth/me') || url.includes('/api/channels'))) return;
+      if (status === 401 && url.includes('/auth/me')) return;
       allResults[role].networkErrors.push(`4xx ${status} ${resp.request().method()} ${url}`);
       persistResults();
     }
@@ -210,9 +210,7 @@ const FEATURES: Array<{ key: string; category: string; url: string; expected: st
   // Customers & Loyalty
   { key: 'customers', category: 'Customers', url: '/pos/customers', expected: 'customer list, points, tier, CRUD', roles: ['owner', 'manager', 'cashier'] },
 
-  // Delivery
-  { key: 'channels', category: 'Delivery', url: '/pos/channels', expected: '3-channel config, GoFood/GrabFood/ShopeeFood', roles: ['owner', 'manager'] },
-  { key: 'delivery', category: 'Delivery', url: '/pos/delivery', expected: 'delivery inbox, accept/reject, status flow', roles: ['owner', 'manager', 'cashier'] },
+  // Sprint 10 — online ordering (GoFood/GrabFood/ShopeeFood) removed.
 
   // Multi-branch
   { key: 'chain', category: 'Multi-branch', url: '/pos/chain', expected: 'branch report, commission reconciliation', roles: ['owner', 'manager'] },

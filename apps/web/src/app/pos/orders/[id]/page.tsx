@@ -25,7 +25,6 @@ const TYPE_LABEL: Record<string, string> = {
   DINE_IN: 'Dine In',
   TAKEOUT: 'Takeout',
   TAKEAWAY: 'Takeout',
-  DELIVERY: 'Delivery',
 };
 
 export default function OrderDetailPage() {

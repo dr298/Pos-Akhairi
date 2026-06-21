@@ -14,12 +14,8 @@ import { reportRoutes } from './routes/reports.js';
 import { discountRoutes } from './routes/discounts.js';
 import { comboRoutes } from './routes/combos.js';
 import { promoRoutes } from './routes/promos.js';
-import { channelRoutes } from './routes/channels.js';
-import { channelOrderRoutes } from './routes/channel-orders.js';
-import { channelAnalyticsRoutes } from './routes/channel-analytics.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { dailyCloseRoutes } from './routes/daily-close.js';
-import { commissionRoutes } from './routes/commissions.js';
 import { transferRoutes } from './routes/transfers.js';
 import { branchRoutes } from './routes/branches.js';
 import { customerRoutes } from './routes/customers.js';
@@ -34,7 +30,6 @@ import { purchaseOrderRoutes } from './routes/purchase-orders.js';
 import { prepSheetRoutes } from './routes/prep-sheets.js';
 import { accountingExportRoutes } from './routes/accounting-export.js';
 import { wasteRoutes } from './routes/waste.js';
-import { startChannelPoller } from './services/channel-poller.js';
 import { handleWebSocketUpgrade } from './lib/ws.js';
 import { wsBus } from './lib/ws-bus.js';
 import { readToken } from './middleware/auth.js';
@@ -73,12 +68,8 @@ app.route('/api/reports', reportRoutes);
 app.route('/api/discounts', discountRoutes);
 app.route('/api/combos', comboRoutes);
 app.route('/api/promos', promoRoutes);
-app.route('/api/channels', channelRoutes);
-app.route('/api/channel-orders', channelOrderRoutes);
-app.route('/api/channel-analytics', channelAnalyticsRoutes);
 app.route('/api/webhooks', webhookRoutes);
 app.route('/api/daily-close', dailyCloseRoutes);
-app.route('/api/commissions', commissionRoutes);
 app.route('/api/transfers', transferRoutes);
 app.route('/api/branches', branchRoutes);
 app.route('/api/customers', customerRoutes);
@@ -181,12 +172,6 @@ server.on('upgrade', (req, socket, head) => {
 
 server.listen(port, host, () => {
   logger.info({ port, host }, 'pos-api listening');
-  // Start the channel poller in the background. It reads enabled
-  // ChannelConfigs every pollIntervalSec and pulls new orders.
-  if (process.env.CHANNEL_POLLER_ENABLED !== 'false') {
-    startChannelPoller();
-    logger.info('channel poller started');
-  }
 });
 
 export default app;
