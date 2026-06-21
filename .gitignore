@@ -32,3 +32,6 @@ e2e/full-qa/results/
 evidence-site/data
 evidence-site/journeys
 evidence-site/screenshots
+
+# Debug throwaway scripts
+dbg-*.ts
