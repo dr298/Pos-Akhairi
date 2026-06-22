@@ -350,16 +350,16 @@ export default function PromosPage() {
   return (
     <div className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-100">Promo</h1>
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Promo</h1>
         <Button onClick={openCreate}>+ Promo Baru</Button>
       </div>
 
       {loading ? (
-        <p className="text-sm text-neutral-400">Memuat…</p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">Memuat…</p>
       ) : promos.length === 0 ? (
         <Card>
           <CardContent>
-            <p className="text-sm text-neutral-400">Belum ada promo. Buat promo pertama.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">Belum ada promo. Buat promo pertama.</p>
           </CardContent>
         </Card>
       ) : (
@@ -430,7 +430,7 @@ export default function PromosPage() {
               {/* Basic info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Kode</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Kode</label>
                   <Input
                     value={form.code}
                     onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
@@ -439,7 +439,7 @@ export default function PromosPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Nama</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Nama</label>
                   <Input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -447,11 +447,11 @@ export default function PromosPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Tipe</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Tipe</label>
                   <select
                     value={form.type}
                     onChange={(e) => setForm({ ...form, type: e.target.value as PromoType })}
-                    className="flex h-10 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-100"
+                    className="flex h-10 w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-100"
                   >
                     <option value="PERCENT">Persen</option>
                     <option value="AMOUNT">Nominal</option>
@@ -460,7 +460,7 @@ export default function PromosPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">
                     {form.type === 'PERCENT' ? 'Persen (basis points, 1100=11%)' : form.type === 'AMOUNT' ? 'Nominal Diskon (Rp)' : 'Nilai (opsional)'}
                   </label>
                   {form.type === 'PERCENT' ? (
@@ -486,7 +486,7 @@ export default function PromosPage() {
                   )}
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Min Subtotal (Rp)</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Min Subtotal (Rp)</label>
                   <Input
                     inputMode="numeric"
                     value={form.minSubtotalCents}
@@ -494,7 +494,7 @@ export default function PromosPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Maks Diskon (Rp)</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Maks Diskon (Rp)</label>
                   <Input
                     inputMode="numeric"
                     value={form.maxDiscountCents}
@@ -503,7 +503,7 @@ export default function PromosPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Berlaku Dari</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Berlaku Dari</label>
                   <Input
                     type="datetime-local"
                     value={form.validFrom}
@@ -511,7 +511,7 @@ export default function PromosPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Sampai *</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Sampai *</label>
                   <Input
                     type="datetime-local"
                     value={form.validUntil}
@@ -519,7 +519,7 @@ export default function PromosPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Batas Penggunaan</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Batas Penggunaan</label>
                   <Input
                     inputMode="numeric"
                     value={form.usageLimit}
@@ -529,7 +529,7 @@ export default function PromosPage() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-neutral-200">
+              <label className="flex items-center gap-2 text-sm text-neutral-800 dark:text-neutral-200">
                 <input
                   type="checkbox"
                   checked={form.requiresMember}
@@ -541,7 +541,7 @@ export default function PromosPage() {
               {/* Conditions */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-neutral-200">Kondisi (semua harus terpenuhi)</h3>
+                  <h3 className="text-sm font-medium text-neutral-800 dark:text-neutral-200">Kondisi (semua harus terpenuhi)</h3>
                   <Button size="sm" variant="outline" onClick={addCondition}>
                     + Kondisi
                   </Button>
@@ -553,14 +553,14 @@ export default function PromosPage() {
                     {form.conditions.map((c, idx) => (
                       <div
                         key={idx}
-                        className="flex flex-wrap items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-md p-2 text-sm"
+                        className="flex flex-wrap items-center gap-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md p-2 text-sm"
                       >
                         <select
                           value={c.menuItemId}
                           onChange={(e) =>
                             updateCondition(idx, { menuItemId: e.target.value, categoryId: '' })
                           }
-                          className="h-8 rounded-md border border-neutral-700 bg-neutral-950 px-2 text-xs"
+                          className="h-8 rounded-md border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 px-2 text-xs"
                         >
                           <option value="">— Pilih Menu —</option>
                           {menuItems.map((m) => (
@@ -575,7 +575,7 @@ export default function PromosPage() {
                           onChange={(e) =>
                             updateCondition(idx, { categoryId: e.target.value, menuItemId: '' })
                           }
-                          className="h-8 rounded-md border border-neutral-700 bg-neutral-950 px-2 text-xs"
+                          className="h-8 rounded-md border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 px-2 text-xs"
                         >
                           <option value="">— Pilih Kategori —</option>
                           {categories.map((cat) => (
@@ -607,7 +607,7 @@ export default function PromosPage() {
               {/* Rewards */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-neutral-200">Reward</h3>
+                  <h3 className="text-sm font-medium text-neutral-800 dark:text-neutral-200">Reward</h3>
                   <Button size="sm" variant="outline" onClick={addReward}>
                     + Reward
                   </Button>
@@ -616,12 +616,12 @@ export default function PromosPage() {
                   {form.rewards.map((r, idx) => (
                     <div
                       key={idx}
-                      className="flex flex-wrap items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-md p-2 text-sm"
+                      className="flex flex-wrap items-center gap-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md p-2 text-sm"
                     >
                       <select
                         value={r.freeMenuItemId}
                         onChange={(e) => updateReward(idx, { freeMenuItemId: e.target.value })}
-                        className="h-8 rounded-md border border-neutral-700 bg-neutral-950 px-2 text-xs"
+                        className="h-8 rounded-md border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 px-2 text-xs"
                       >
                         <option value="">— Item Gratis (opsional) —</option>
                         {menuItems.map((m) => (
@@ -665,7 +665,7 @@ export default function PromosPage() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-neutral-200">
+              <label className="flex items-center gap-2 text-sm text-neutral-800 dark:text-neutral-200">
                 <input
                   type="checkbox"
                   checked={form.isActive}

@@ -52,7 +52,7 @@ interface ZReport {
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+    <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3">
       <div className="text-[10px] uppercase tracking-wide text-neutral-500">{label}</div>
       <div className="text-lg font-semibold tabular-nums mt-0.5">{value}</div>
       {sub && <div className="text-[10px] text-neutral-500 mt-0.5">{sub}</div>}
@@ -115,7 +115,7 @@ export default function ZReportPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Z-Report</h1>
-          <p className="text-xs sm:text-sm text-neutral-400">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
             <span className="text-neutral-500">generated {report ? new Date(report.generatedAt).toLocaleString('id-ID') : '—'}</span>
           </p>
         </div>
@@ -124,26 +124,26 @@ export default function ZReportPage() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
+            className="bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded px-2 py-1 text-sm text-neutral-900 dark:text-neutral-100"
           />
           <button
             type="button"
             onClick={load}
-            className="bg-neutral-800 hover:bg-neutral-700 text-neutral-100 text-sm rounded px-3 py-1"
+            className="bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-900 dark:text-neutral-100 text-sm rounded px-3 py-1"
           >
             Refresh
           </button>
           <button
             type="button"
             onClick={exportCsv}
-            className="bg-red-600 hover:bg-red-700 text-white text-sm rounded px-3 py-1"
+            className="bg-red-600 hover:bg-red-700 text-neutral-900 dark:text-white text-sm rounded px-3 py-1"
           >
             Export CSV
           </button>
         </div>
       </header>
 
-      {loading && <div className="text-neutral-400 text-sm">Memuat…</div>}
+      {loading && <div className="text-neutral-500 dark:text-neutral-400 text-sm">Memuat…</div>}
       {error && <div className="text-red-400 text-sm">Error: {error}</div>}
 
       {report && (
@@ -181,7 +181,7 @@ export default function ZReportPage() {
                   </thead>
                   <tbody>
                     {breakEntries(report.paymentBreakdown).map((p) => (
-                      <tr key={p.key} className="border-t border-neutral-800">
+                      <tr key={p.key} className="border-t border-neutral-200 dark:border-neutral-800">
                         <td className="py-1.5">{p.key}</td>
                         <td className="text-right tabular-nums">{p.count}</td>
                         <td className="text-right tabular-nums">{formatIDR(p.amountCents ?? 0)}</td>
@@ -211,7 +211,7 @@ export default function ZReportPage() {
                   </thead>
                   <tbody>
                     {breakEntries(report.orderTypeBreakdown).map((p) => (
-                      <tr key={p.key} className="border-t border-neutral-800">
+                      <tr key={p.key} className="border-t border-neutral-200 dark:border-neutral-800">
                         <td className="py-1.5">{p.key}</td>
                         <td className="text-right tabular-nums">{p.count}</td>
                         <td className="text-right tabular-nums">{formatIDR(p.revenueCents ?? 0)}</td>
@@ -238,7 +238,7 @@ export default function ZReportPage() {
                   </thead>
                   <tbody>
                     {breakEntries(report.channelBreakdown).map((p) => (
-                      <tr key={p.key} className="border-t border-neutral-800">
+                      <tr key={p.key} className="border-t border-neutral-200 dark:border-neutral-800">
                         <td className="py-1.5">{p.key}</td>
                         <td className="text-right tabular-nums">{p.count}</td>
                         <td className="text-right tabular-nums">{formatIDR(p.revenueCents ?? 0)}</td>
@@ -265,7 +265,7 @@ export default function ZReportPage() {
                   </thead>
                   <tbody>
                     {report.categoryBreakdown.map((c) => (
-                      <tr key={c.categoryId} className="border-t border-neutral-800">
+                      <tr key={c.categoryId} className="border-t border-neutral-200 dark:border-neutral-800">
                         <td className="py-1.5">{c.name}</td>
                         <td className="text-right tabular-nums">{c.qty}</td>
                         <td className="text-right tabular-nums">{formatIDR(c.revenueCents)}</td>
@@ -321,7 +321,7 @@ export default function ZReportPage() {
                   </thead>
                   <tbody>
                     {report.topItems.map((it, i) => (
-                      <tr key={it.menuItemId} className="border-t border-neutral-800">
+                      <tr key={it.menuItemId} className="border-t border-neutral-200 dark:border-neutral-800">
                         <td className="py-1 text-neutral-500">{i + 1}</td>
                         <td className="py-1">{it.name}</td>
                         <td className="text-right tabular-nums">{it.qty}</td>
@@ -354,12 +354,12 @@ export default function ZReportPage() {
                   </thead>
                   <tbody>
                     {report.shiftReconciliation.map((s) => (
-                      <tr key={s.shiftId} className="border-t border-neutral-800">
+                      <tr key={s.shiftId} className="border-t border-neutral-200 dark:border-neutral-800">
                         <td className="py-1.5">{s.cashier}</td>
                         <td><Badge tone={s.status === 'CLOSED' ? 'muted' : 'success'} className="text-[9px]">{s.status}</Badge></td>
                         <td className="text-right tabular-nums">{s.expectedCents != null ? formatIDR(s.expectedCents) : '—'}</td>
                         <td className="text-right tabular-nums">{s.closingCents != null ? formatIDR(s.closingCents) : '—'}</td>
-                        <td className={`text-right tabular-nums ${(s.varianceCents ?? 0) < 0 ? 'text-red-400' : (s.varianceCents ?? 0) > 0 ? 'text-yellow-400' : 'text-neutral-400'}`}>
+                        <td className={`text-right tabular-nums ${(s.varianceCents ?? 0) < 0 ? 'text-red-400' : (s.varianceCents ?? 0) > 0 ? 'text-yellow-400' : 'text-neutral-500 dark:text-neutral-400'}`}>
                           {s.varianceCents != null ? formatIDR(s.varianceCents) : '—'}
                         </td>
                       </tr>
@@ -388,7 +388,7 @@ export default function ZReportPage() {
                   </thead>
                   <tbody>
                     {report.voidRefundLog.map((v) => (
-                      <tr key={v.orderId} className="border-t border-neutral-800">
+                      <tr key={v.orderId} className="border-t border-neutral-200 dark:border-neutral-800">
                         <td className="py-1.5">{v.orderNumber}</td>
                         <td><Badge tone="danger" className="text-[9px]">{v.status}</Badge></td>
                         <td className="text-right tabular-nums">{formatIDR(v.totalCents)}</td>

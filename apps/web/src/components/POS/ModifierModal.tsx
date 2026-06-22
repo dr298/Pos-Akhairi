@@ -73,7 +73,7 @@ export function ModifierModal({ item, open, onOpenChange, onConfirm }: Props) {
             <DialogHeader>
               <div>
                 <DialogTitle>{item.name}</DialogTitle>
-                <p className="text-sm text-neutral-400 mt-0.5">
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
                   {formatIDR(item.priceCents)}
                 </p>
               </div>
@@ -82,7 +82,7 @@ export function ModifierModal({ item, open, onOpenChange, onConfirm }: Props) {
             <DialogBody>
               {hasMods ? (
                 <div className="space-y-2">
-                  <p className="text-sm text-neutral-300 font-medium">Modifiers</p>
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300 font-medium">Modifiers</p>
                   <div className="grid grid-cols-1 gap-2">
                     {mods.map((m) => {
                       const active = !!selected[m.id];
@@ -94,12 +94,12 @@ export function ModifierModal({ item, open, onOpenChange, onConfirm }: Props) {
                           className={
                             'flex items-center justify-between rounded-md border px-3 py-3 text-left text-sm transition-colors ' +
                             (active
-                              ? 'border-red-500 bg-red-950/30 text-white'
-                              : 'border-neutral-800 bg-neutral-900 hover:border-neutral-700 text-neutral-200')
+                              ? 'border-red-500 bg-red-950/30 text-neutral-900 dark:text-white'
+                              : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200')
                           }
                         >
                           <span>{m.name}</span>
-                          <span className="text-neutral-400">
+                          <span className="text-neutral-500 dark:text-neutral-400">
                             {m.priceDeltaCents > 0
                               ? `+ ${formatIDR(m.priceDeltaCents)}`
                               : m.priceDeltaCents < 0
@@ -112,10 +112,10 @@ export function ModifierModal({ item, open, onOpenChange, onConfirm }: Props) {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-neutral-400">Tambah ke keranjang?</p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">Tambah ke keranjang?</p>
               )}
               <div className="space-y-1">
-                <label className="text-sm text-neutral-300" htmlFor="mod-notes">
+                <label className="text-sm text-neutral-700 dark:text-neutral-300" htmlFor="mod-notes">
                   Catatan (opsional)
                 </label>
                 <Textarea

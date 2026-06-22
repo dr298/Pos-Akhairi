@@ -224,16 +224,16 @@ export default function CombosPage() {
   return (
     <div className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-100">Combo / Paket</h1>
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Combo / Paket</h1>
         <Button onClick={openCreate}>+ Combo Baru</Button>
       </div>
 
       {loading ? (
-        <p className="text-sm text-neutral-400">Memuat…</p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">Memuat…</p>
       ) : combos.length === 0 ? (
         <Card>
           <CardContent>
-            <p className="text-sm text-neutral-400">Belum ada combo. Buat combo pertama.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">Belum ada combo. Buat combo pertama.</p>
           </CardContent>
         </Card>
       ) : (
@@ -253,7 +253,7 @@ export default function CombosPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <ul className="text-xs text-neutral-400 space-y-0.5">
+                <ul className="text-xs text-neutral-500 dark:text-neutral-400 space-y-0.5">
                   {c.items.map((it) => {
                     const m = it.menuItem;
                     return (
@@ -307,7 +307,7 @@ export default function CombosPage() {
               {/* Left: form fields */}
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Nama</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Nama</label>
                   <Input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -315,7 +315,7 @@ export default function CombosPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Deskripsi</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Deskripsi</label>
                   <Textarea
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -323,7 +323,7 @@ export default function CombosPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Harga Combo (Rp)</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Harga Combo (Rp)</label>
                   <Input
                     inputMode="numeric"
                     value={form.priceCents}
@@ -334,7 +334,7 @@ export default function CombosPage() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">URL Gambar (opsional)</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">URL Gambar (opsional)</label>
                   <Input
                     value={form.imageUrl}
                     onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
@@ -343,7 +343,7 @@ export default function CombosPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs text-neutral-400 mb-1 block">Berlaku Dari</label>
+                    <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Berlaku Dari</label>
                     <Input
                       type="datetime-local"
                       value={form.validFrom}
@@ -351,7 +351,7 @@ export default function CombosPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-neutral-400 mb-1 block">Sampai</label>
+                    <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Sampai</label>
                     <Input
                       type="datetime-local"
                       value={form.validUntil}
@@ -359,7 +359,7 @@ export default function CombosPage() {
                     />
                   </div>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-neutral-200">
+                <label className="flex items-center gap-2 text-sm text-neutral-800 dark:text-neutral-200">
                   <input
                     type="checkbox"
                     checked={form.isActive}
@@ -372,14 +372,14 @@ export default function CombosPage() {
               {/* Right: items */}
               <div className="space-y-2">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Item dalam Combo</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Item dalam Combo</label>
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Cari menu…"
                   />
                 </div>
-                <div className="border border-neutral-800 rounded-md max-h-48 overflow-y-auto">
+                <div className="border border-neutral-200 dark:border-neutral-800 rounded-md max-h-48 overflow-y-auto">
                   {filteredMenu.length === 0 ? (
                     <p className="p-3 text-xs text-neutral-500">Tidak ada menu.</p>
                   ) : (
@@ -391,9 +391,9 @@ export default function CombosPage() {
                           type="button"
                           disabled={Boolean(inCombo)}
                           onClick={() => addItem(m.id)}
-                          className="w-full text-left px-3 py-2 text-sm border-b border-neutral-800 last:border-0 hover:bg-neutral-800/50 disabled:opacity-50 disabled:hover:bg-transparent flex justify-between"
+                          className="w-full text-left px-3 py-2 text-sm border-b border-neutral-200 dark:border-neutral-800 last:border-0 hover:bg-neutral-100 dark:bg-neutral-800/50 disabled:opacity-50 disabled:hover:bg-transparent flex justify-between"
                         >
-                          <span className="text-neutral-100">{m.name}</span>
+                          <span className="text-neutral-900 dark:text-neutral-100">{m.name}</span>
                           <span className="text-xs text-neutral-500">{formatIDR(m.priceCents)}</span>
                         </button>
                       );
@@ -407,7 +407,7 @@ export default function CombosPage() {
                       return (
                         <div
                           key={it.menuItemId}
-                          className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-md p-2 text-sm"
+                          className="flex items-center gap-2 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md p-2 text-sm"
                         >
                           <span className="flex-1 truncate">{m?.name || it.menuItemId}</span>
                           <Input

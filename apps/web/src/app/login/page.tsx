@@ -39,7 +39,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-neutral-950">
+    <main className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-neutral-50 dark:bg-neutral-950">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>
@@ -50,7 +50,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-sm text-neutral-200" htmlFor="email">
+              <label className="text-sm text-neutral-800 dark:text-neutral-200" htmlFor="email">
                 Email
               </label>
               <Input
@@ -63,7 +63,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm text-neutral-200" htmlFor="pw">
+              <label className="text-sm text-neutral-800 dark:text-neutral-200" htmlFor="pw">
                 Password
               </label>
               <Input
@@ -83,10 +83,10 @@ export default function LoginPage() {
             <Button type="submit" disabled={loading} className="w-full" size="lg">
               {loading ? 'Masuk…' : 'Masuk'}
             </Button>
-            <div className="text-xs text-neutral-500 space-y-0.5 pt-2 border-t border-neutral-800">
+            <div className="text-xs text-neutral-500 space-y-0.5 pt-2 border-t border-neutral-200 dark:border-neutral-800">
               <p>Akun seed:</p>
               <p>owner@bkj.id · manager@bkj.id · cashier@bkj.id</p>
-              <p>Password: <code className="text-neutral-400">password123</code></p>
+              <p>Password: <code className="text-neutral-500 dark:text-neutral-400">password123</code></p>
             </div>
           </form>
         </CardContent>

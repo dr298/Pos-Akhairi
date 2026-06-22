@@ -102,7 +102,7 @@ export default function ShiftPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-neutral-400 text-sm">
+      <div className="flex-1 flex items-center justify-center text-neutral-500 dark:text-neutral-400 text-sm">
         Memuat…
       </div>
     );
@@ -110,7 +110,7 @@ export default function ShiftPage() {
 
   return (
     <div className="flex-1 p-4 sm:p-6 max-w-2xl mx-auto w-full space-y-4">
-      <h1 className="text-lg font-semibold text-neutral-100">Manajemen Shift</h1>
+      <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Manajemen Shift</h1>
 
       {!shift ? (
         <Card>
@@ -122,7 +122,7 @@ export default function ShiftPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <label className="text-sm text-neutral-300 mb-1 block" htmlFor="open-cash">
+              <label className="text-sm text-neutral-700 dark:text-neutral-300 mb-1 block" htmlFor="open-cash">
                 Modal awal (Rp)
               </label>
               <Input
@@ -154,19 +154,19 @@ export default function ShiftPage() {
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-neutral-400">Kasir</span>
-                <span className="text-neutral-100">{user?.name ?? shift.user?.name ?? '—'}</span>
+                <span className="text-neutral-500 dark:text-neutral-400">Kasir</span>
+                <span className="text-neutral-900 dark:text-neutral-100">{user?.name ?? shift.user?.name ?? '—'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-400">Modal awal</span>
-                <span className="text-neutral-100">{formatIDR(shift.openingCents)}</span>
+                <span className="text-neutral-500 dark:text-neutral-400">Modal awal</span>
+                <span className="text-neutral-900 dark:text-neutral-100">{formatIDR(shift.openingCents)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-400">Pesanan terbayar</span>
-                <span className="text-neutral-100">{orderCount}</span>
+                <span className="text-neutral-500 dark:text-neutral-400">Pesanan terbayar</span>
+                <span className="text-neutral-900 dark:text-neutral-100">{orderCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-400">Pendapatan</span>
+                <span className="text-neutral-500 dark:text-neutral-400">Pendapatan</span>
                 <span className="text-emerald-400 font-semibold">{formatIDR(orderRevenue)}</span>
               </div>
             </CardContent>
@@ -186,7 +186,7 @@ export default function ShiftPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-sm text-neutral-300 mb-1 block" htmlFor="close-cash">
+                <label className="text-sm text-neutral-700 dark:text-neutral-300 mb-1 block" htmlFor="close-cash">
                   Kas akhir (Rp)
                 </label>
                 <Input
@@ -198,7 +198,7 @@ export default function ShiftPage() {
                 />
               </div>
               <div>
-                <label className="text-sm text-neutral-300 mb-1 block" htmlFor="close-notes">
+                <label className="text-sm text-neutral-700 dark:text-neutral-300 mb-1 block" htmlFor="close-notes">
                   Catatan (opsional)
                 </label>
                 <Textarea

@@ -114,7 +114,7 @@ export default function OrderReceiptPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-neutral-400 text-sm">
+      <div className="flex-1 flex items-center justify-center text-neutral-500 dark:text-neutral-400 text-sm">
         Memuat struk…
       </div>
     );
@@ -125,7 +125,7 @@ export default function OrderReceiptPage() {
       <div className="flex-1 p-4 sm:p-6 max-w-3xl mx-auto w-full">
         <Card>
           <CardContent>
-            <p className="text-sm text-neutral-400">Pesanan tidak ditemukan.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">Pesanan tidak ditemukan.</p>
             <Link href="/pos/history">
               <Button variant="outline" className="mt-3">Kembali</Button>
             </Link>
@@ -139,7 +139,7 @@ export default function OrderReceiptPage() {
     <div className="flex-1 p-4 sm:p-6 max-w-3xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-neutral-100">Struk Digital</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Struk Digital</h1>
           <p className="text-xs text-neutral-500">
             {order.orderNumber} · {new Date(order.openedAt).toLocaleString('id-ID')}
           </p>
@@ -161,19 +161,19 @@ export default function OrderReceiptPage() {
           <ul className="divide-y divide-neutral-800">
             {order.items.map((it) => (
               <li key={it.id} className="flex justify-between py-1.5">
-                <span className="text-neutral-200 truncate">
+                <span className="text-neutral-800 dark:text-neutral-200 truncate">
                   {it.quantity}× {it.nameSnapshot}
                 </span>
-                <span className="text-neutral-300">{formatIDR(it.lineTotalCents)}</span>
+                <span className="text-neutral-700 dark:text-neutral-300">{formatIDR(it.lineTotalCents)}</span>
               </li>
             ))}
           </ul>
-          <div className="border-t border-neutral-800 pt-2 space-y-0.5 text-xs">
-            <div className="flex justify-between text-neutral-400">
+          <div className="border-t border-neutral-200 dark:border-neutral-800 pt-2 space-y-0.5 text-xs">
+            <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
               <span>Subtotal</span>
               <span>{formatIDR(order.subtotalCents)}</span>
             </div>
-            <div className="flex justify-between text-neutral-400">
+            <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
               <span>Pajak</span>
               <span>{formatIDR(order.taxCents)}</span>
             </div>
@@ -183,7 +183,7 @@ export default function OrderReceiptPage() {
                 <span>-{formatIDR(order.discountCents)}</span>
               </div>
             )}
-            <div className="flex justify-between text-base font-semibold text-neutral-100 pt-1">
+            <div className="flex justify-between text-base font-semibold text-neutral-900 dark:text-neutral-100 pt-1">
               <span>Total</span>
               <span>{formatIDR(order.totalCents)}</span>
             </div>
@@ -195,20 +195,20 @@ export default function OrderReceiptPage() {
         <CardHeader>
           <CardTitle className="text-base">Kirim Struk</CardTitle>
           <CardDescription>
-            WhatsApp butuh <code className="text-neutral-300">WA_API_URL</code> + <code className="text-neutral-300">WA_API_TOKEN</code>.
-            Email butuh <code className="text-neutral-300">SMTP_HOST</code>. Kalau belum di-set, struk tetap tercatat
+            WhatsApp butuh <code className="text-neutral-700 dark:text-neutral-300">WA_API_URL</code> + <code className="text-neutral-700 dark:text-neutral-300">WA_API_TOKEN</code>.
+            Email butuh <code className="text-neutral-700 dark:text-neutral-300">SMTP_HOST</code>. Kalau belum di-set, struk tetap tercatat
             dengan status FAILED.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <div className="space-y-1">
-            <label className="text-xs text-neutral-400">Nomor WhatsApp (E.164, contoh +628123…)</label>
+            <label className="text-xs text-neutral-500 dark:text-neutral-400">Nomor WhatsApp (E.164, contoh +628123…)</label>
             <div className="flex gap-2">
               <input
                 value={waTarget}
                 onChange={(e) => setWaTarget(e.target.value)}
                 placeholder="+6281234567890"
-                className="flex-1 h-9 rounded-md bg-neutral-950 border border-neutral-800 px-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="flex-1 h-9 rounded-md bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 px-2 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
               <Button
                 size="sm"
@@ -220,14 +220,14 @@ export default function OrderReceiptPage() {
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-neutral-400">Alamat Email</label>
+            <label className="text-xs text-neutral-500 dark:text-neutral-400">Alamat Email</label>
             <div className="flex gap-2">
               <input
                 value={emailTarget}
                 onChange={(e) => setEmailTarget(e.target.value)}
                 placeholder="pelanggan@email.com"
                 type="email"
-                className="flex-1 h-9 rounded-md bg-neutral-950 border border-neutral-800 px-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="flex-1 h-9 rounded-md bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 px-2 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
               <Button
                 size="sm"
@@ -253,7 +253,7 @@ export default function OrderReceiptPage() {
           ) : (
             <div className="overflow-x-auto -mx-2">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs text-neutral-500 border-b border-neutral-800">
+                <thead className="text-left text-xs text-neutral-500 border-b border-neutral-200 dark:border-neutral-800">
                   <tr>
                     <th className="px-2 py-2 font-medium">Waktu</th>
                     <th className="px-2 py-2 font-medium">Channel</th>
@@ -264,11 +264,11 @@ export default function OrderReceiptPage() {
                 <tbody>
                   {deliveries.map((d) => (
                     <tr key={d.id} className="border-b border-neutral-900 last:border-0">
-                      <td className="px-2 py-2 text-neutral-400 whitespace-nowrap">
+                      <td className="px-2 py-2 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
                         {new Date(d.createdAt).toLocaleString('id-ID')}
                       </td>
-                      <td className="px-2 py-2 text-neutral-200">{CHANNEL_LABEL[d.channel]}</td>
-                      <td className="px-2 py-2 text-neutral-300 font-mono text-xs break-all">
+                      <td className="px-2 py-2 text-neutral-800 dark:text-neutral-200">{CHANNEL_LABEL[d.channel]}</td>
+                      <td className="px-2 py-2 text-neutral-700 dark:text-neutral-300 font-mono text-xs break-all">
                         {d.target || <span className="text-neutral-600">—</span>}
                       </td>
                       <td className="px-2 py-2">

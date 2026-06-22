@@ -78,7 +78,7 @@ export default function PurchaseOrdersListPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Purchase Order</h1>
-          <p className="text-xs sm:text-sm text-neutral-400">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
             Pesanan pembelian stok ke supplier — DRAFT → SENT → RECEIVED
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function PurchaseOrdersListPage() {
             onChange={(e) =>
               setStatusFilter(e.target.value as PurchaseOrderStatus | 'ALL')
             }
-            className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-sm text-neutral-100"
+            className="bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded px-2 py-1 text-sm text-neutral-900 dark:text-neutral-100"
           >
             <option value="ALL">Semua status</option>
             <option value="DRAFT">Draft</option>
@@ -140,10 +140,10 @@ export default function PurchaseOrdersListPage() {
                 {pos.map((p) => (
                   <tr
                     key={p.id}
-                    className="border-t border-neutral-800 hover:bg-neutral-900/40"
+                    className="border-t border-neutral-200 dark:border-neutral-800 hover:bg-white dark:bg-neutral-900/40"
                   >
                     <td className="p-2 font-mono text-xs">{p.poNumber}</td>
-                    <td className="p-2 text-xs text-neutral-400">
+                    <td className="p-2 text-xs text-neutral-500 dark:text-neutral-400">
                       {fmtDateTime(p.createdAt)}
                     </td>
                     <td className="p-2">
@@ -182,7 +182,7 @@ export default function PurchaseOrdersListPage() {
               </tbody>
             </table>
           </div>
-          {loading && <div className="text-neutral-400 text-sm py-3">Memuat…</div>}
+          {loading && <div className="text-neutral-500 dark:text-neutral-400 text-sm py-3">Memuat…</div>}
         </CardContent>
       </Card>
     </div>

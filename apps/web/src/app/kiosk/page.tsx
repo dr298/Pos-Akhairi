@@ -90,7 +90,7 @@ function genLocalId(): string {
 export default function KioskPage() {
   return (
     <Suspense fallback={
-      <main className="min-h-screen flex items-center justify-center text-neutral-400 text-lg">
+      <main className="min-h-screen flex items-center justify-center text-neutral-500 dark:text-neutral-400 text-lg">
         Memuat…
       </main>
     }>
@@ -368,18 +368,18 @@ function KioskPageContent() {
   // ─── Order complete (show order #) ──────────────────────────────────────
   if (orderResult) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-neutral-950 text-neutral-100">
+      <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
         <div className="max-w-md w-full text-center">
           <div className="text-6xl mb-4">✅</div>
           <h1 className="text-3xl sm:text-4xl font-bold mb-2">Pesanan Diterima</h1>
-          <p className="text-neutral-400 mb-6">Tunjukkan nomor ini ke kasir untuk pembayaran</p>
+          <p className="text-neutral-500 dark:text-neutral-400 mb-6">Tunjukkan nomor ini ke kasir untuk pembayaran</p>
           <Card>
             <CardContent className="p-6">
               <div className="text-sm text-neutral-500">Nomor Pesanan</div>
               <div className="text-4xl font-bold tracking-widest mt-1 text-red-500">
                 {orderResult.orderNumber}
               </div>
-              <div className="text-sm text-neutral-400 mt-4">Total</div>
+              <div className="text-sm text-neutral-500 dark:text-neutral-400 mt-4">Total</div>
               <div className="text-2xl font-semibold mt-1">
                 {formatIDR(orderResult.totalCents)}
               </div>
@@ -412,7 +412,7 @@ function KioskPageContent() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-neutral-400 text-lg">
+      <main className="min-h-screen flex items-center justify-center text-neutral-500 dark:text-neutral-400 text-lg">
         Memuat menu…
       </main>
     );
@@ -420,7 +420,7 @@ function KioskPageContent() {
 
   if (categories.length === 0) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-6 text-neutral-400 text-center">
+      <main className="min-h-screen flex items-center justify-center p-6 text-neutral-500 dark:text-neutral-400 text-center">
         <div>
           <p>Menu belum tersedia.</p>
         </div>
@@ -430,9 +430,9 @@ function KioskPageContent() {
 
   // ─── Main menu grid ─────────────────────────────────────────────────────
   return (
-    <main className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100">
+    <main className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-neutral-900 border-b border-neutral-800">
+      <header className="sticky top-0 z-20 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
         <div className="px-4 py-3 flex items-center justify-between gap-3">
           <div>
             <div className="text-xs text-neutral-500">Self-Order</div>
@@ -441,7 +441,7 @@ function KioskPageContent() {
           <button
             type="button"
             onClick={() => setShowCart((v) => !v)}
-            className="relative h-14 min-w-[120px] px-5 rounded-2xl bg-red-600 hover:bg-red-500 active:scale-95 transition-all text-white font-semibold flex items-center justify-center gap-2"
+            className="relative h-14 min-w-[120px] px-5 rounded-2xl bg-red-600 hover:bg-red-500 active:scale-95 transition-all text-neutral-900 dark:text-white font-semibold flex items-center justify-center gap-2"
           >
             <span className="text-2xl">🛒</span>
             <span>Lihat ({totalItems})</span>
@@ -472,8 +472,8 @@ function KioskPageContent() {
               className={cn(
                 'h-10 px-4 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
                 activeCategory === c.id
-                  ? 'bg-red-600 text-white'
-                  : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700',
+                  ? 'bg-red-600 text-neutral-900 dark:text-white'
+                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700',
               )}
             >
               {c.name}
@@ -493,17 +493,17 @@ function KioskPageContent() {
                   key={item.id}
                   type="button"
                   onClick={() => addToCart(item)}
-                  className="text-left min-h-[180px] rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-red-500 active:scale-[0.97] transition-all p-3 flex flex-col"
+                  className="text-left min-h-[180px] rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-red-500 active:scale-[0.97] transition-all p-3 flex flex-col"
                 >
                   {item.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.imageUrl}
                       alt={item.name}
-                      className="w-full h-24 object-cover rounded-xl mb-2 bg-neutral-800"
+                      className="w-full h-24 object-cover rounded-xl mb-2 bg-neutral-100 dark:bg-neutral-800"
                     />
                   ) : (
-                    <div className="w-full h-24 rounded-xl mb-2 bg-neutral-800 flex items-center justify-center text-3xl">
+                    <div className="w-full h-24 rounded-xl mb-2 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-3xl">
                       🍽️
                     </div>
                   )}
@@ -530,7 +530,7 @@ function KioskPageContent() {
           <button
             type="button"
             onClick={() => setShowCart(true)}
-            className="w-full h-16 rounded-2xl bg-red-600 hover:bg-red-500 active:scale-[0.99] transition-all text-white font-semibold text-lg flex items-center justify-between px-6"
+            className="w-full h-16 rounded-2xl bg-red-600 hover:bg-red-500 active:scale-[0.99] transition-all text-neutral-900 dark:text-white font-semibold text-lg flex items-center justify-between px-6"
           >
             <span>🛒 Lihat Pesanan ({totalItems})</span>
             <span>{formatIDR(subtotal)}</span>
@@ -540,12 +540,12 @@ function KioskPageContent() {
 
       {/* Cart drawer (full screen) */}
       {showCart ? (
-        <div className="fixed inset-0 z-30 bg-neutral-950 flex flex-col">
-          <header className="bg-neutral-900 border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
+        <div className="fixed inset-0 z-30 bg-neutral-50 dark:bg-neutral-950 flex flex-col">
+          <header className="bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 px-4 py-3 flex items-center justify-between">
             <button
               type="button"
               onClick={() => setShowCart(false)}
-              className="h-12 px-4 rounded-xl bg-neutral-800 text-neutral-200 active:scale-95"
+              className="h-12 px-4 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 active:scale-95"
             >
               ← Kembali
             </button>
@@ -560,11 +560,11 @@ function KioskPageContent() {
                 {cart.map((it) => (
                   <div
                     key={it.id}
-                    className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 flex items-center gap-3"
+                    className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4 flex items-center gap-3"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{it.name}</div>
-                      <div className="text-sm text-neutral-400">
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400">
                         {formatIDR(it.priceCents)} × {it.quantity}
                       </div>
                       <div className="text-sm font-semibold text-red-400 mt-1">
@@ -575,7 +575,7 @@ function KioskPageContent() {
                       <button
                         type="button"
                         onClick={() => changeQuantity(it.id, -1)}
-                        className="h-12 w-12 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-xl active:scale-95"
+                        className="h-12 w-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xl active:scale-95"
                       >
                         −
                       </button>
@@ -596,7 +596,7 @@ function KioskPageContent() {
             )}
           </div>
           {cart.length > 0 ? (
-            <div className="border-t border-neutral-800 p-4 bg-neutral-900 space-y-3">
+            <div className="border-t border-neutral-200 dark:border-neutral-800 p-4 bg-white dark:bg-neutral-900 space-y-3">
               <div className="flex items-center justify-between text-xl font-bold">
                 <span>Total</span>
                 <span className="text-red-500">{formatIDR(subtotal)}</span>

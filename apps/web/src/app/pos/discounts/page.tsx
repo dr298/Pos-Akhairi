@@ -153,16 +153,16 @@ export default function DiscountsPage() {
   return (
     <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-100">Diskon</h1>
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Diskon</h1>
         <Button onClick={openCreate}>+ Diskon Baru</Button>
       </div>
 
       {loading ? (
-        <p className="text-sm text-neutral-400">Memuat…</p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">Memuat…</p>
       ) : discounts.length === 0 ? (
         <Card>
           <CardContent>
-            <p className="text-sm text-neutral-400">Belum ada diskon. Buat diskon pertama.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">Belum ada diskon. Buat diskon pertama.</p>
           </CardContent>
         </Card>
       ) : (
@@ -221,7 +221,7 @@ export default function DiscountsPage() {
           <DialogBody>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Nama</label>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Nama</label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -229,7 +229,7 @@ export default function DiscountsPage() {
                 />
               </div>
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Kode (opsional)</label>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Kode (opsional)</label>
                 <Input
                   value={form.code}
                   onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
@@ -238,18 +238,18 @@ export default function DiscountsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Tipe</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Tipe</label>
                   <select
                     value={form.type}
                     onChange={(e) => setForm({ ...form, type: e.target.value as DiscountType })}
-                    className="flex h-10 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-100"
+                    className="flex h-10 w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-100"
                   >
                     <option value="PERCENTAGE">Persen (%)</option>
                     <option value="FIXED">Nominal (Rp)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">
                     Nilai {form.type === 'PERCENTAGE' ? '(%)' : '(Rp)'}
                   </label>
                   <Input
@@ -261,7 +261,7 @@ export default function DiscountsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Min Order (Rp)</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Min Order (Rp)</label>
                   <Input
                     inputMode="numeric"
                     value={form.minOrderCents}
@@ -269,7 +269,7 @@ export default function DiscountsPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Maks Diskon (Rp)</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Maks Diskon (Rp)</label>
                   <Input
                     inputMode="numeric"
                     value={form.maxDiscountCents}
@@ -280,7 +280,7 @@ export default function DiscountsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Berlaku Dari</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Berlaku Dari</label>
                   <Input
                     type="datetime-local"
                     value={form.validFrom}
@@ -288,7 +288,7 @@ export default function DiscountsPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Sampai</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Sampai</label>
                   <Input
                     type="datetime-local"
                     value={form.validUntil}
@@ -297,7 +297,7 @@ export default function DiscountsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Batas Penggunaan</label>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Batas Penggunaan</label>
                 <Input
                   inputMode="numeric"
                   value={form.usageLimit}
@@ -305,7 +305,7 @@ export default function DiscountsPage() {
                   placeholder="(opsional)"
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm text-neutral-200">
+              <label className="flex items-center gap-2 text-sm text-neutral-800 dark:text-neutral-200">
                 <input
                   type="checkbox"
                   checked={form.isActive}

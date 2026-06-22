@@ -14,7 +14,7 @@ export default function HomePage() {
   }, [loading, user, router]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center text-neutral-400 text-sm">
+    <main className="min-h-screen flex items-center justify-center text-neutral-500 dark:text-neutral-400 text-sm">
       Memuat…
     </main>
   );

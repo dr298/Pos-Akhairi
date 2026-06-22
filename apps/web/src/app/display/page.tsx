@@ -92,14 +92,14 @@ export default function DisplayPage() {
   const ready = useMemo(() => orders.filter((o) => o.status === 'PAID'), [orders]);
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
-      <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-neutral-800">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 flex flex-col">
+      <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-neutral-200 dark:border-neutral-800">
         <div className="flex items-center gap-2">
           <span className="text-red-500 font-semibold">🍜 BKJ POS</span>
           <span className="text-neutral-500 text-sm">Customer Display</span>
         </div>
         <div className="text-right">
-          <div className="text-2xl tabular-nums font-mono text-neutral-100">
+          <div className="text-2xl tabular-nums font-mono text-neutral-900 dark:text-neutral-100">
             {now ? now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
           </div>
           <div className="text-xs text-neutral-500">
@@ -112,7 +112,7 @@ export default function DisplayPage() {
               'inline-flex items-center gap-1 px-2 py-0.5 rounded-md border',
               ws.status === 'open'
                 ? 'border-emerald-700/50 text-emerald-300 bg-emerald-950/30'
-                : 'border-neutral-700 text-neutral-400 bg-neutral-900',
+                : 'border-neutral-300 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 bg-white dark:bg-neutral-900',
             )}
           >
             ● {ws.status === 'open' ? 'live' : ws.status}
@@ -122,19 +122,19 @@ export default function DisplayPage() {
 
       <main className="flex-1 grid grid-rows-2 min-h-0">
         {/* Top: current order */}
-        <section className="border-b border-neutral-800 p-4 sm:p-6 flex flex-col min-h-0">
+        <section className="border-b border-neutral-200 dark:border-neutral-800 p-4 sm:p-6 flex flex-col min-h-0">
           <div className="text-xs uppercase tracking-wider text-neutral-500">Pesanan Saat Ini</div>
           {active ? (
             <div className="flex-1 min-h-0 flex flex-col">
               <div className="flex items-baseline justify-between gap-4 mt-2">
-                <div className="text-5xl sm:text-6xl font-bold tracking-wider text-neutral-100">
+                <div className="text-5xl sm:text-6xl font-bold tracking-wider text-neutral-900 dark:text-neutral-100">
                   {active.orderNumber}
                 </div>
                 <div className="text-3xl sm:text-4xl font-bold text-emerald-400">
                   {formatIDR(active.totalCents)}
                 </div>
               </div>
-              <div className="text-sm text-neutral-400 mt-1">
+              <div className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
                 {active.type}
                 {active.tableNumber ? ` · Meja ${active.tableNumber}` : ''}
                 {active.customerName ? ` · ${active.customerName}` : ''}
@@ -142,7 +142,7 @@ export default function DisplayPage() {
               <ul className="mt-3 space-y-1 text-2xl sm:text-3xl flex-1 overflow-y-auto">
                 {active.items.map((it, i) => (
                   <li key={i} className="flex justify-between">
-                    <span className="text-neutral-200">
+                    <span className="text-neutral-800 dark:text-neutral-200">
                       {it.quantity}× {it.name}
                     </span>
                   </li>
@@ -177,19 +177,19 @@ export default function DisplayPage() {
                     'rounded-lg border p-4 flex flex-col justify-between',
                     o.id === active?.id
                       ? 'border-emerald-500 bg-emerald-950/30'
-                      : 'border-neutral-800 bg-neutral-900',
+                      : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900',
                   )}
                 >
                   <div>
                     <div className="text-xs text-neutral-500">{o.type}</div>
-                    <div className="text-2xl font-bold text-neutral-100 mt-1">
+                    <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">
                       {o.orderNumber}
                     </div>
                     {o.tableNumber && (
-                      <div className="text-sm text-neutral-400">Meja {o.tableNumber}</div>
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400">Meja {o.tableNumber}</div>
                     )}
                     {o.customerName && (
-                      <div className="text-sm text-neutral-400">{o.customerName}</div>
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400">{o.customerName}</div>
                     )}
                   </div>
                   <div className="text-lg font-semibold text-emerald-400 mt-2">

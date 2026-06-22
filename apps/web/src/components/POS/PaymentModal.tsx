@@ -123,8 +123,8 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
         <DialogHeader>
           <div>
             <DialogTitle>Pembayaran</DialogTitle>
-            <p className="text-sm text-neutral-400 mt-0.5">
-              Total: <span className="text-neutral-100 font-semibold">{formatIDR(totalCents)}</span>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+              Total: <span className="text-neutral-900 dark:text-neutral-100 font-semibold">{formatIDR(totalCents)}</span>
             </p>
           </div>
           <DialogClose />
@@ -141,7 +141,7 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
 
             <TabsContent value="CASH" className="space-y-3">
               <div>
-                <label className="text-sm text-neutral-300 mb-1 block" htmlFor="cash-amt">
+                <label className="text-sm text-neutral-700 dark:text-neutral-300 mb-1 block" htmlFor="cash-amt">
                   Diterima (Rp)
                 </label>
                 <Input
@@ -164,13 +164,13 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
                   Pas
                 </Button>
               </div>
-              <div className="rounded-md border border-neutral-800 bg-neutral-900 p-3 space-y-1">
+              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span className="text-neutral-400">Diterima</span>
-                  <span className="text-neutral-100">{formatIDR(amountGivenCents)}</span>
+                  <span className="text-neutral-500 dark:text-neutral-400">Diterima</span>
+                  <span className="text-neutral-900 dark:text-neutral-100">{formatIDR(amountGivenCents)}</span>
                 </div>
                 <div className="flex justify-between text-base font-semibold">
-                  <span className="text-neutral-200">Kembalian</span>
+                  <span className="text-neutral-800 dark:text-neutral-200">Kembalian</span>
                   <span className={cn(changeCents >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                     {formatIDR(Math.max(0, changeCents))}
                   </span>
@@ -182,8 +182,8 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
             </TabsContent>
 
             <TabsContent value="QRIS" className="space-y-2">
-              <div className="rounded-md border border-neutral-800 bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-300">
+              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
+                <p className="text-neutral-700 dark:text-neutral-300">
                   QRIS via Midtrans — setelah klik <strong>Konfirmasi</strong>, order dibuat
                   dan QRIS akan ditampilkan di halaman sukses. Pembayaran terdeteksi
                   otomatis via webhook.
@@ -195,8 +195,8 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
             </TabsContent>
 
             <TabsContent value="VIRTUAL_ACCOUNT" className="space-y-2">
-              <div className="rounded-md border border-neutral-800 bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-300">
+              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
+                <p className="text-neutral-700 dark:text-neutral-300">
                   Virtual Account — nomor VA akan diterbitkan setelah konfirmasi.
                   Order otomatis terbayar saat pembayaran masuk.
                 </p>
@@ -205,8 +205,8 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
             </TabsContent>
 
             <TabsContent value="EWALLET" className="space-y-2">
-              <div className="rounded-md border border-neutral-800 bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-300">
+              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
+                <p className="text-neutral-700 dark:text-neutral-300">
                   E-Wallet (GoPay / OVO / Dana) — pembayaran lewat Snap/Invoice
                   Midtrans atau Xendit.
                 </p>
@@ -279,8 +279,8 @@ export function AwaitingPaymentPanel({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
-      <div className="relative z-10 w-full sm:max-w-md rounded-t-2xl sm:rounded-lg border border-neutral-800 bg-neutral-950 text-neutral-100 shadow-2xl p-5 space-y-4">
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-white dark:bg-black/70 backdrop-blur-sm">
+      <div className="relative z-10 w-full sm:max-w-md rounded-t-2xl sm:rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 shadow-2xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Menunggu Pembayaran</h2>
           <Badge tone={pollStatus === 'polling' ? 'info' : pollStatus === 'paid' ? 'success' : 'danger'}>
@@ -291,27 +291,27 @@ export function AwaitingPaymentPanel({
                 : pollStatus.toUpperCase()}
           </Badge>
         </div>
-        <div className="rounded-md border border-neutral-800 bg-neutral-900 p-3 text-sm space-y-1">
+        <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-sm space-y-1">
           <div className="flex justify-between">
-            <span className="text-neutral-400">Order</span>
-            <span className="text-neutral-100 font-semibold">
+            <span className="text-neutral-500 dark:text-neutral-400">Order</span>
+            <span className="text-neutral-900 dark:text-neutral-100 font-semibold">
               {order?.orderNumber || '—'}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-neutral-400">Metode</span>
-            <span className="text-neutral-100">{METHOD_LABEL[method]}</span>
+            <span className="text-neutral-500 dark:text-neutral-400">Metode</span>
+            <span className="text-neutral-900 dark:text-neutral-100">{METHOD_LABEL[method]}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-neutral-400">Total</span>
+            <span className="text-neutral-500 dark:text-neutral-400">Total</span>
             <span className="text-emerald-400 font-semibold">{formatIDR(totalCents)}</span>
           </div>
         </div>
 
         {vaNumber && (
-          <div className="rounded-md border border-neutral-800 bg-neutral-900 p-4 text-center space-y-1">
+          <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 text-center space-y-1">
             <div className="text-xs text-neutral-500">Nomor Virtual Account</div>
-            <div className="text-2xl font-mono font-semibold tracking-wider text-neutral-100">
+            <div className="text-2xl font-mono font-semibold tracking-wider text-neutral-900 dark:text-neutral-100">
               {vaNumber}
             </div>
             <div className="text-xs text-neutral-500">Salin nomor dan bayar lewat m-banking</div>
@@ -319,9 +319,9 @@ export function AwaitingPaymentPanel({
         )}
 
         {qrString && !paymentUrl && (
-          <div className="rounded-md border border-neutral-800 bg-neutral-900 p-4 text-center space-y-2">
+          <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 text-center space-y-2">
             <div className="text-xs text-neutral-500">QRIS</div>
-            <pre className="text-[10px] text-neutral-400 break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
+            <pre className="text-[10px] text-neutral-500 dark:text-neutral-400 break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
               {qrString}
             </pre>
             <div className="text-xs text-neutral-500">Scan dengan e-wallet / m-banking</div>

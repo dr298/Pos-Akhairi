@@ -107,7 +107,7 @@ function formatDayLabel(iso: string): { weekday: string; day: string; month: str
 export default function ReservationsPage() {
   return (
     <Suspense fallback={
-      <div className="flex-1 p-6 text-neutral-400 text-sm">Memuat…</div>
+      <div className="flex-1 p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat…</div>
     }>
       <ReservationsPageContent />
     </Suspense>
@@ -297,7 +297,7 @@ function ReservationsPageContent() {
 
   if (!user) {
     return (
-      <div className="flex-1 p-6 text-neutral-400 text-sm">Memuat sesi…</div>
+      <div className="flex-1 p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat sesi…</div>
     );
   }
 
@@ -305,19 +305,19 @@ function ReservationsPageContent() {
     <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-neutral-100">Reservasi Meja</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Reservasi Meja</h1>
           <p className="text-xs text-neutral-500">
             Catat booking tamu untuk tanggal dan jam tertentu. Klik tanggal untuk lihat detail.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-neutral-900 border border-neutral-800 rounded-md p-0.5">
+          <div className="flex items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md p-0.5">
             <button
               type="button"
               onClick={() => setView('calendar')}
               className={cn(
                 'h-8 px-3 text-xs rounded',
-                view === 'calendar' ? 'bg-red-600 text-white' : 'text-neutral-300',
+                view === 'calendar' ? 'bg-red-600 text-neutral-900 dark:text-white' : 'text-neutral-700 dark:text-neutral-300',
               )}
             >
               📅 Kalender
@@ -327,7 +327,7 @@ function ReservationsPageContent() {
               onClick={() => setView('list')}
               className={cn(
                 'h-8 px-3 text-xs rounded',
-                view === 'list' ? 'bg-red-600 text-white' : 'text-neutral-300',
+                view === 'list' ? 'bg-red-600 text-neutral-900 dark:text-white' : 'text-neutral-700 dark:text-neutral-300',
               )}
             >
               📋 Daftar
@@ -350,7 +350,7 @@ function ReservationsPageContent() {
                   d.setDate(d.getDate() - 7);
                   setSelectedDate(isoFromDate(d));
                 }}
-                className="h-8 px-2 text-sm text-neutral-300 hover:bg-neutral-800 rounded"
+                className="h-8 px-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-neutral-800 rounded"
                 aria-label="Minggu sebelumnya"
               >
                 ‹
@@ -358,7 +358,7 @@ function ReservationsPageContent() {
               <button
                 type="button"
                 onClick={() => setSelectedDate(todayISO())}
-                className="h-8 px-3 text-xs text-neutral-300 hover:bg-neutral-800 rounded border border-neutral-800"
+                className="h-8 px-3 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-800"
               >
                 Hari ini
               </button>
@@ -369,7 +369,7 @@ function ReservationsPageContent() {
                   d.setDate(d.getDate() + 7);
                   setSelectedDate(isoFromDate(d));
                 }}
-                className="h-8 px-2 text-sm text-neutral-300 hover:bg-neutral-800 rounded"
+                className="h-8 px-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-neutral-800 rounded"
                 aria-label="Minggu berikutnya"
               >
                 ›
@@ -392,10 +392,10 @@ function ReservationsPageContent() {
                   className={cn(
                     'flex flex-col items-center justify-center py-3 rounded-lg transition-colors text-center',
                     isSelected
-                      ? 'bg-red-600 text-white'
+                      ? 'bg-red-600 text-neutral-900 dark:text-white'
                       : isToday
-                        ? 'bg-neutral-800 text-neutral-100 ring-1 ring-red-500/40'
-                        : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800',
+                        ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 ring-1 ring-red-500/40'
+                        : 'bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-neutral-800',
                   )}
                 >
                   <span className="text-[10px] uppercase tracking-wide opacity-80">
@@ -410,7 +410,7 @@ function ReservationsPageContent() {
                       className={cn(
                         'mt-1 text-[10px] px-1.5 rounded-full',
                         isSelected
-                          ? 'bg-white/20 text-white'
+                          ? 'bg-white/20 text-neutral-900 dark:text-white'
                           : 'bg-red-500/20 text-red-300',
                       )}
                     >
@@ -436,8 +436,8 @@ function ReservationsPageContent() {
               className={cn(
                 'h-7 px-3 text-xs rounded-full border transition-colors',
                 statusFilter === s
-                  ? 'bg-red-600 text-white border-red-600'
-                  : 'bg-neutral-900 text-neutral-300 border-neutral-800 hover:border-neutral-700',
+                  ? 'bg-red-600 text-neutral-900 dark:text-white border-red-600'
+                  : 'bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:border-neutral-700',
               )}
             >
               {s === 'ALL' ? 'Semua' : STATUS_LABEL[s]}
@@ -452,11 +452,11 @@ function ReservationsPageContent() {
 
       {/* Reservation list (used by both views) */}
       {loading ? (
-        <p className="text-sm text-neutral-400">Memuat…</p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">Memuat…</p>
       ) : reservations.length === 0 ? (
         <Card>
           <CardContent>
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
               Tidak ada reservasi untuk tanggal ini.
             </p>
           </CardContent>
@@ -471,7 +471,7 @@ function ReservationsPageContent() {
                   <div className="flex flex-wrap items-start gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-base font-semibold text-neutral-100">
+                        <div className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
                           {r.customerName}
                         </div>
                         <Badge tone={STATUS_TONE[r.status]}>
@@ -488,7 +488,7 @@ function ReservationsPageContent() {
                         {r.orderId ? <span>🧾 Order terpasang</span> : null}
                       </div>
                       {r.notes ? (
-                        <div className="text-xs text-neutral-400 mt-1.5 whitespace-pre-wrap break-words">
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 whitespace-pre-wrap break-words">
                           📝 {r.notes}
                         </div>
                       ) : null}
@@ -555,7 +555,7 @@ function ReservationsPageContent() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Nama *</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Nama *</label>
                   <Input
                     value={form.customerName}
                     onChange={(e) => setForm({ ...form, customerName: e.target.value })}
@@ -563,7 +563,7 @@ function ReservationsPageContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Nomor HP *</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Nomor HP *</label>
                   <Input
                     inputMode="tel"
                     value={form.customerPhone}
@@ -574,7 +574,7 @@ function ReservationsPageContent() {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Tanggal *</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Tanggal *</label>
                   <Input
                     type="date"
                     value={form.date}
@@ -582,7 +582,7 @@ function ReservationsPageContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Jam *</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Jam *</label>
                   <Input
                     type="time"
                     value={form.time}
@@ -590,7 +590,7 @@ function ReservationsPageContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Orang *</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Orang *</label>
                   <Input
                     type="number"
                     min={1}
@@ -604,7 +604,7 @@ function ReservationsPageContent() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Durasi (mnt)</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Durasi (mnt)</label>
                   <Input
                     type="number"
                     min={15}
@@ -619,7 +619,7 @@ function ReservationsPageContent() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">No. Meja (opsional)</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">No. Meja (opsional)</label>
                   <Input
                     value={form.tableNumber}
                     onChange={(e) => setForm({ ...form, tableNumber: e.target.value })}
@@ -629,7 +629,7 @@ function ReservationsPageContent() {
               </div>
               {availableSlots.length > 0 ? (
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">
                     Slot tersedia ({slotsLoading ? '…' : `${availableSlots.length}`})
                   </label>
                   <div className="flex flex-wrap gap-1.5">
@@ -641,8 +641,8 @@ function ReservationsPageContent() {
                         className={cn(
                           'h-8 px-2 text-xs rounded border',
                           form.time === s
-                            ? 'bg-red-600 text-white border-red-600'
-                            : 'bg-neutral-900 text-neutral-300 border-neutral-800 hover:border-neutral-700',
+                            ? 'bg-red-600 text-neutral-900 dark:text-white border-red-600'
+                            : 'bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:border-neutral-700',
                         )}
                       >
                         {s}
@@ -656,7 +656,7 @@ function ReservationsPageContent() {
                 </p>
               )}
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Catatan</label>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Catatan</label>
                 <Textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}

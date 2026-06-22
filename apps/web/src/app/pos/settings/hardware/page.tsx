@@ -130,15 +130,15 @@ export default function HardwareSettingsPage() {
   }, [drawerPin]);
 
   if (authLoading) {
-    return <div className="p-4 text-sm text-neutral-400">Memuat…</div>;
+    return <div className="p-4 text-sm text-neutral-500 dark:text-neutral-400">Memuat…</div>;
   }
   if (!user) return null;
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-lg font-semibold text-neutral-100">Hardware</h1>
-        <p className="text-sm text-neutral-400 mt-1">
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Hardware</h1>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
           Konfigurasi printer thermal, cash drawer, dan barcode scanner.
         </p>
       </div>
@@ -149,7 +149,7 @@ export default function HardwareSettingsPage() {
           <CardDescription>
             Drawer terhubung ke printer via RJ12. Default: buka otomatis tiap
             pembayaran tunai. Anda bisa override dengan{' '}
-            <code className="text-neutral-300">drawerKick</code> di receipt builder.
+            <code className="text-neutral-700 dark:text-neutral-300">drawerKick</code> di receipt builder.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -167,11 +167,11 @@ export default function HardwareSettingsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-neutral-400 block mb-1">Pin</label>
+              <label className="text-xs text-neutral-500 dark:text-neutral-400 block mb-1">Pin</label>
               <select
                 value={drawerPin}
                 onChange={(e) => setDrawerPin(Number(e.target.value) === 5 ? 5 : 2)}
-                className="w-full h-9 rounded-md border border-neutral-700 bg-neutral-900 px-2 text-sm text-neutral-100"
+                className="w-full h-9 rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 text-sm text-neutral-900 dark:text-neutral-100"
               >
                 {(info?.pins ?? [2, 5]).map((p) => (
                   <option key={p} value={p}>
@@ -181,7 +181,7 @@ export default function HardwareSettingsPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs text-neutral-400 block mb-1">
+              <label className="text-xs text-neutral-500 dark:text-neutral-400 block mb-1">
                 onTime (×{info?.pulseUnitMs ?? 2}ms)
               </label>
               <Input
@@ -193,7 +193,7 @@ export default function HardwareSettingsPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-neutral-400 block mb-1">
+              <label className="text-xs text-neutral-500 dark:text-neutral-400 block mb-1">
                 offTime (×{info?.pulseUnitMs ?? 2}ms)
               </label>
               <Input
@@ -235,7 +235,7 @@ export default function HardwareSettingsPage() {
           </div>
 
           {lastApiResponse && (
-            <pre className="mt-3 text-xs bg-neutral-950 border border-neutral-800 rounded-md p-3 text-neutral-300 whitespace-pre-wrap break-all">
+            <pre className="mt-3 text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-md p-3 text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap break-all">
               {lastApiResponse}
             </pre>
           )}
@@ -252,8 +252,8 @@ export default function HardwareSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-neutral-300">
-            Setiap menu item bisa diisi field <code className="text-neutral-100">barcode</code> di halaman Menu.
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">
+            Setiap menu item bisa diisi field <code className="text-neutral-900 dark:text-neutral-100">barcode</code> di halaman Menu.
             Pastikan barcode unik per branch.
           </p>
         </CardContent>

@@ -148,7 +148,7 @@ export default function CustomersPage() {
     <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-neutral-100">Pelanggan / Member</h1>
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Pelanggan / Member</h1>
           <p className="text-xs text-neutral-500">
             Kelola data pelanggan dan program loyalitas. Pencarian berdasarkan nama, nomor HP, atau email.
           </p>
@@ -171,11 +171,11 @@ export default function CustomersPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-neutral-400">Memuat…</p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">Memuat…</p>
       ) : customers.length === 0 ? (
         <Card>
           <CardContent>
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
               {search
                 ? 'Tidak ada pelanggan yang cocok dengan pencarian.'
                 : 'Belum ada pelanggan. Buat pelanggan pertama.'}
@@ -207,7 +207,7 @@ export default function CustomersPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
-                  <div className="grid grid-cols-2 gap-2 text-xs text-neutral-400">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-neutral-500 dark:text-neutral-400">
                     <div>
                       <span className="text-neutral-500">Poin:</span>{' '}
                       <span className="text-amber-300 font-semibold">
@@ -216,16 +216,16 @@ export default function CustomersPage() {
                     </div>
                     <div>
                       <span className="text-neutral-500">Kunjungan:</span>{' '}
-                      <span className="text-neutral-200">{c.visitCount}</span>
+                      <span className="text-neutral-800 dark:text-neutral-200">{c.visitCount}</span>
                     </div>
                     <div className="col-span-2">
                       <span className="text-neutral-500">Total belanja:</span>{' '}
-                      <span className="text-neutral-200">{formatIDR(totalSpent)}</span>
+                      <span className="text-neutral-800 dark:text-neutral-200">{formatIDR(totalSpent)}</span>
                     </div>
                     {c.lastVisitAt && (
                       <div className="col-span-2">
                         <span className="text-neutral-500">Kunjungan terakhir:</span>{' '}
-                        <span className="text-neutral-300">
+                        <span className="text-neutral-700 dark:text-neutral-300">
                           {new Date(c.lastVisitAt).toLocaleString('id-ID')}
                         </span>
                       </div>
@@ -263,7 +263,7 @@ export default function CustomersPage() {
           <DialogBody>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Nama</label>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Nama</label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -272,7 +272,7 @@ export default function CustomersPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Nomor HP *</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Nomor HP *</label>
                   <Input
                     inputMode="tel"
                     value={form.phone}
@@ -281,7 +281,7 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-neutral-400 mb-1 block">Email</label>
+                  <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Email</label>
                   <Input
                     type="email"
                     value={form.email}
@@ -291,7 +291,7 @@ export default function CustomersPage() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Tanggal Lahir</label>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Tanggal Lahir</label>
                 <Input
                   type="date"
                   value={form.birthday}
@@ -299,7 +299,7 @@ export default function CustomersPage() {
                 />
               </div>
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Alamat</label>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Alamat</label>
                 <Input
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -307,7 +307,7 @@ export default function CustomersPage() {
                 />
               </div>
               <div>
-                <label className="text-xs text-neutral-400 mb-1 block">Catatan</label>
+                <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Catatan</label>
                 <Textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -315,7 +315,7 @@ export default function CustomersPage() {
                 />
               </div>
               {form.id && (
-                <label className="flex items-center gap-2 text-sm text-neutral-200">
+                <label className="flex items-center gap-2 text-sm text-neutral-800 dark:text-neutral-200">
                   <input
                     type="checkbox"
                     checked={form.isActive}

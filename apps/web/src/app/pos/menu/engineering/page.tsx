@@ -99,7 +99,7 @@ function startOfMonthISO(): string {
 export default function MenuEngineeringPage() {
   return (
     <Suspense fallback={
-      <div className="flex-1 p-6 text-neutral-400 text-sm">Memuat…</div>
+      <div className="flex-1 p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat…</div>
     }>
       <MenuEngineeringPageContent />
     </Suspense>
@@ -210,13 +210,13 @@ function MenuEngineeringPageContent() {
   }, [detail]);
 
   if (!user) {
-    return <div className="flex-1 p-6 text-neutral-400 text-sm">Memuat sesi…</div>;
+    return <div className="flex-1 p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat sesi…</div>;
   }
 
   return (
     <div className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
       <div>
-        <h1 className="text-lg font-semibold text-neutral-100">Menu Engineering</h1>
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Menu Engineering</h1>
         <p className="text-xs text-neutral-500">
           Analisis BCG (Boston Consulting Group) untuk memahami performa setiap menu
           berdasarkan popularitas dan kontribusi margin.
@@ -231,7 +231,7 @@ function MenuEngineeringPageContent() {
         <CardContent>
           <div className="flex flex-wrap items-end gap-2">
             <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">Dari</label>
+              <label className="block text-[11px] text-neutral-500 dark:text-neutral-400 mb-1">Dari</label>
               <Input
                 type="date"
                 value={periodStart}
@@ -240,7 +240,7 @@ function MenuEngineeringPageContent() {
               />
             </div>
             <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">Sampai</label>
+              <label className="block text-[11px] text-neutral-500 dark:text-neutral-400 mb-1">Sampai</label>
               <Input
                 type="date"
                 value={periodEnd}
@@ -253,11 +253,11 @@ function MenuEngineeringPageContent() {
             </Button>
             <div className="flex-1" />
             <div className="min-w-[220px]">
-              <label className="block text-[11px] text-neutral-400 mb-1">Snapshot</label>
+              <label className="block text-[11px] text-neutral-500 dark:text-neutral-400 mb-1">Snapshot</label>
               <select
                 value={activeId || ''}
                 onChange={(e) => setActiveId(e.target.value)}
-                className="h-9 w-full bg-neutral-900 border border-neutral-800 rounded-md text-sm text-neutral-100 px-2"
+                className="h-9 w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md text-sm text-neutral-900 dark:text-neutral-100 px-2"
               >
                 {loadingList ? (
                   <option value="">Memuat…</option>
@@ -285,11 +285,11 @@ function MenuEngineeringPageContent() {
 
       {/* Snapshot meta */}
       {loadingDetail ? (
-        <div className="text-sm text-neutral-400 py-6 text-center">Memuat detail…</div>
+        <div className="text-sm text-neutral-500 dark:text-neutral-400 py-6 text-center">Memuat detail…</div>
       ) : !detail ? (
         <Card>
           <CardContent>
-            <div className="text-sm text-neutral-400 py-6 text-center">
+            <div className="text-sm text-neutral-500 dark:text-neutral-400 py-6 text-center">
               Pilih atau buat snapshot untuk melihat matriks BCG.
             </div>
           </CardContent>
@@ -354,9 +354,9 @@ function MenuEngineeringPageContent() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-md p-2">
+    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md p-2">
       <div className="text-[10px] uppercase text-neutral-500">{label}</div>
-      <div className="text-sm font-semibold text-neutral-100 mt-0.5">{value}</div>
+      <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mt-0.5">{value}</div>
     </div>
   );
 }
@@ -383,7 +383,7 @@ function QuadrantCard({
           <div className={cn('text-base font-semibold', meta.color)}>
             {meta.indonesian}
           </div>
-          <div className="text-[10px] text-neutral-400">
+          <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
             {meta.label} · {meta.description}
           </div>
         </div>
@@ -403,16 +403,16 @@ function QuadrantCard({
               <button
                 type="button"
                 onClick={() => onItemClick(it)}
-                className="w-full flex items-center justify-between gap-2 px-2 py-1.5 bg-neutral-900/60 hover:bg-neutral-800 rounded text-left"
+                className="w-full flex items-center justify-between gap-2 px-2 py-1.5 bg-white dark:bg-neutral-900/60 hover:bg-neutral-100 dark:bg-neutral-800 rounded text-left"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-neutral-100 truncate">{it.name}</div>
+                  <div className="text-sm text-neutral-900 dark:text-neutral-100 truncate">{it.name}</div>
                   <div className="text-[10px] text-neutral-500">
                     {it.totalQty}× · pop {fmtPct(it.popularityPct)} · margin {fmtPct(it.marginPct)}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-xs text-neutral-200">{formatIDR(it.totalRevenueCents)}</div>
+                  <div className="text-xs text-neutral-800 dark:text-neutral-200">{formatIDR(it.totalRevenueCents)}</div>
                   <div className={cn('text-[10px]', it.marginCents >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
                     {formatIDR(it.marginCents)}
                   </div>
@@ -437,11 +437,11 @@ function ItemDetailPanel({
 }) {
   const meta = QUADRANT_META[item.quadrant];
   return (
-    <div className="fixed inset-0 z-40 bg-black/60 flex items-end sm:items-center sm:justify-center p-3">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-lg w-full max-w-md p-4 space-y-3">
+    <div className="fixed inset-0 z-40 bg-white dark:bg-black/60 flex items-end sm:items-center sm:justify-center p-3">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg w-full max-w-md p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="text-base font-semibold text-neutral-100">{item.name}</div>
+            <div className="text-base font-semibold text-neutral-900 dark:text-neutral-100">{item.name}</div>
             <div className={cn('text-xs', meta.color)}>
               Kuadran: {meta.indonesian} ({meta.label})
             </div>
@@ -449,7 +449,7 @@ function ItemDetailPanel({
           <button
             type="button"
             onClick={onClose}
-            className="h-9 w-9 rounded bg-neutral-800 text-neutral-100"
+            className="h-9 w-9 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
             aria-label="Tutup"
           >
             ✕
@@ -467,7 +467,7 @@ function ItemDetailPanel({
           <DetailRow label="% Popularitas" value={fmtPct(item.popularityPct)} />
           <DetailRow label="% Margin" value={fmtPct(item.marginPct)} />
         </div>
-        <div className="text-[11px] text-neutral-500 pt-2 border-t border-neutral-800">
+        <div className="text-[11px] text-neutral-500 pt-2 border-t border-neutral-200 dark:border-neutral-800">
           Snapshot: {new Date(snapshot.periodStart).toISOString().slice(0, 10)} →{' '}
           {new Date(snapshot.periodEnd).toISOString().slice(0, 10)} · dibuat{' '}
           {new Date(snapshot.generatedAt).toLocaleString('id-ID')}
@@ -487,12 +487,12 @@ function DetailRow({
   tone?: 'good' | 'bad';
 }) {
   return (
-    <div className="bg-neutral-950 border border-neutral-800 rounded p-2">
+    <div className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded p-2">
       <div className="text-[10px] uppercase text-neutral-500">{label}</div>
       <div
         className={cn(
           'text-sm font-semibold mt-0.5',
-          tone === 'good' ? 'text-emerald-400' : tone === 'bad' ? 'text-rose-400' : 'text-neutral-100',
+          tone === 'good' ? 'text-emerald-400' : tone === 'bad' ? 'text-rose-400' : 'text-neutral-900 dark:text-neutral-100',
         )}
       >
         {value}

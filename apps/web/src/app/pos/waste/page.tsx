@@ -162,7 +162,7 @@ export default function WastePage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">{t('waste.title')}</h1>
-          <p className="text-xs sm:text-sm text-neutral-400">{t('waste.subtitle')}</p>
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">{t('waste.subtitle')}</p>
         </div>
       </header>
 
@@ -205,7 +205,7 @@ export default function WastePage() {
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-3">
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
                   {t('waste.form.type')}
                 </label>
                 <div className="grid grid-cols-3 gap-1">
@@ -217,8 +217,8 @@ export default function WastePage() {
                       className={
                         'h-9 px-2 text-xs rounded-md border ' +
                         (type === tt
-                          ? 'bg-red-600 border-red-600 text-white'
-                          : 'bg-neutral-900 border-neutral-700 text-neutral-200 hover:bg-neutral-800')
+                          ? 'bg-red-600 border-red-600 text-neutral-900 dark:text-white'
+                          : 'bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:bg-neutral-800')
                       }
                     >
                       {t(`waste.form.type${tt}`)}
@@ -228,7 +228,7 @@ export default function WastePage() {
               </div>
 
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
                   {t('waste.form.item')}
                 </label>
                 <Input
@@ -241,7 +241,7 @@ export default function WastePage() {
                   placeholder={t('waste.form.searchItem')}
                 />
                 {itemOptions.length > 0 && (
-                  <div className="mt-1 max-h-40 overflow-y-auto rounded border border-neutral-700 bg-neutral-950">
+                  <div className="mt-1 max-h-40 overflow-y-auto rounded border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950">
                     {itemOptions.map((it) => (
                       <button
                         key={it.id}
@@ -251,7 +251,7 @@ export default function WastePage() {
                           setItemSearch(it.name);
                           setItemOptions([]);
                         }}
-                        className="w-full text-left px-2 py-1 text-sm hover:bg-neutral-800"
+                        className="w-full text-left px-2 py-1 text-sm hover:bg-neutral-100 dark:bg-neutral-800"
                       >
                         {it.name}{' '}
                         <span className="text-[10px] text-neutral-500">
@@ -269,7 +269,7 @@ export default function WastePage() {
               </div>
 
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
                   {t('waste.form.quantity')}
                 </label>
                 <Input
@@ -283,7 +283,7 @@ export default function WastePage() {
               </div>
 
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
                   {t('waste.form.reason')}
                 </label>
                 <Input
@@ -296,7 +296,7 @@ export default function WastePage() {
               </div>
 
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
                   {t('waste.form.notes')}
                 </label>
                 <Textarea
@@ -325,17 +325,17 @@ export default function WastePage() {
                 {summary.topItems.map((it, i) => (
                   <li
                     key={it.key}
-                    className="flex items-center justify-between gap-2 border-b border-neutral-800 pb-2 last:border-b-0"
+                    className="flex items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-2 last:border-b-0"
                   >
                     <div className="min-w-0">
                       <span className="text-neutral-500 mr-2">{i + 1}.</span>
-                      <span className="text-neutral-100">{it.name}</span>
+                      <span className="text-neutral-900 dark:text-neutral-100">{it.name}</span>
                       <span className="text-[10px] text-neutral-500 ml-2">
                         {t(`waste.form.type${it.type}`)}
                       </span>
                     </div>
                     <div className="text-right text-xs">
-                      <div className="font-mono text-neutral-200">
+                      <div className="font-mono text-neutral-800 dark:text-neutral-200">
                         {fmtIdr(it.costCents)}
                       </div>
                       <div className="text-[10px] text-neutral-500">
@@ -362,11 +362,11 @@ export default function WastePage() {
                 {summary.byReason.map((r) => (
                   <li
                     key={r.reason}
-                    className="flex items-center justify-between gap-2 border-b border-neutral-800 pb-2 last:border-b-0"
+                    className="flex items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-800 pb-2 last:border-b-0"
                   >
-                    <span className="text-neutral-200">{r.reason}</span>
+                    <span className="text-neutral-800 dark:text-neutral-200">{r.reason}</span>
                     <div className="text-right text-xs">
-                      <div className="font-mono text-neutral-100">
+                      <div className="font-mono text-neutral-900 dark:text-neutral-100">
                         {fmtIdr(r.costCents)}
                       </div>
                       <div className="text-[10px] text-neutral-500">
@@ -407,7 +407,7 @@ export default function WastePage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-neutral-400 text-sm">{t('common.loading')}</div>
+            <div className="text-neutral-500 dark:text-neutral-400 text-sm">{t('common.loading')}</div>
           ) : filteredEntries.length === 0 ? (
             <p className="text-center text-neutral-500 py-6 text-sm">
               {t('waste.list.empty')}
@@ -433,7 +433,7 @@ export default function WastePage() {
                   {filteredEntries.map((e) => (
                     <tr
                       key={e.id}
-                      className="border-t border-neutral-800 hover:bg-neutral-900/40"
+                      className="border-t border-neutral-200 dark:border-neutral-800 hover:bg-white dark:bg-neutral-900/40"
                     >
                       <td className="p-2 text-xs">{fmtDateTime(e.recordedAt)}</td>
                       <td className="p-2 text-xs">
@@ -448,8 +448,8 @@ export default function WastePage() {
                       <td className="p-2 text-right font-mono text-xs">
                         {fmtIdr(e.totalCostCents)}
                       </td>
-                      <td className="p-2 text-xs text-neutral-300">{e.reason ?? '—'}</td>
-                      <td className="p-2 text-xs text-neutral-400">
+                      <td className="p-2 text-xs text-neutral-700 dark:text-neutral-300">{e.reason ?? '—'}</td>
+                      <td className="p-2 text-xs text-neutral-500 dark:text-neutral-400">
                         {e.recordedBy?.name ?? '—'}
                       </td>
                       {user.role === 'OWNER' && (
@@ -489,7 +489,7 @@ function SummaryCard({
   const ring = {
     red: 'border-red-700/60',
     amber: 'border-amber-700/60',
-    neutral: 'border-neutral-700',
+    neutral: 'border-neutral-300 dark:border-neutral-700',
   }[accent];
   return (
     <Card className={ring}>
@@ -522,8 +522,8 @@ function FilterChip({
       className={
         'h-7 px-2 text-[11px] rounded-md border ' +
         (active
-          ? 'bg-red-600 border-red-600 text-white'
-          : 'bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800')
+          ? 'bg-red-600 border-red-600 text-neutral-900 dark:text-white'
+          : 'bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-neutral-800')
       }
     >
       {label}

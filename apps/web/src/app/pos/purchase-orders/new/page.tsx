@@ -151,7 +151,7 @@ export default function NewPurchaseOrderPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Buat Purchase Order</h1>
-          <p className="text-xs sm:text-sm text-neutral-400">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
             PO baru dimulai sebagai DRAFT — kirim ke supplier setelah disimpan
           </p>
         </div>
@@ -174,11 +174,11 @@ export default function NewPurchaseOrderPage() {
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">Supplier *</label>
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Supplier *</label>
                 <select
                   value={supplierId}
                   onChange={(e) => setSupplierId(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm"
                   required
                 >
                   <option value="">— pilih supplier —</option>
@@ -195,7 +195,7 @@ export default function NewPurchaseOrderPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">Estimasi Tiba</label>
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Estimasi Tiba</label>
                 <Input
                   type="date"
                   value={expectedAt}
@@ -204,7 +204,7 @@ export default function NewPurchaseOrderPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs text-neutral-400 mb-1">Catatan</label>
+              <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Catatan</label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -224,7 +224,7 @@ export default function NewPurchaseOrderPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {loadingInv && (
-              <div className="text-neutral-400 text-sm">Memuat inventory…</div>
+              <div className="text-neutral-500 dark:text-neutral-400 text-sm">Memuat inventory…</div>
             )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -246,7 +246,7 @@ export default function NewPurchaseOrderPage() {
                     const lineTotal =
                       Number.isFinite(q) && q > 0 ? Math.round(q * cents) : 0;
                     return (
-                      <tr key={i} className="border-t border-neutral-800 align-top">
+                      <tr key={i} className="border-t border-neutral-200 dark:border-neutral-800 align-top">
                         <td className="p-2">
                           <select
                             value={ln.inventoryItemId}
@@ -261,7 +261,7 @@ export default function NewPurchaseOrderPage() {
                                   (picked ? String(Math.round(Number(picked.costPerUnit) * 100) / 100) : ''),
                               });
                             }}
-                            className="flex h-9 w-full rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm"
+                            className="flex h-9 w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 py-1 text-sm"
                             required
                           >
                             <option value="">— pilih item —</option>
@@ -328,7 +328,7 @@ export default function NewPurchaseOrderPage() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-neutral-700">
+                  <tr className="border-t-2 border-neutral-300 dark:border-neutral-700">
                     <td colSpan={3} className="p-2 text-right text-sm font-semibold">
                       Total
                     </td>

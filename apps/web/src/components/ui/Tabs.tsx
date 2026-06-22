@@ -39,7 +39,7 @@ export function TabsList({ className, children }: { className?: string; children
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 p-1 rounded-md bg-neutral-900 border border-neutral-800',
+        'inline-flex items-center gap-1 p-1 rounded-md bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800',
         'overflow-x-auto whitespace-nowrap',
         className,
       )}
@@ -68,8 +68,8 @@ export function TabsTrigger({
       className={cn(
         'h-9 px-4 text-sm rounded-md transition-colors',
         active
-          ? 'bg-red-600 text-white'
-          : 'text-neutral-300 hover:bg-neutral-800',
+          ? 'bg-red-600 text-neutral-900 dark:text-white'
+          : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-neutral-800',
         className,
       )}
     >

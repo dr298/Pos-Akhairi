@@ -133,32 +133,32 @@ export default function SuccessPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-md border border-neutral-800 bg-neutral-950 p-4 text-center">
+          <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-4 text-center">
             <div className="text-xs text-neutral-500">Nomor Pesanan</div>
-            <div className="text-2xl font-bold tracking-wider text-neutral-100 mt-1">
+            <div className="text-2xl font-bold tracking-wider text-neutral-900 dark:text-neutral-100 mt-1">
               {order?.orderNumber || orderNumber || '—'}
             </div>
           </div>
 
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-neutral-400">Metode</span>
-              <span className="text-neutral-100">{method}</span>
+              <span className="text-neutral-500 dark:text-neutral-400">Metode</span>
+              <span className="text-neutral-900 dark:text-neutral-100">{method}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-neutral-400">Total</span>
-              <span className="text-neutral-100 font-semibold">
+              <span className="text-neutral-500 dark:text-neutral-400">Total</span>
+              <span className="text-neutral-900 dark:text-neutral-100 font-semibold">
                 {formatIDR(order?.totalCents ?? total)}
               </span>
             </div>
             {method === 'CASH' && (
               <>
                 <div className="flex justify-between">
-                  <span className="text-neutral-400">Tunai</span>
-                  <span className="text-neutral-100">{formatIDR(given)}</span>
+                  <span className="text-neutral-500 dark:text-neutral-400">Tunai</span>
+                  <span className="text-neutral-900 dark:text-neutral-100">{formatIDR(given)}</span>
                 </div>
                 <div className="flex justify-between text-base">
-                  <span className="text-neutral-200 font-semibold">Kembalian</span>
+                  <span className="text-neutral-800 dark:text-neutral-200 font-semibold">Kembalian</span>
                   <span className="text-emerald-400 font-semibold">{formatIDR(change)}</span>
                 </div>
               </>
@@ -166,15 +166,15 @@ export default function SuccessPage() {
           </div>
 
           {order && order.items.length > 0 && (
-            <div className="border-t border-neutral-800 pt-3">
+            <div className="border-t border-neutral-200 dark:border-neutral-800 pt-3">
               <div className="text-xs text-neutral-500 mb-2">Item</div>
               <ul className="space-y-1 text-sm">
                 {order.items.map((it) => (
                   <li key={it.id} className="flex justify-between">
-                    <span className="text-neutral-200 truncate">
+                    <span className="text-neutral-800 dark:text-neutral-200 truncate">
                       {it.quantity}× {it.nameSnapshot}
                     </span>
-                    <span className="text-neutral-300">{formatIDR(it.lineTotalCents)}</span>
+                    <span className="text-neutral-700 dark:text-neutral-300">{formatIDR(it.lineTotalCents)}</span>
                   </li>
                 ))}
               </ul>

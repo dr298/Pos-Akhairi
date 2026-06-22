@@ -91,7 +91,7 @@ export default function CustomerDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-neutral-400 text-sm">
+      <div className="flex-1 flex items-center justify-center text-neutral-500 dark:text-neutral-400 text-sm">
         Memuat…
       </div>
     );
@@ -102,7 +102,7 @@ export default function CustomerDetailPage() {
       <div className="flex-1 p-4 sm:p-6 max-w-3xl mx-auto w-full">
         <Card>
           <CardContent>
-            <p className="text-sm text-neutral-400">Pelanggan tidak ditemukan.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">Pelanggan tidak ditemukan.</p>
             <Link href="/pos/customers">
               <Button variant="outline" className="mt-3">Kembali</Button>
             </Link>
@@ -121,7 +121,7 @@ export default function CustomerDetailPage() {
     <div className="flex-1 p-4 sm:p-6 max-w-3xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-neutral-100">
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
             {customer.name || customer.phone || customer.email || 'Pelanggan'}
           </h1>
           <p className="text-xs text-neutral-500">
@@ -194,7 +194,7 @@ export default function CustomerDetailPage() {
         </CardHeader>
         <CardContent>
           {customer.loyaltyTransactions.length === 0 ? (
-            <p className="text-sm text-neutral-400">Belum ada mutasi poin.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">Belum ada mutasi poin.</p>
           ) : (
             <ul className="divide-y divide-neutral-800">
               {customer.loyaltyTransactions.map((tx: LoyaltyTransaction) => {
@@ -245,7 +245,7 @@ export default function CustomerDetailPage() {
           </DialogHeader>
           <DialogBody className="space-y-3">
             <div>
-              <label className="text-xs text-neutral-400 mb-1 block">Delta Poin</label>
+              <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Delta Poin</label>
               <Input
                 inputMode="numeric"
                 value={adjustDelta}
@@ -254,7 +254,7 @@ export default function CustomerDetailPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-neutral-400 mb-1 block">Catatan</label>
+              <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Catatan</label>
               <Textarea
                 value={adjustNotes}
                 onChange={(e) => setAdjustNotes(e.target.value)}
@@ -291,7 +291,7 @@ function Field({
   return (
     <div className={wide ? 'sm:col-span-2' : ''}>
       <div className="text-xs text-neutral-500 mb-0.5">{label}</div>
-      <div className="text-neutral-200">{children}</div>
+      <div className="text-neutral-800 dark:text-neutral-200">{children}</div>
     </div>
   );
 }
@@ -306,11 +306,11 @@ function Stat({
   accent?: 'amber';
 }) {
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-md px-3 py-2">
+    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md px-3 py-2">
       <div className="text-xs text-neutral-500">{label}</div>
       <div
         className={`text-base font-semibold ${
-          accent === 'amber' ? 'text-amber-300' : 'text-neutral-100'
+          accent === 'amber' ? 'text-amber-300' : 'text-neutral-900 dark:text-neutral-100'
         }`}
       >
         {value}

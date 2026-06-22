@@ -57,7 +57,7 @@ export default function SuppliersPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Supplier</h1>
-          <p className="text-xs sm:text-sm text-neutral-400">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
             Daftar vendor / pemasok stok untuk branch ini
           </p>
         </div>
@@ -68,7 +68,7 @@ export default function SuppliersPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-48"
           />
-          <label className="flex items-center gap-1 text-xs text-neutral-300">
+          <label className="flex items-center gap-1 text-xs text-neutral-700 dark:text-neutral-300">
             <input
               type="checkbox"
               checked={includeInactive}
@@ -112,7 +112,7 @@ export default function SuppliersPage() {
               </thead>
               <tbody>
                 {suppliers.map((s) => (
-                  <tr key={s.id} className="border-t border-neutral-800 hover:bg-neutral-900/40">
+                  <tr key={s.id} className="border-t border-neutral-200 dark:border-neutral-800 hover:bg-white dark:bg-neutral-900/40">
                     <td className="p-2">
                       <div className="font-medium">{s.name}</div>
                       {s.notes && (
@@ -132,7 +132,7 @@ export default function SuppliersPage() {
                         {s.isActive ? 'Aktif' : 'Non-aktif'}
                       </Badge>
                     </td>
-                    <td className="p-2 text-xs text-neutral-400">
+                    <td className="p-2 text-xs text-neutral-500 dark:text-neutral-400">
                       {fmtDateTime(s.createdAt)}
                     </td>
                     <td className="p-2">
@@ -156,7 +156,7 @@ export default function SuppliersPage() {
               </tbody>
             </table>
           </div>
-          {loading && <div className="text-neutral-400 text-sm py-3">Memuat…</div>}
+          {loading && <div className="text-neutral-500 dark:text-neutral-400 text-sm py-3">Memuat…</div>}
         </CardContent>
       </Card>
 
@@ -234,10 +234,10 @@ function SupplierFormModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-3 z-50">
-      <div className="bg-neutral-900 border border-neutral-700 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-white dark:bg-black/60 flex items-center justify-center p-3 z-50">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <form onSubmit={onSubmit}>
-          <div className="p-4 border-b border-neutral-800">
+          <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
             <h2 className="text-lg font-semibold">
               {existing ? 'Edit Supplier' : 'Tambah Supplier'}
             </h2>
@@ -249,20 +249,20 @@ function SupplierFormModal({
               </div>
             )}
             <div>
-              <label className="block text-xs text-neutral-400 mb-1">Nama *</label>
+              <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Nama *</label>
               <Input value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div>
-              <label className="block text-xs text-neutral-400 mb-1">Nama Kontak</label>
+              <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Nama Kontak</label>
               <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">Telepon</label>
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Telepon</label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">Email</label>
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Email</label>
                 <Input
                   type="email"
                   value={email}
@@ -271,7 +271,7 @@ function SupplierFormModal({
               </div>
             </div>
             <div>
-              <label className="block text-xs text-neutral-400 mb-1">Alamat</label>
+              <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Alamat</label>
               <Textarea
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -279,7 +279,7 @@ function SupplierFormModal({
               />
             </div>
             <div>
-              <label className="block text-xs text-neutral-400 mb-1">Catatan</label>
+              <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Catatan</label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -296,7 +296,7 @@ function SupplierFormModal({
               <span>Aktif (supplier non-aktif tidak muncul di pilihan PO)</span>
             </label>
           </div>
-          <div className="p-3 border-t border-neutral-800 flex justify-end gap-2">
+          <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 flex justify-end gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
               Batal
             </Button>

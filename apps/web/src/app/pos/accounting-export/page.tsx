@@ -98,7 +98,7 @@ export default function AccountingExportPage() {
           <h1 className="text-xl sm:text-2xl font-semibold">
             {t('accountingExport.title')}
           </h1>
-          <p className="text-xs sm:text-sm text-neutral-400">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
             {t('accountingExport.subtitle')}
           </p>
         </div>
@@ -135,7 +135,7 @@ export default function AccountingExportPage() {
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
                   {t('common.from')}
                 </label>
                 <Input
@@ -146,7 +146,7 @@ export default function AccountingExportPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
                   {t('common.to')}
                 </label>
                 <Input
@@ -209,13 +209,13 @@ export default function AccountingExportPage() {
                     'p-3 rounded-md border text-left transition-colors ' +
                     (selected
                       ? 'bg-red-900/30 border-red-600 text-red-100'
-                      : 'bg-neutral-900 border-neutral-700 text-neutral-200 hover:bg-neutral-800')
+                      : 'bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:bg-neutral-800')
                   }
                 >
                   <div className="font-semibold text-sm">
                     {t(`accountingExport.format.${f}`)}
                   </div>
-                  <div className="text-[10px] text-neutral-400 mt-1 line-clamp-2">
+                  <div className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">
                     {t(`accountingExport.info.${f.toLowerCase()}`)}
                   </div>
                 </button>
@@ -230,7 +230,7 @@ export default function AccountingExportPage() {
           <CardTitle>{t('accountingExport.info.title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-neutral-300">{t(`accountingExport.info.${format.toLowerCase()}`)}</p>
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">{t(`accountingExport.info.${format.toLowerCase()}`)}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button onClick={onDownload} disabled={downloading || !from || !to}>
               {downloading

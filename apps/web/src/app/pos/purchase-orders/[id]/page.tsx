@@ -91,7 +91,7 @@ export default function PurchaseOrderDetailPage() {
 
   if (!user) return null;
   if (loading && !po) {
-    return <div className="p-6 text-neutral-400 text-sm">Memuat…</div>;
+    return <div className="p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat…</div>;
   }
   if (!po) {
     return (
@@ -119,7 +119,7 @@ export default function PurchaseOrderDetailPage() {
               {STATUS_LABEL[po.status]}
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-neutral-400">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
             {po.supplier?.name} • {po.items.length} item • Total{' '}
             <span className="font-mono">{formatIDR(Number(po.totalCents))}</span>
           </p>
@@ -143,13 +143,13 @@ export default function PurchaseOrderDetailPage() {
           <CardContent className="space-y-1 text-sm">
             <div className="font-medium">{po.supplier?.name}</div>
             {po.supplier?.contactName && (
-              <div className="text-xs text-neutral-400">{po.supplier.contactName}</div>
+              <div className="text-xs text-neutral-500 dark:text-neutral-400">{po.supplier.contactName}</div>
             )}
             {po.supplier?.phone && (
-              <div className="text-xs text-neutral-400">{po.supplier.phone}</div>
+              <div className="text-xs text-neutral-500 dark:text-neutral-400">{po.supplier.phone}</div>
             )}
             {po.supplier?.email && (
-              <div className="text-xs text-neutral-400">{po.supplier.email}</div>
+              <div className="text-xs text-neutral-500 dark:text-neutral-400">{po.supplier.email}</div>
             )}
           </CardContent>
         </Card>
@@ -220,7 +220,7 @@ export default function PurchaseOrderDetailPage() {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-neutral-700">
+                <tr className="border-t-2 border-neutral-300 dark:border-neutral-700">
                   <td colSpan={canReceive ? 4 : 3} className="p-2 text-right font-semibold">
                     Subtotal
                   </td>
@@ -314,7 +314,7 @@ export default function PurchaseOrderDetailPage() {
                 PO ini tidak memiliki aksi yang tersedia.
               </span>
             )}
-            {action && <span className="text-xs text-neutral-400 self-center">{action}</span>}
+            {action && <span className="text-xs text-neutral-500 dark:text-neutral-400 self-center">{action}</span>}
           </div>
         </CardContent>
       </Card>
@@ -338,7 +338,7 @@ function POItemRow({
   const received = item.qtyReceived;
   const lineCents = Math.round(qty * item.unitCostCents);
   return (
-    <tr className="border-t border-neutral-800">
+    <tr className="border-t border-neutral-200 dark:border-neutral-800">
       <td className="p-2">
         <div className="font-medium text-sm">{inv?.name ?? item.inventoryItemId}</div>
         <div className="text-[10px] text-neutral-500">
@@ -364,11 +364,11 @@ function POItemRow({
             step="1"
             value={receiveValue}
             onChange={(e) => onReceiveChange(e.target.value)}
-            className="w-24 h-8 rounded-md border border-neutral-700 bg-neutral-900 px-2 text-right text-sm"
+            className="w-24 h-8 rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 text-right text-sm"
           />
         </td>
       )}
-      <td className="p-2 text-xs text-neutral-400">
+      <td className="p-2 text-xs text-neutral-500 dark:text-neutral-400">
         {item.notes || <span className="text-neutral-600">—</span>}
       </td>
     </tr>

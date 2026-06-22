@@ -105,7 +105,7 @@ export default function PrepSheetsPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Prep Sheet (Kitchen)</h1>
-          <p className="text-xs sm:text-sm text-neutral-400">
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
             Panduan prep harian untuk dapur berdasarkan pola penjualan
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function PrepSheetsPage() {
           <CardContent>
             <form onSubmit={onGenerate} className="space-y-3">
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">Tanggal</label>
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Tanggal</label>
                 <Input
                   type="date"
                   value={date}
@@ -134,7 +134,7 @@ export default function PrepSheetsPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
                   Lookback (hari)
                 </label>
                 <Input
@@ -151,7 +151,7 @@ export default function PrepSheetsPage() {
                 </p>
               </div>
               <div>
-                <label className="block text-xs text-neutral-400 mb-1">Catatan</label>
+                <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Catatan</label>
                 <Textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -171,7 +171,7 @@ export default function PrepSheetsPage() {
             <CardTitle>Riwayat ({sheets.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading && <div className="text-neutral-400 text-sm">Memuat…</div>}
+            {loading && <div className="text-neutral-500 dark:text-neutral-400 text-sm">Memuat…</div>}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-[10px] uppercase text-neutral-500">
@@ -184,10 +184,10 @@ export default function PrepSheetsPage() {
                 </thead>
                 <tbody>
                   {sheets.map((s) => (
-                    <tr key={s.id} className="border-t border-neutral-800 hover:bg-neutral-900/40">
+                    <tr key={s.id} className="border-t border-neutral-200 dark:border-neutral-800 hover:bg-white dark:bg-neutral-900/40">
                       <td className="p-2 text-sm">{fmtDate(s.date)}</td>
                       <td className="p-2 text-xs">{s.lookbackDays} hari</td>
-                      <td className="p-2 text-xs text-neutral-400">
+                      <td className="p-2 text-xs text-neutral-500 dark:text-neutral-400">
                         {fmtDateTime(s.generatedAt)}
                       </td>
                       <td className="p-2">
@@ -215,7 +215,7 @@ export default function PrepSheetsPage() {
         </Card>
       </div>
 
-      {detailLoading && <div className="text-neutral-400 text-sm print:hidden">Memuat detail…</div>}
+      {detailLoading && <div className="text-neutral-500 dark:text-neutral-400 text-sm print:hidden">Memuat detail…</div>}
 
       {selected && <PrepSheetView sheet={selected} onPrint={onPrint} />}
     </div>
@@ -269,13 +269,13 @@ function PrepSheetView({
             <h2 className="text-lg font-semibold print:text-xl">
               Prep Sheet — {fmtDate(sheet.date)}
             </h2>
-            <div className="text-xs text-neutral-400 print:text-black">
+            <div className="text-xs text-neutral-500 dark:text-neutral-400 print:text-black">
               Lookback {sheet.lookbackDays} hari •{' '}
               {totalItems} item • Total {totalQty} prep
             </div>
           </div>
           {sheet.notes && (
-            <div className="text-xs italic text-neutral-400 mb-2 print:text-black print:mb-1">
+            <div className="text-xs italic text-neutral-500 dark:text-neutral-400 mb-2 print:text-black print:mb-1">
               Catatan: {sheet.notes}
             </div>
           )}
@@ -305,7 +305,7 @@ function PrepSheetView({
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-neutral-700 print:border-black">
+                <tr className="border-t-2 border-neutral-300 dark:border-neutral-700 print:border-black">
                   <td colSpan={5} className="p-2 text-right font-semibold">
                     Total
                   </td>
@@ -336,7 +336,7 @@ function CategoryGroup({
 }) {
   return (
     <>
-      <tr className="bg-neutral-800/50 print:bg-gray-200">
+      <tr className="bg-neutral-100 dark:bg-neutral-800/50 print:bg-gray-200">
         <td colSpan={7} className="p-2 text-xs font-semibold uppercase tracking-wider print:text-black">
           {category}
         </td>
@@ -344,7 +344,7 @@ function CategoryGroup({
       {items.map((it, i) => (
         <tr
           key={it.menuItemId}
-          className="border-t border-neutral-800 print:border-gray-300"
+          className="border-t border-neutral-200 dark:border-neutral-800 print:border-gray-300"
         >
           <td className="p-2 text-xs text-neutral-500 print:text-black">
             {startIndex + i + 1}
@@ -356,7 +356,7 @@ function CategoryGroup({
           <td className="p-2 text-right font-mono text-xs print:text-black">
             ×{it.dayOfWeekFactor.toFixed(2)}
           </td>
-          <td className="p-2 text-right font-mono text-xs text-neutral-400 print:text-black">
+          <td className="p-2 text-right font-mono text-xs text-neutral-500 dark:text-neutral-400 print:text-black">
             {it.last7DayQty}
           </td>
           <td className="p-2 text-right font-mono text-sm font-semibold print:text-black print:text-base print:border-l print:border-gray-400">

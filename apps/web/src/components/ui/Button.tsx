@@ -12,15 +12,15 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const variants: Record<Variant, string> = {
   primary:
-    'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:bg-red-900 disabled:opacity-60',
+    'bg-red-600 text-neutral-900 dark:text-white hover:bg-red-700 active:bg-red-800 disabled:bg-red-900 disabled:opacity-60',
   secondary:
-    'bg-neutral-800 text-neutral-100 hover:bg-neutral-700 active:bg-neutral-600 disabled:opacity-60',
+    'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-200 dark:hover:bg-neutral-700 active:bg-neutral-300 dark:active:bg-neutral-600 disabled:opacity-60',
   ghost:
-    'bg-transparent text-neutral-200 hover:bg-neutral-800 active:bg-neutral-700 disabled:opacity-60',
+    'bg-transparent text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:bg-neutral-800 active:bg-neutral-300 dark:active:bg-neutral-700 disabled:opacity-60',
   danger:
-    'bg-red-700 text-white hover:bg-red-800 active:bg-red-900 disabled:opacity-60',
+    'bg-red-700 text-neutral-900 dark:text-white hover:bg-red-800 active:bg-red-900 disabled:opacity-60',
   outline:
-    'bg-transparent text-neutral-100 border border-neutral-700 hover:bg-neutral-800 active:bg-neutral-700 disabled:opacity-60',
+    'bg-transparent text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:bg-neutral-800 active:bg-neutral-300 dark:active:bg-neutral-700 disabled:opacity-60',
 };
 
 const sizes: Record<Size, string> = {

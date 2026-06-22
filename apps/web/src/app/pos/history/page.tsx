@@ -48,18 +48,18 @@ export default function HistoryPage() {
   return (
     <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-semibold text-neutral-100">Riwayat Pesanan</h1>
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Riwayat Pesanan</h1>
         <Button size="sm" variant="outline" onClick={refresh}>
           Refresh
         </Button>
       </div>
 
       {loading ? (
-        <div className="text-sm text-neutral-400">Memuat…</div>
+        <div className="text-sm text-neutral-500 dark:text-neutral-400">Memuat…</div>
       ) : orders.length === 0 ? (
         <Card>
           <CardContent>
-            <p className="text-sm text-neutral-400">Belum ada pesanan.</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">Belum ada pesanan.</p>
           </CardContent>
         </Card>
       ) : (
@@ -71,18 +71,18 @@ export default function HistoryPage() {
                 type="button"
                 onClick={() => setSelected(o)}
                 className={cn(
-                  'w-full text-left rounded-lg border bg-neutral-900 hover:bg-neutral-800 transition-colors p-3',
+                  'w-full text-left rounded-lg border bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:bg-neutral-800 transition-colors p-3',
                   selected?.id === o.id
                     ? 'border-red-500'
-                    : 'border-neutral-800 hover:border-neutral-700',
+                    : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:border-neutral-700',
                 )}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-neutral-100">
+                    <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                       {o.orderNumber}
                     </div>
-                    <div className="text-xs text-neutral-400">
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
                       {new Date(o.openedAt).toLocaleString('id-ID')}
                     </div>
                     <div className="text-xs text-neutral-500 mt-0.5">
@@ -92,7 +92,7 @@ export default function HistoryPage() {
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-semibold text-neutral-100">
+                    <div className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                       {formatIDR(o.totalCents)}
                     </div>
                     <Badge tone={STATUS_TONES[o.status] || 'muted'} className="mt-1">
@@ -125,57 +125,57 @@ export default function HistoryPage() {
                     {new Date(selected.openedAt).toLocaleString('id-ID')}
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-neutral-400">Tipe</span>
+                    <span className="text-neutral-500 dark:text-neutral-400">Tipe</span>
                     <span>{TYPE_LABEL[selected.type] || selected.type}</span>
                   </div>
                   {selected.tableNumber && (
                     <div className="flex justify-between">
-                      <span className="text-neutral-400">Meja</span>
+                      <span className="text-neutral-500 dark:text-neutral-400">Meja</span>
                       <span>{selected.tableNumber}</span>
                     </div>
                   )}
                   {selected.customerName && (
                     <div className="flex justify-between">
-                      <span className="text-neutral-400">Pelanggan</span>
+                      <span className="text-neutral-500 dark:text-neutral-400">Pelanggan</span>
                       <span>{selected.customerName}</span>
                     </div>
                   )}
-                  <div className="border-t border-neutral-800 pt-2 mt-2 space-y-1">
+                  <div className="border-t border-neutral-200 dark:border-neutral-800 pt-2 mt-2 space-y-1">
                     {selected.items.map((it) => (
                       <div key={it.id} className="flex justify-between">
-                        <span className="truncate text-neutral-200">
+                        <span className="truncate text-neutral-800 dark:text-neutral-200">
                           {it.quantity}× {it.nameSnapshot}
                         </span>
-                        <span className="text-neutral-300">
+                        <span className="text-neutral-700 dark:text-neutral-300">
                           {formatIDR(it.lineTotalCents)}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <div className="border-t border-neutral-800 pt-2 mt-2 space-y-0.5 text-xs">
-                    <div className="flex justify-between text-neutral-400">
+                  <div className="border-t border-neutral-200 dark:border-neutral-800 pt-2 mt-2 space-y-0.5 text-xs">
+                    <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
                       <span>Subtotal</span>
                       <span>{formatIDR(selected.subtotalCents)}</span>
                     </div>
-                    <div className="flex justify-between text-neutral-400">
+                    <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
                       <span>Pajak</span>
                       <span>{formatIDR(selected.taxCents)}</span>
                     </div>
                     {selected.discountCents > 0 && (
-                      <div className="flex justify-between text-neutral-400">
+                      <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
                         <span>Diskon</span>
                         <span>-{formatIDR(selected.discountCents)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-sm font-semibold text-neutral-100 pt-1">
+                    <div className="flex justify-between text-sm font-semibold text-neutral-900 dark:text-neutral-100 pt-1">
                       <span>Total</span>
                       <span>{formatIDR(selected.totalCents)}</span>
                     </div>
                   </div>
                   {selected.payments && selected.payments.length > 0 && (
-                    <div className="border-t border-neutral-800 pt-2 mt-2 space-y-1 text-xs">
+                    <div className="border-t border-neutral-200 dark:border-neutral-800 pt-2 mt-2 space-y-1 text-xs">
                       {selected.payments.map((p) => (
-                        <div key={p.id} className="flex justify-between text-neutral-400">
+                        <div key={p.id} className="flex justify-between text-neutral-500 dark:text-neutral-400">
                           <span>
                             {p.provider} · {p.status}
                           </span>
@@ -189,7 +189,7 @@ export default function HistoryPage() {
             ) : (
               <Card>
                 <CardContent>
-                  <p className="text-sm text-neutral-400">Pilih pesanan untuk detail.</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Pilih pesanan untuk detail.</p>
                 </CardContent>
               </Card>
             )}

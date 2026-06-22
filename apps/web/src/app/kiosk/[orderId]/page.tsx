@@ -63,7 +63,7 @@ function formatIDR(cents: number): string {
 export default function KioskOrderStatusPage() {
   return (
     <Suspense fallback={
-      <main className="min-h-screen flex items-center justify-center text-neutral-400 text-lg">
+      <main className="min-h-screen flex items-center justify-center text-neutral-500 dark:text-neutral-400 text-lg">
         Memuat…
       </main>
     }>
@@ -118,11 +118,11 @@ function KioskOrderStatusContent() {
       <main className="min-h-screen flex items-center justify-center p-6 text-center">
         <div>
           <div className="text-6xl mb-3">⚠️</div>
-          <p className="text-lg text-neutral-300">{error}</p>
+          <p className="text-lg text-neutral-700 dark:text-neutral-300">{error}</p>
           <button
             type="button"
             onClick={() => router.push('/kiosk')}
-            className="mt-6 h-12 px-6 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold"
+            className="mt-6 h-12 px-6 rounded-xl bg-red-600 hover:bg-red-500 text-neutral-900 dark:text-white font-semibold"
           >
             Kembali ke Menu
           </button>
@@ -133,7 +133,7 @@ function KioskOrderStatusContent() {
 
   if (!order) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-neutral-400 text-lg">
+      <main className="min-h-screen flex items-center justify-center text-neutral-500 dark:text-neutral-400 text-lg">
         Memuat pesanan…
       </main>
     );
@@ -143,12 +143,12 @@ function KioskOrderStatusContent() {
   const isClosed = order.status === 'CANCELLED' || order.status === 'VOIDED' || order.status === 'REFUNDED';
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-4 sm:p-6 flex flex-col">
+    <main className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 p-4 sm:p-6 flex flex-col">
       <header className="max-w-xl w-full mx-auto">
         <button
           type="button"
           onClick={() => router.push('/kiosk')}
-          className="h-10 px-4 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-sm"
+          className="h-10 px-4 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-sm"
         >
           ← Menu Utama
         </button>
@@ -161,7 +161,7 @@ function KioskOrderStatusContent() {
         <div className="mt-4 flex justify-center">
           <span
             className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border ${
-              STATUS_TONE[order.status] ?? 'bg-neutral-800 text-neutral-300 border-neutral-700'
+              STATUS_TONE[order.status] ?? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700'
             }`}
           >
             {STATUS_LABEL[order.status] ?? order.status}
@@ -187,8 +187,8 @@ function KioskOrderStatusContent() {
         ) : null}
       </header>
 
-      <section className="max-w-xl w-full mx-auto mt-6 bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-neutral-400 mb-2">Detail Pesanan</h2>
+      <section className="max-w-xl w-full mx-auto mt-6 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-4">
+        <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 mb-2">Detail Pesanan</h2>
         <ul className="divide-y divide-neutral-800">
           {order.items.map((it) => (
             <li key={it.id} className="py-2 flex justify-between gap-3">
@@ -196,19 +196,19 @@ function KioskOrderStatusContent() {
                 <span className="text-neutral-500 mr-1">{it.quantity}×</span>
                 {it.nameSnapshot}
               </span>
-              <span className="text-neutral-300 whitespace-nowrap">
+              <span className="text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
                 {formatIDR(it.lineTotalCents)}
               </span>
             </li>
           ))}
         </ul>
-        <div className="border-t border-neutral-800 mt-2 pt-3 space-y-1 text-sm">
-          <div className="flex justify-between text-neutral-400">
+        <div className="border-t border-neutral-200 dark:border-neutral-800 mt-2 pt-3 space-y-1 text-sm">
+          <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
             <span>Subtotal</span>
             <span>{formatIDR(order.subtotalCents)}</span>
           </div>
           {order.taxCents > 0 ? (
-            <div className="flex justify-between text-neutral-400">
+            <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
               <span>PPN</span>
               <span>{formatIDR(order.taxCents)}</span>
             </div>

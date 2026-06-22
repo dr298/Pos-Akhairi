@@ -168,8 +168,8 @@ export default function ShiftHistoryPage() {
     <div className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-lg font-semibold text-neutral-100">Histori Sesi Kasir</h1>
-          <p className="text-xs text-neutral-400 mt-0.5">
+          <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Histori Sesi Kasir</h1>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
             Daftar sesi buka/tutup shift kasir. Klik baris untuk lihat detail.
           </p>
         </div>
@@ -182,24 +182,24 @@ export default function ShiftHistoryPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3">
           <div className="text-[10px] uppercase tracking-wide text-neutral-500">Total sesi</div>
           <div className="text-lg font-semibold tabular-nums mt-0.5">{visibleShifts.length}</div>
         </div>
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3">
           <div className="text-[10px] uppercase tracking-wide text-neutral-500">Tutup</div>
           <div className="text-lg font-semibold tabular-nums mt-0.5 text-emerald-400">{stats.closed}</div>
         </div>
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3">
           <div className="text-[10px] uppercase tracking-wide text-neutral-500">Masih buka</div>
           <div className="text-lg font-semibold tabular-nums mt-0.5 text-amber-400">{stats.open}</div>
         </div>
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+        <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3">
           <div className="text-[10px] uppercase tracking-wide text-neutral-500">Total selisih kas</div>
           <div
             className={`text-lg font-semibold tabular-nums mt-0.5 ${
               stats.totalVariance === 0
-                ? 'text-neutral-200'
+                ? 'text-neutral-800 dark:text-neutral-200'
                 : stats.totalVariance > 0
                 ? 'text-emerald-400'
                 : 'text-red-400'
@@ -220,7 +220,7 @@ export default function ShiftHistoryPage() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-neutral-400 mb-1 block" htmlFor="from">Dari</label>
+              <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block" htmlFor="from">Dari</label>
               <Input
                 id="from"
                 type="date"
@@ -230,7 +230,7 @@ export default function ShiftHistoryPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-neutral-400 mb-1 block" htmlFor="to">Sampai</label>
+              <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block" htmlFor="to">Sampai</label>
               <Input
                 id="to"
                 type="date"
@@ -241,12 +241,12 @@ export default function ShiftHistoryPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-neutral-400 mb-1 block" htmlFor="status">Status</label>
+              <label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block" htmlFor="status">Status</label>
               <select
                 id="status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as '' | 'OPEN' | 'CLOSED')}
-                className="w-full h-9 rounded-md border border-neutral-700 bg-neutral-900 text-sm text-neutral-100 px-2"
+                className="w-full h-9 rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-sm text-neutral-900 dark:text-neutral-100 px-2"
               >
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -286,7 +286,7 @@ export default function ShiftHistoryPage() {
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="w-full text-sm min-w-[760px]">
                 <thead>
-                  <tr className="text-left text-[10px] uppercase tracking-wide text-neutral-500 border-b border-neutral-800">
+                  <tr className="text-left text-[10px] uppercase tracking-wide text-neutral-500 border-b border-neutral-200 dark:border-neutral-800">
                     <th className="px-3 py-2 font-medium">Kasir</th>
                     <th className="px-3 py-2 font-medium">Buka</th>
                     <th className="px-3 py-2 font-medium">Tutup</th>
@@ -305,20 +305,20 @@ export default function ShiftHistoryPage() {
                       <tr
                         key={s.id}
                         onClick={() => openDetail(s.id)}
-                        className="border-b border-neutral-800/60 hover:bg-neutral-800/40 cursor-pointer"
+                        className="border-b border-neutral-200 dark:border-neutral-800/60 hover:bg-neutral-100 dark:bg-neutral-800/40 cursor-pointer"
                       >
-                        <td className="px-3 py-2 text-neutral-200">
+                        <td className="px-3 py-2 text-neutral-800 dark:text-neutral-200">
                           <div className="font-medium">{s.user?.name ?? s.userId.slice(0, 8)}</div>
                           <div className="text-[10px] text-neutral-500">{s.user?.email}</div>
                         </td>
-                        <td className="px-3 py-2 text-neutral-300 whitespace-nowrap">{fmtDateTime(s.openedAt)}</td>
-                        <td className="px-3 py-2 text-neutral-300 whitespace-nowrap">
+                        <td className="px-3 py-2 text-neutral-700 dark:text-neutral-300 whitespace-nowrap">{fmtDateTime(s.openedAt)}</td>
+                        <td className="px-3 py-2 text-neutral-700 dark:text-neutral-300 whitespace-nowrap">
                           {s.closedAt ? fmtDateTime(s.closedAt) : '—'}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-neutral-300">
+                        <td className="px-3 py-2 text-right tabular-nums text-neutral-700 dark:text-neutral-300">
                           {formatIDR(s.openingCents)}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-neutral-300">
+                        <td className="px-3 py-2 text-right tabular-nums text-neutral-700 dark:text-neutral-300">
                           {s.closingCents != null ? formatIDR(s.closingCents) : '—'}
                         </td>
                         <td
@@ -326,7 +326,7 @@ export default function ShiftHistoryPage() {
                             s.status === 'OPEN'
                               ? 'text-neutral-500'
                               : v === 0
-                              ? 'text-neutral-300'
+                              ? 'text-neutral-700 dark:text-neutral-300'
                               : v > 0
                               ? 'text-emerald-400'
                               : 'text-red-400'
@@ -338,7 +338,7 @@ export default function ShiftHistoryPage() {
                             ? 'Selaras'
                             : `${v > 0 ? '+' : ''}${formatIDR(v)}`}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-neutral-400">
+                        <td className="px-3 py-2 text-right tabular-nums text-neutral-500 dark:text-neutral-400">
                           {s.closedAt ? durLabel(dur) : '…'}
                         </td>
                         <td className="px-3 py-2">
@@ -379,28 +379,28 @@ export default function ShiftHistoryPage() {
               <div className="space-y-4">
                 {/* Summary cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <div className="rounded-md border border-neutral-800 bg-neutral-900 p-2.5">
+                  <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-neutral-500">Modal</div>
                     <div className="text-sm font-semibold tabular-nums mt-0.5">{formatIDR(detail.openingCents)}</div>
                   </div>
-                  <div className="rounded-md border border-neutral-800 bg-neutral-900 p-2.5">
+                  <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-neutral-500">Kas akhir</div>
                     <div className="text-sm font-semibold tabular-nums mt-0.5">
                       {detail.closingCents != null ? formatIDR(detail.closingCents) : '—'}
                     </div>
                   </div>
-                  <div className="rounded-md border border-neutral-800 bg-neutral-900 p-2.5">
+                  <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-neutral-500">Ekspektasi</div>
                     <div className="text-sm font-semibold tabular-nums mt-0.5">
                       {detail.expectedCents != null ? formatIDR(detail.expectedCents) : '—'}
                     </div>
                   </div>
-                  <div className="rounded-md border border-neutral-800 bg-neutral-900 p-2.5">
+                  <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-2.5">
                     <div className="text-[10px] uppercase tracking-wide text-neutral-500">Selisih</div>
                     <div
                       className={`text-sm font-semibold tabular-nums mt-0.5 ${
                         (detail.varianceCents ?? 0) === 0
-                          ? 'text-neutral-200'
+                          ? 'text-neutral-800 dark:text-neutral-200'
                           : (detail.varianceCents ?? 0) > 0
                           ? 'text-emerald-400'
                           : 'text-red-400'
@@ -416,45 +416,45 @@ export default function ShiftHistoryPage() {
                 </div>
 
                 {/* Time + status */}
-                <div className="rounded-md border border-neutral-800 bg-neutral-900 p-3 text-xs space-y-1">
+                <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-xs space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-neutral-400">Dibuka</span>
-                    <span className="text-neutral-200">{fmtDateTime(detail.openedAt)}</span>
+                    <span className="text-neutral-500 dark:text-neutral-400">Dibuka</span>
+                    <span className="text-neutral-800 dark:text-neutral-200">{fmtDateTime(detail.openedAt)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-neutral-400">Ditutup</span>
-                    <span className="text-neutral-200">{detail.closedAt ? fmtDateTime(detail.closedAt) : '— (masih buka)'}</span>
+                    <span className="text-neutral-500 dark:text-neutral-400">Ditutup</span>
+                    <span className="text-neutral-800 dark:text-neutral-200">{detail.closedAt ? fmtDateTime(detail.closedAt) : '— (masih buka)'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-neutral-400">Durasi</span>
-                    <span className="text-neutral-200">
+                    <span className="text-neutral-500 dark:text-neutral-400">Durasi</span>
+                    <span className="text-neutral-800 dark:text-neutral-200">
                       {detail.closedAt
                         ? durLabel(durationMin(detail.openedAt, detail.closedAt))
                         : '—'}
                     </span>
                   </div>
                   {detail.notes && (
-                    <div className="flex justify-between gap-3 pt-1 border-t border-neutral-800">
-                      <span className="text-neutral-400">Catatan</span>
-                      <span className="text-neutral-200 text-right">{detail.notes}</span>
+                    <div className="flex justify-between gap-3 pt-1 border-t border-neutral-200 dark:border-neutral-800">
+                      <span className="text-neutral-500 dark:text-neutral-400">Catatan</span>
+                      <span className="text-neutral-800 dark:text-neutral-200 text-right">{detail.notes}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Orders */}
                 <div>
-                  <div className="text-xs font-medium text-neutral-300 mb-2">
+                  <div className="text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                     Order ({detail.orders?.length ?? 0})
                   </div>
                   {!detail.orders || detail.orders.length === 0 ? (
-                    <div className="rounded-md border border-neutral-800 bg-neutral-900 p-3 text-xs text-neutral-500 text-center">
+                    <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-xs text-neutral-500 text-center">
                       Belum ada order pada sesi ini.
                     </div>
                   ) : (
-                    <div className="rounded-md border border-neutral-800 bg-neutral-900 overflow-hidden">
+                    <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="text-left text-[10px] uppercase tracking-wide text-neutral-500 border-b border-neutral-800">
+                          <tr className="text-left text-[10px] uppercase tracking-wide text-neutral-500 border-b border-neutral-200 dark:border-neutral-800">
                             <th className="px-2 py-1.5 font-medium">No</th>
                             <th className="px-2 py-1.5 font-medium">Tipe</th>
                             <th className="px-2 py-1.5 font-medium">Status</th>
@@ -464,18 +464,18 @@ export default function ShiftHistoryPage() {
                         </thead>
                         <tbody>
                           {detail.orders.map((o) => (
-                            <tr key={o.id} className="border-b border-neutral-800/40 last:border-0">
-                              <td className="px-2 py-1.5 text-neutral-200 font-medium">{o.orderNumber}</td>
-                              <td className="px-2 py-1.5 text-neutral-400">{o.type}</td>
+                            <tr key={o.id} className="border-b border-neutral-200 dark:border-neutral-800/40 last:border-0">
+                              <td className="px-2 py-1.5 text-neutral-800 dark:text-neutral-200 font-medium">{o.orderNumber}</td>
+                              <td className="px-2 py-1.5 text-neutral-500 dark:text-neutral-400">{o.type}</td>
                               <td className="px-2 py-1.5">
                                 <Badge tone={o.status === 'PAID' ? 'success' : o.status === 'VOIDED' ? 'danger' : 'muted'}>
                                   {o.status}
                                 </Badge>
                               </td>
-                              <td className="px-2 py-1.5 text-neutral-400">
+                              <td className="px-2 py-1.5 text-neutral-500 dark:text-neutral-400">
                                 {o.items?.length ?? 0} item
                               </td>
-                              <td className="px-2 py-1.5 text-right tabular-nums text-neutral-200">
+                              <td className="px-2 py-1.5 text-right tabular-nums text-neutral-800 dark:text-neutral-200">
                                 {formatIDR(o.totalCents)}
                               </td>
                             </tr>

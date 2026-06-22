@@ -87,7 +87,7 @@ export function MenuGrid({ onAdd }: Props) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-neutral-400 text-sm">
+      <div className="flex items-center justify-center h-full text-neutral-500 dark:text-neutral-400 text-sm">
         Memuat menu…
       </div>
     );
@@ -101,7 +101,7 @@ export function MenuGrid({ onAdd }: Props) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cari menu…"
-          className="flex h-10 w-full max-w-xs rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500/60"
+          className="flex h-10 w-full max-w-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500/60"
         />
       </div>
       <Tabs value={activeCat} onValueChange={setActiveCat} className="flex flex-col h-full">

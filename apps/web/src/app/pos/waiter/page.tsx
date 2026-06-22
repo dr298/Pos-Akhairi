@@ -48,7 +48,7 @@ const STATUS_BG: Record<string, string> = {
   AVAILABLE: 'bg-emerald-900/40 border-emerald-700/60 hover:bg-emerald-900/60',
   OCCUPIED: 'bg-amber-900/40 border-amber-700/60 hover:bg-amber-900/60',
   RESERVED: 'bg-blue-900/40 border-blue-700/60 hover:bg-blue-900/60',
-  CLEANING: 'bg-neutral-800 border-neutral-700 hover:bg-neutral-700',
+  CLEANING: 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-700',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -77,7 +77,7 @@ function shortDuration(fromIso: string): string {
 export default function WaiterPage() {
   return (
     <Suspense fallback={
-      <div className="flex-1 p-6 text-neutral-400 text-sm">Memuat…</div>
+      <div className="flex-1 p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat…</div>
     }>
       <WaiterPageContent />
     </Suspense>
@@ -155,7 +155,7 @@ function WaiterPageContent() {
   }
 
   if (!user) {
-    return <div className="flex-1 p-6 text-neutral-400 text-sm">Memuat sesi…</div>;
+    return <div className="flex-1 p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat sesi…</div>;
   }
 
   return (
@@ -163,7 +163,7 @@ function WaiterPageContent() {
       <div className="p-3 sm:p-4 max-w-3xl mx-auto w-full space-y-3 flex-1">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h1 className="text-lg font-semibold text-neutral-100">Waiter Handheld</h1>
+            <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Waiter Handheld</h1>
             <p className="text-xs text-neutral-500">
               Kelola meja &amp; buat pesanan. Tap meja untuk lihat detail.
             </p>
@@ -171,7 +171,7 @@ function WaiterPageContent() {
           <button
             type="button"
             onClick={() => void refresh()}
-            className="h-9 px-3 text-xs text-neutral-300 bg-neutral-900 border border-neutral-800 rounded-md hover:bg-neutral-800"
+            className="h-9 px-3 text-xs text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md hover:bg-neutral-100 dark:bg-neutral-800"
             aria-label="Refresh"
           >
             ↻ Refresh
@@ -191,8 +191,8 @@ function WaiterPageContent() {
                 className={cn(
                   'h-9 px-3 text-xs rounded-md border shrink-0',
                   active
-                    ? 'bg-red-600 text-white border-red-600'
-                    : 'bg-neutral-900 text-neutral-300 border-neutral-800 hover:bg-neutral-800',
+                    ? 'bg-red-600 text-neutral-900 dark:text-white border-red-600'
+                    : 'bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:bg-neutral-800',
                 )}
               >
                 {s === 'ALL' ? 'Semua' : STATUS_LABEL[s]} <span className="opacity-70">({n})</span>
@@ -203,11 +203,11 @@ function WaiterPageContent() {
 
         {/* Table grid */}
         {loading ? (
-          <div className="text-sm text-neutral-400 py-8 text-center">Memuat meja…</div>
+          <div className="text-sm text-neutral-500 dark:text-neutral-400 py-8 text-center">Memuat meja…</div>
         ) : filtered.length === 0 ? (
           <Card>
             <CardContent>
-              <div className="text-sm text-neutral-400 py-6 text-center">
+              <div className="text-sm text-neutral-500 dark:text-neutral-400 py-6 text-center">
                 {tables.length === 0
                   ? 'Belum ada meja. Manager bisa menambahkannya dari menu pengaturan.'
                   : 'Tidak ada meja dengan status ini.'}
@@ -229,16 +229,16 @@ function WaiterPageContent() {
                 }}
                 className={cn(
                   'relative rounded-lg border p-3 text-left transition-colors min-h-[88px]',
-                  STATUS_BG[t.status] ?? 'bg-neutral-900 border-neutral-800',
+                  STATUS_BG[t.status] ?? 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800',
                 )}
               >
                 <div className="flex items-start justify-between gap-1">
-                  <div className="text-base font-semibold text-neutral-100">#{t.number}</div>
+                  <div className="text-base font-semibold text-neutral-900 dark:text-neutral-100">#{t.number}</div>
                   <Badge tone={STATUS_TONE[t.status] ?? 'default'} className="text-[10px]">
                     {STATUS_LABEL[t.status] ?? t.status}
                   </Badge>
                 </div>
-                <div className="text-[11px] text-neutral-400 mt-1">
+                <div className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
                   {t.area ? `${t.area} · ` : ''}Kapasitas {t.capacity}
                 </div>
                 {t.currentSession ? (
@@ -292,19 +292,19 @@ function OpenTableDialog({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/60 flex items-end sm:items-center justify-center p-3">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-lg w-full max-w-md p-4 space-y-3">
+    <div className="fixed inset-0 z-40 bg-white dark:bg-black/60 flex items-end sm:items-center justify-center p-3">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg w-full max-w-md p-4 space-y-3">
         <div>
-          <div className="text-base font-semibold text-neutral-100">Buka Meja #{table.number}</div>
+          <div className="text-base font-semibold text-neutral-900 dark:text-neutral-100">Buka Meja #{table.number}</div>
           <div className="text-xs text-neutral-500">Kapasitas {table.capacity}</div>
         </div>
         <div>
-          <label className="block text-xs text-neutral-400 mb-1">Jumlah tamu</label>
+          <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Jumlah tamu</label>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setPartySize((n) => Math.max(1, n - 1))}
-              className="h-9 w-9 rounded bg-neutral-800 text-neutral-100 text-lg"
+              className="h-9 w-9 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-lg"
             >
               −
             </button>
@@ -314,19 +314,19 @@ function OpenTableDialog({
               max={50}
               value={partySize}
               onChange={(e) => setPartySize(Math.max(1, Math.min(50, parseInt(e.target.value || '1', 10))))}
-              className="h-9 w-16 text-center bg-neutral-800 text-neutral-100 rounded border border-neutral-700"
+              className="h-9 w-16 text-center bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded border border-neutral-300 dark:border-neutral-700"
             />
             <button
               type="button"
               onClick={() => setPartySize((n) => Math.min(50, n + 1))}
-              className="h-9 w-9 rounded bg-neutral-800 text-neutral-100 text-lg"
+              className="h-9 w-9 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-lg"
             >
               +
             </button>
           </div>
         </div>
         <div>
-          <label className="block text-xs text-neutral-400 mb-1">Nama tamu (opsional)</label>
+          <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Nama tamu (opsional)</label>
           <Input
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
@@ -334,7 +334,7 @@ function OpenTableDialog({
           />
         </div>
         <div>
-          <label className="block text-xs text-neutral-400 mb-1">Catatan (opsional)</label>
+          <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">Catatan (opsional)</label>
           <Input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -405,12 +405,12 @@ function SessionSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/70 flex items-stretch sm:items-center sm:justify-center">
-      <div className="bg-neutral-950 border-l border-neutral-800 w-full sm:max-w-md sm:w-full flex flex-col h-full">
+    <div className="fixed inset-0 z-40 bg-white dark:bg-black/70 flex items-stretch sm:items-center sm:justify-center">
+      <div className="bg-neutral-50 dark:bg-neutral-950 border-l border-neutral-200 dark:border-neutral-800 w-full sm:max-w-md sm:w-full flex flex-col h-full">
         {/* Header */}
-        <div className="p-3 border-b border-neutral-800 flex items-start justify-between gap-2">
+        <div className="p-3 border-b border-neutral-200 dark:border-neutral-800 flex items-start justify-between gap-2">
           <div>
-            <div className="text-base font-semibold text-neutral-100">Meja #{table.number}</div>
+            <div className="text-base font-semibold text-neutral-900 dark:text-neutral-100">Meja #{table.number}</div>
             <div className="text-xs text-neutral-500">
               {session.partySize} tamu · buka {shortTime(session.openedAt)} ({shortDuration(session.openedAt)})
             </div>
@@ -418,7 +418,7 @@ function SessionSheet({
           <button
             type="button"
             onClick={onClose}
-            className="h-9 w-9 rounded bg-neutral-800 text-neutral-100"
+            className="h-9 w-9 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
             aria-label="Tutup panel"
           >
             ✕
@@ -430,7 +430,7 @@ function SessionSheet({
           {order ? (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <div className="text-xs text-neutral-400">Order #{order.orderNumber}</div>
+                <div className="text-xs text-neutral-500 dark:text-neutral-400">Order #{order.orderNumber}</div>
                 <Badge tone="warning">OPEN</Badge>
               </div>
               {order.items.length === 0 ? (
@@ -444,28 +444,28 @@ function SessionSheet({
                       key={it.id}
                       className="flex items-center justify-between text-sm py-1.5 border-b border-neutral-900"
                     >
-                      <span className="text-neutral-200 truncate">
+                      <span className="text-neutral-800 dark:text-neutral-200 truncate">
                         {it.quantity}× {it.nameSnapshot}
                         {it.notes ? (
                           <span className="text-[10px] text-neutral-500 ml-1">({it.notes})</span>
                         ) : null}
                       </span>
-                      <span className="text-neutral-400 ml-2 shrink-0">
+                      <span className="text-neutral-500 dark:text-neutral-400 ml-2 shrink-0">
                         {formatIDR(it.lineTotalCents)}
                       </span>
                     </li>
                   ))}
                 </ul>
               )}
-              <div className="flex items-center justify-between text-sm font-semibold pt-2 border-t border-neutral-800">
+              <div className="flex items-center justify-between text-sm font-semibold pt-2 border-t border-neutral-200 dark:border-neutral-800">
                 <span>Subtotal</span>
-                <span className="text-neutral-300">{formatIDR(order.subtotalCents)}</span>
+                <span className="text-neutral-700 dark:text-neutral-300">{formatIDR(order.subtotalCents)}</span>
               </div>
-              <div className="flex items-center justify-between text-xs text-neutral-400">
+              <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
                 <span>PPN</span>
                 <span>{formatIDR(order.taxCents)}</span>
               </div>
-              <div className="flex items-center justify-between text-base font-semibold pt-1 border-t border-neutral-800">
+              <div className="flex items-center justify-between text-base font-semibold pt-1 border-t border-neutral-200 dark:border-neutral-800">
                 <span>Total</span>
                 <span className="text-red-400">{formatIDR(order.totalCents)}</span>
               </div>
@@ -476,11 +476,11 @@ function SessionSheet({
         </div>
 
         {/* Actions */}
-        <div className="p-3 border-t border-neutral-800 space-y-2">
+        <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
           {order ? (
             <Link
               href={`/pos/orders/${order.id}`}
-              className="block w-full h-11 text-sm font-semibold bg-red-600 text-white rounded-md hover:bg-red-500 inline-flex items-center justify-center"
+              className="block w-full h-11 text-sm font-semibold bg-red-600 text-neutral-900 dark:text-white rounded-md hover:bg-red-500 inline-flex items-center justify-center"
             >
               ➕ Tambah Item / Bayar
             </Link>
@@ -492,7 +492,7 @@ function SessionSheet({
                 onUpdated();
                 void refreshOrder();
               }}
-              className="h-10 text-sm bg-neutral-800 text-neutral-100 rounded-md hover:bg-neutral-700"
+              className="h-10 text-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700"
             >
               ↻ Refresh
             </button>
@@ -500,7 +500,7 @@ function SessionSheet({
               type="button"
               disabled={busy}
               onClick={onCloseTable}
-              className="h-10 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-500 disabled:opacity-50"
+              className="h-10 text-sm bg-amber-600 text-neutral-900 dark:text-white rounded-md hover:bg-amber-500 disabled:opacity-50"
             >
               Tutup Meja
             </button>

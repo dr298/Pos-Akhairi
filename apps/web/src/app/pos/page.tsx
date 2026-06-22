@@ -325,7 +325,7 @@ export default function PosPage() {
       <div className="p-3 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-base font-semibold text-neutral-100">Menu</h1>
+            <h1 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">Menu</h1>
             {shiftLoading ? (
               <Badge tone="muted">Cek shift…</Badge>
             ) : shift ? (
