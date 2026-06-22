@@ -243,6 +243,17 @@ model OrderItem {
   status         OrderStatus @default(OPEN)
   modifiersJson  Json?       @map("modifiers_json")
   lineTotalCents Int         @map("line_total_cents")
+  // FIFO-locked HPP snapshot. Computed once at payment-finalize time from
+  // the oldest-available InventoryBatch rows for this menu item's recipe.
+  // Stays constant for the lifetime of the order even if the current HPP
+  // changes due to subsequent inventory movements. NULL for legacy orders
+  // (paid before this column existed).
+  hppCentsUsed   Int?        @map("hpp_cents_used")
+  // Audit trail of which batches were consumed to fulfill this line item.
+  // Shape: [{ batchId, qty, costPerUnit, inventoryItemId }, ...]
+  // Lets the owner trace "where did this order's cost come from?" down
+  // to the original PO/supplier.
+  batchConsumptions Json?    @map("batch_consumptions")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
@@ -356,9 +367,53 @@ model InventoryItem {
 
   logs        InventoryLog[]
   recipes     Recipe[]
+  batches     InventoryBatch[]
+
   @@map("inventory_items")
 }
 
+// InventoryBatch — FIFO costing layer.
+//
+// Every time stock arrives (PO receive, manual adjustment, opening
+// balance) we create a batch row. Consumption order is FIFO by
+// `receivedAt` ascending. Each batch carries its own `costPerUnit` so
+// the HPP engine can compute `MenuItem.costCents` from the current
+// oldest-available batch at recipe-consumption time.
+//
+// `qtyRemaining` decrements as orders consume stock; once it hits 0 the
+// batch is "closed" and the recalc engine rolls to the next batch.
+model InventoryBatch {
+  id              String   @id @default(cuid())
+  inventoryItemId String   @map("inventory_item_id")
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  // Source of the batch. NULL for opening-balance / migration backfill.
+  purchaseOrderId String?  @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  supplierId      String?  @map("supplier_id")
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+
+  // Quantity state. `qtyReceived` is immutable; `qtyRemaining` decrements
+  // as orders consume. When consumed via partial sale we record the actual
+  // cost basis in OrderItem.batchConsumptions for audit.
+  qtyReceived  Decimal  @map("qty_received") @db.Decimal(12, 4)
+  qtyRemaining Decimal  @map("qty_remaining") @db.Decimal(12, 4)
+  costPerUnit  Decimal  @map("cost_per_unit") @db.Decimal(12, 4)
+
+  // Free-form context. e.g. "Opening balance", "PO-2026-06-20-0001".
+  note         String?
+
+  receivedAt   DateTime @default(now()) @map("received_at")
+  closedAt     DateTime? @map("closed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([inventoryItemId, receivedAt])
+  @@index([purchaseOrderId])
+  @@index([supplierId])
+  @@index([closedAt])
+  @@map("inventory_batches")
+}
 model InventoryLog {
   id              String                @id @default(cuid())
   inventoryItemId String                @map("inventory_item_id")
@@ -876,6 +931,7 @@ model Supplier {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   purchaseOrders PurchaseOrder[]
+  inventoryBatches InventoryBatch[]
 
   @@map("suppliers")
 }
@@ -921,6 +977,7 @@ model PurchaseOrder {
   updatedAt     DateTime            @updatedAt @map("updated_at")
 
   items PurchaseOrderItem[]
+  inventoryBatches InventoryBatch[]
 
   @@index([supplierId])
   @@map("purchase_orders")

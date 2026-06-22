@@ -4,6 +4,11 @@ import { logger } from '../logger.js';
 import { wsBus } from '../lib/ws-bus.js';
 import { applyOnPayment } from './loyalty.js';
 import { dispatch as dispatchReceipt } from './receipt-delivery.js';
+import {
+  computeAndSnapshotForOrderItem,
+  restoreToBatches,
+  enqueueRecalcForInventoryItem,
+} from './hpp-recalculator.js';
 
 export type FinalizeProvider = 'CASH' | 'MIDTRANS' | 'XENDIT';
 export type FinalizeMethod = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET';
@@ -83,43 +88,72 @@ export async function finalizeOrderPayment(input: FinalizeInput): Promise<Finali
   const lowStockAlerts: LowStockAlert[] = [];
 
   const result = await prisma.$transaction(async (tx) => {
-    // 1. Decrement inventory per recipe
+    // 1. Consume inventory per recipe using FIFO batches + snapshot
+    //    the per-order HPP for audit / margin reporting. The
+    //    `consumeFromBatches` call also handles the per-ingredient
+    //    shortfall error (when a batch is exhausted) and the
+    //    `computeAndSnapshotForOrderItem` helper writes the locked
+    //    HPP value to OrderItem.hppCentsUsed plus the
+    //    batchConsumptions audit trail.
     for (const item of order.items) {
       const recipes = item.menuItem?.recipes ?? [];
-      for (const recipe of recipes) {
-        // Decimal arithmetic: per-unit quantity * ordered quantity.
-        // We use Prisma's Decimal to keep precision, then convert at the
-        // boundary. InventoryItem.quantity is Decimal(12,4).
-        const perUnit = new Prisma.Decimal(recipe.quantity as unknown as string);
-        const orderQty = new Prisma.Decimal(item.quantity);
-        const total = perUnit.mul(orderQty);
+      if (recipes.length === 0) {
+        // No recipe — still snapshot, fall back to MenuItem.costCents
+        // in the helper. Don't fail the order; legacy items just
+        // contribute zero HPP and the report flags them.
+        await computeAndSnapshotForOrderItem(tx, item.id, item.menuItemId, item.quantity);
+        continue;
+      }
 
-        // Conditional update: only succeeds if the new stock is non-negative.
-        // Prisma 5.x doesn't expose `>=` directly on update, so we use
-        // raw for the stock check, then update by id.
-        const inv = await tx.inventoryItem.findUnique({ where: { id: recipe.inventoryItemId } });
-        if (!inv) {
-          throw new Error(
-            `Inventory item ${recipe.inventoryItemId} missing for recipe ${recipe.id}`
-          );
+      // Compute HPP + write the locked snapshot in one shot. The
+      // helper also drives the per-ingredient FIFO consumption.
+      const result = await computeAndSnapshotForOrderItem(
+        tx,
+        item.id,
+        item.menuItemId,
+        item.quantity,
+      );
+      if (result.shortfall) {
+        // Stock ran out mid-recipe. Surface the same hard error the
+        // legacy code did — better to fail the order than to ship a
+        // dish with no record of cost.
+        throw new Error(
+          `Insufficient stock for ${item.nameSnapshot} (order ${order.orderNumber})`,
+        );
+      }
+
+      // Mirror batch consumption back to InventoryItem.quantity +
+      // InventoryLog for backward-compat with the pre-batch
+      // reporting/UI. The authoritative stock is the sum of
+      // InventoryBatch.qtyRemaining, but other parts of the app still
+      // read InventoryItem.quantity directly.
+      const perInv = new Map<string, { qty: number; costPerUnit: number; batches: number }>();
+      for (const c of result.consumptions) {
+        const prev = perInv.get(c.inventoryItemId);
+        if (prev) {
+          prev.qty += c.qty;
+          prev.costPerUnit = c.costPerUnit; // weighted by consumption, simplified
+          prev.batches += 1;
+        } else {
+          perInv.set(c.inventoryItemId, { qty: c.qty, costPerUnit: c.costPerUnit, batches: 1 });
         }
-        const current = new Prisma.Decimal(inv.quantity as unknown as string);
-        const next = current.minus(total);
-        if (next.lt(0)) {
-          throw new Error(
-            `Insufficient stock for ${inv.name}: have ${current.toString()} ${inv.unit}, ` +
-              `need ${total.toString()} ${inv.unit}`
-          );
-        }
+      }
+      for (const [invId, agg] of perInv.entries()) {
+        const totalRemaining = await tx.inventoryBatch.aggregate({
+          where: { inventoryItemId: invId, qtyRemaining: { gt: 0 } },
+          _sum: { qtyRemaining: true },
+        });
+        const sum = totalRemaining._sum.qtyRemaining ?? new Prisma.Decimal(0);
         await tx.inventoryItem.update({
-          where: { id: inv.id },
-          data: { quantity: next },
+          where: { id: invId },
+          data: { quantity: sum },
         });
         await tx.inventoryLog.create({
           data: {
-            inventoryItemId: inv.id,
+            inventoryItemId: invId,
             type: 'USAGE',
-            quantity: total,
+            quantity: new Prisma.Decimal(agg.qty),
+            unitCostCents: Math.round(agg.costPerUnit),
             reason: `Order ${order.orderNumber}`,
             reference: order.id,
           },
@@ -163,6 +197,15 @@ export async function finalizeOrderPayment(input: FinalizeInput): Promise<Finali
 
     return { updated, payment: created };
   });
+
+  // Post-commit: enqueue HPP recalc for every menu item in this order
+  // (the FIFO consumption may have closed batches, which can shift the
+  // "current HPP" of remaining menus).
+  for (const item of order.items) {
+    for (const recipe of item.menuItem?.recipes ?? []) {
+      void enqueueRecalcForInventoryItem(recipe.inventoryItemId);
+    }
+  }
 
   // Post-commit: collect low-stock alerts (best-effort, non-blocking).
   try {
@@ -250,9 +293,13 @@ export async function finalizeOrderPayment(input: FinalizeInput): Promise<Finali
 }
 
 /**
- * Restore inventory for a refunded order. Used by the refund flow.
- * Adds the recipe-quantity * item.quantity back to each inventory item
- * and writes a positive InventoryLog of type USAGE with a marker reason.
+ * Restore inventory for a refunded/voided order. Used by the refund flow.
+ *
+ * Two-layer model:
+ *   1. Re-allocate InventoryBatch.qtyRemaining from the saved
+ *      OrderItem.batchConsumptions audit row (authoritative).
+ *   2. Mirror the new total back to InventoryItem.quantity for
+ *      backward-compat with the pre-batch reporting/UI.
  */
 export async function restoreInventoryForOrder(orderId: string): Promise<void> {
   const order = await prisma.order.findUnique({
@@ -267,34 +314,76 @@ export async function restoreInventoryForOrder(orderId: string): Promise<void> {
   });
   if (!order) throw new Error(`Order ${orderId} not found`);
 
+  const invIdsTouched = new Set<string>();
+
   await prisma.$transaction(async (tx) => {
     for (const item of order.items) {
-      const recipes = item.menuItem?.recipes ?? [];
-      for (const recipe of recipes) {
-        const perUnit = new Prisma.Decimal(recipe.quantity as unknown as string);
-        const orderQty = new Prisma.Decimal(item.quantity);
-        const total = perUnit.mul(orderQty);
+      // Prefer the saved batch consumption audit trail — it tells us
+      // *exactly* which batches to restore. Falls back to the legacy
+      // recipe-only path for orders paid before the column existed.
+      const consumptions = (item.batchConsumptions as unknown as Array<{
+        batchId: string;
+        inventoryItemId: string;
+        qty: number;
+        costPerUnit: number;
+      }> | null) ?? null;
 
-        const inv = await tx.inventoryItem.findUnique({ where: { id: recipe.inventoryItemId } });
-        if (!inv) continue;
-        const current = new Prisma.Decimal(inv.quantity as unknown as string);
-        const next = current.plus(total);
-        await tx.inventoryItem.update({
-          where: { id: inv.id },
-          data: { quantity: next },
-        });
-        await tx.inventoryLog.create({
-          data: {
-            inventoryItemId: inv.id,
-            type: 'USAGE',
-            quantity: total,
-            reason: `Refund ${order.orderNumber}`,
-            reference: order.id,
-          },
-        });
+      if (consumptions && consumptions.length > 0) {
+        await restoreToBatches(tx, consumptions);
+        for (const c of consumptions) {
+          invIdsTouched.add(c.inventoryItemId);
+        }
+      } else {
+        const recipes = item.menuItem?.recipes ?? [];
+        for (const recipe of recipes) {
+          const perUnit = new Prisma.Decimal(recipe.quantity as unknown as string);
+          const orderQty = new Prisma.Decimal(item.quantity);
+          const total = perUnit.mul(orderQty);
+
+          const inv = await tx.inventoryItem.findUnique({ where: { id: recipe.inventoryItemId } });
+          if (!inv) continue;
+          const current = new Prisma.Decimal(inv.quantity as unknown as string);
+          const next = current.plus(total);
+          await tx.inventoryItem.update({
+            where: { id: inv.id },
+            data: { quantity: next },
+          });
+          invIdsTouched.add(recipe.inventoryItemId);
+        }
       }
     }
+
+    // One InventoryLog per inventory item, summarizing the refund
+    for (const invId of invIdsTouched) {
+      await tx.inventoryLog.create({
+        data: {
+          inventoryItemId: invId,
+          type: 'USAGE', // type reuse — sign of quantity carries the meaning
+          quantity: new Prisma.Decimal(0), // batch restoration does the real delta
+          reason: `Refund ${order.orderNumber}`,
+          reference: order.id,
+        },
+      });
+    }
+
+    // Mirror back to InventoryItem.quantity
+    for (const invId of invIdsTouched) {
+      const totalRemaining = await tx.inventoryBatch.aggregate({
+        where: { inventoryItemId: invId, qtyRemaining: { gt: 0 } },
+        _sum: { qtyRemaining: true },
+      });
+      const sum = totalRemaining._sum.qtyRemaining ?? new Prisma.Decimal(0);
+      await tx.inventoryItem.update({
+        where: { id: invId },
+        data: { quantity: sum },
+      });
+    }
   });
+
+  // Post-commit: enqueue HPP recalc for the restored items
+  for (const invId of invIdsTouched) {
+    void enqueueRecalcForInventoryItem(invId);
+  }
 
   logger.info({ orderId, orderNumber: order.orderNumber }, 'inventory restored (refund)');
 }

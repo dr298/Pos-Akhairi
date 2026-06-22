@@ -31,6 +31,7 @@ import { prisma } from '@pos/db';
 import { AppEnv, requireAuth, requireRole, ok, fail } from '../middleware/auth.js';
 import { logger } from '../logger.js';
 import { incCounter } from '../middleware/metrics.js';
+import { enqueueRecalcForInventoryItem } from '../services/hpp-recalculator.js';
 
 export const purchaseOrderRoutes = new Hono<AppEnv>();
 
@@ -449,6 +450,21 @@ purchaseOrderRoutes.post(
             reference: po.id,
           },
         });
+        // Create an InventoryBatch — this is what the FIFO engine
+        // consumes from on future sales. unitCostCents is converted to
+        // a per-unit decimal cost in the same unit as the inventory
+        // item.
+        await tx.inventoryBatch.create({
+          data: {
+            inventoryItemId: inv.id,
+            purchaseOrderId: po.id,
+            supplierId: po.supplierId,
+            qtyReceived: new Prisma.Decimal(inc),
+            qtyRemaining: new Prisma.Decimal(inc),
+            costPerUnit: new Prisma.Decimal(it.unitCostCents),
+            note: `PO ${po.poNumber}`,
+          },
+        });
         // Update PO item qtyReceived
         await tx.purchaseOrderItem.update({
           where: { id: it.id },
@@ -492,6 +508,19 @@ purchaseOrderRoutes.post(
       { poId: po.id, newStatus: result.status, by: user.id },
       'PO received',
     );
+
+    // Post-commit: enqueue HPP recalc for every inventory item that
+    // got a fresh batch. The recalc engine picks up the new batch as
+    // the oldest-available, so any menu using this ingredient will
+    // see its costCents drop to the new (cheaper) basis if this is a
+    // discount PO, or rise to the new (more expensive) basis otherwise.
+    const touchedInvIds = new Set(
+      result.items.map((i: { inventoryItemId: string }) => i.inventoryItemId),
+    );
+    for (const invId of touchedInvIds) {
+      void enqueueRecalcForInventoryItem(invId);
+    }
+
     return ok(c, {
       purchaseOrder: {
         ...result,

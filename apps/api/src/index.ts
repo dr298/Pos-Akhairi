@@ -36,6 +36,7 @@ import { securityHeaders } from './middleware/security-headers.js';
 import { metricsMiddleware, incCounter, observeHistogram } from './middleware/metrics.js';
 import { errorRoutes } from './routes/errors.js';
 import { metricsRoutes } from './routes/metrics.js';
+import { inventoryRoutes } from './routes/inventory.js';
 import './payments/index.js'; // ensure providers register on boot
 
 const app = new Hono();
@@ -81,6 +82,7 @@ app.route('/api/accounting-export', accountingExportRoutes);
 app.route('/api/waste', wasteRoutes);
 app.route('/api/errors', errorRoutes);
 app.route('/api/metrics', metricsRoutes);
+app.route('/api/inventory', inventoryRoutes);
 
 app.notFound((c) => c.json({ error: 'Not Found', path: c.req.path }, 404));
 app.onError((err, c) => {

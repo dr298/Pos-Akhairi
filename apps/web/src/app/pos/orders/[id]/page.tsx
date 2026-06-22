@@ -167,6 +167,11 @@ export default function OrderDetailPage() {
                   {it.quantity}× {it.nameSnapshot}
                 </span>
                 <span className="text-neutral-700 dark:text-neutral-300">{formatIDR(it.lineTotalCents)}</span>
+                {it.hppCentsUsed != null && it.hppCentsUsed !== 0 && (
+                  <span className="text-[10px] text-neutral-400 ml-2 whitespace-nowrap">
+                    (HPP {formatIDR(it.hppCentsUsed)})
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -189,6 +194,36 @@ export default function OrderDetailPage() {
               <span>Total</span>
               <span>{formatIDR(order.totalCents)}</span>
             </div>
+            {/* Computed margin = total - (sum of HPP used per item) */}
+            {order.items.some((it) => it.hppCentsUsed != null) && (
+              <div className="flex justify-between text-xs mt-1">
+                <span className="text-neutral-500 dark:text-neutral-400">HPP ritel</span>
+                <span className="text-neutral-700 dark:text-neutral-300">
+                  {formatIDR(order.items.reduce((sum, it) => sum + (it.hppCentsUsed ?? 0), 0))}
+                </span>
+              </div>
+            )}
+            {order.items.some((it) => it.hppCentsUsed != null) && (
+              <div className="flex justify-between text-xs mt-0.5">
+                <span className="text-neutral-500 dark:text-neutral-400">Margin</span>
+                <span className="font-medium">
+                  {(() => {
+                    const totalHpp = order.items.reduce((sum, it) => sum + (it.hppCentsUsed ?? 0), 0);
+                    const margin = order.totalCents - totalHpp;
+                    const percent = Math.round((margin / order.totalCents) * 100);
+                    const text = `${percent}% (${formatIDR(margin)})`;
+                    return (
+                      <span className="text-emerald-600 dark:text-emerald-400 ml-1">{text}</span>
+                    );
+                  })()}
+                </span>
+              </div>
+            )}
+            {order.items.some((it) => it.hppCentsUsed != null) && (
+              <div className="mt-2 p-2 bg-amber-50/30 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 rounded text-[10px] text-amber-800 dark:text-amber-300">
+                ℹ️ HPP ritel dikunci saat pembayaran — menggunakan rumus FIFO tertua.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

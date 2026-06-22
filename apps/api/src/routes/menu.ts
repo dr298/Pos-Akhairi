@@ -149,10 +149,41 @@ menuRoutes.get('/items', async (c) => {
     include: {
       category: true,
       modifiers: { where: { isActive: true } },
+      recipes: { include: { inventoryItem: true } },
     },
     orderBy: [{ category: { sortOrder: 'asc' } }, { name: 'asc' }],
   });
-  return ok(c, items);
+
+  // Attach computed HPP per item (FIFO view). For menus with no
+  // recipe yet we keep the legacy `costCents` value as-is and mark
+  // `hppSource: 'MANUAL'` so the UI can show "Manual — set recipe
+  // to enable auto-HPP".
+  const { computeMenuHpp } = await import('../services/hpp-recalculator.js');
+  const enriched = await Promise.all(
+    items.map(async (it) => {
+      const hasRecipe = it.recipes.length > 0;
+      let hppSource: 'RECIPE' | 'MANUAL' = 'MANUAL';
+      let computedHppCents: number = it.costCents;
+      let hppBreakdown: Array<{ inventoryItemId: string; name: string; qty: number; costPerUnit: number; cents: number }> = [];
+      let hppShortfall = false;
+      if (hasRecipe) {
+        hppSource = 'RECIPE';
+        const r = await computeMenuHpp(it.id);
+        computedHppCents = r.hppCents;
+        hppBreakdown = r.breakdown;
+        hppShortfall = r.shortfall;
+      }
+      return {
+        ...it,
+        hppSource,
+        computedHppCents,
+        hppBreakdown,
+        hppShortfall,
+      };
+    }),
+  );
+
+  return ok(c, enriched);
 });
 
 menuRoutes.get('/items/:id', async (c) => {
@@ -166,7 +197,23 @@ menuRoutes.get('/items/:id', async (c) => {
     },
   });
   if (!item) return fail(c, 'NotFound', 'Item not found', 404);
-  return ok(c, item);
+
+  // Same HPP enrichment as the list endpoint, but for a single row.
+  const { computeMenuHpp } = await import('../services/hpp-recalculator.js');
+  const hasRecipe = item.recipes.length > 0;
+  let hppSource: 'RECIPE' | 'MANUAL' = 'MANUAL';
+  let computedHppCents: number = item.costCents;
+  let hppBreakdown: Array<{ inventoryItemId: string; name: string; qty: number; costPerUnit: number; cents: number }> = [];
+  let hppShortfall = false;
+  if (hasRecipe) {
+    hppSource = 'RECIPE';
+    const r = await computeMenuHpp(item.id);
+    computedHppCents = r.hppCents;
+    hppBreakdown = r.breakdown;
+    hppShortfall = r.shortfall;
+  }
+
+  return ok(c, { ...item, hppSource, computedHppCents, hppBreakdown, hppShortfall });
 });
 
 // Sprint 8.11 — barcode lookup for handheld / Bluetooth scanners.
@@ -330,4 +377,112 @@ menuRoutes.post(
       410,
     );
   }
+);
+
+
+// ─── Recipe management (Sprint 12) ──────────────────────────────────────────
+//
+// Recipes tie menu items to inventory items. Each recipe is one
+// ingredient line: { menuItemId, inventoryItemId, quantity, unit }.
+// On every mutation we enqueue an HPP recalc for the affected menu
+// item so the displayed cost stays in sync with the FIFO inventory.
+
+const recipeSchema = z.object({
+  inventoryItemId: z.string().min(1).max(50),
+  quantity: z.number().positive().finite(),
+  unit: z.string().min(1).max(16),
+});
+
+const recipesReplaceSchema = z.object({
+  recipes: z.array(recipeSchema).max(50),
+});
+
+// Replace the full recipe list for a menu item. Atomic: deletes the
+// existing rows and inserts the new ones in a single transaction.
+// Used by the menu-edit form's "Ingredients" tab.
+menuRoutes.put(
+  '/items/:id/recipes',
+  requireRole('OWNER', 'MANAGER'),
+  async (c) => {
+    const id = c.req.param('id');
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = recipesReplaceSchema.safeParse(body);
+    if (!parsed.success) {
+      return fail(c, 'ValidationError', 'Invalid recipes payload', 400, parsed.error.issues);
+    }
+
+    const item = await prisma.menuItem.findUnique({ where: { id } });
+    if (!item) return fail(c, 'NotFound', 'Menu item not found', 404);
+
+    // Validate every inventoryItemId exists. Reject early so we don't
+    // partial-commit.
+    const invIds = [...new Set(parsed.data.recipes.map((r) => r.inventoryItemId))];
+    const invItems = await prisma.inventoryItem.findMany({
+      where: { id: { in: invIds } },
+      select: { id: true },
+    });
+    if (invItems.length !== invIds.length) {
+      const found = new Set(invItems.map((i) => i.id));
+      const missing = invIds.filter((x) => !found.has(x));
+      return fail(c, 'ValidationError', `Unknown inventoryItemId: ${missing.join(', ')}`, 400);
+    }
+
+    // Validate uniqueness of inventoryItemId per menu (enforced by
+    // schema @@unique([menuItemId, inventoryItemId])).
+    const seen = new Set<string>();
+    for (const r of parsed.data.recipes) {
+      if (seen.has(r.inventoryItemId)) {
+        return fail(
+          c,
+          'ValidationError',
+          `Duplicate ingredient ${r.inventoryItemId} in recipe list`,
+          400,
+        );
+      }
+      seen.add(r.inventoryItemId);
+    }
+
+    const { enqueueRecalcForMenuItem } = await import(
+      '../services/hpp-recalculator.js'
+    );
+
+    await prisma.$transaction(async (tx) => {
+      await tx.recipe.deleteMany({ where: { menuItemId: id } });
+      if (parsed.data.recipes.length > 0) {
+        await tx.recipe.createMany({
+          data: parsed.data.recipes.map((r) => ({
+            menuItemId: id,
+            inventoryItemId: r.inventoryItemId,
+            quantity: r.quantity,
+            unit: r.unit,
+          })),
+        });
+      }
+    });
+
+    enqueueRecalcForMenuItem(id);
+
+    const updated = await prisma.recipe.findMany({
+      where: { menuItemId: id },
+      include: { inventoryItem: true },
+    });
+
+    return ok(c, { menuItemId: id, recipes: updated });
+  },
+);
+
+// Lightweight list — used by the menu-edit dialog to render the
+// ingredient picker (all inventory items the menu doesn't already
+// use, plus the ones it does for the "edit quantity" path).
+menuRoutes.get(
+  '/items/:id/recipes',
+  requireRole('OWNER', 'MANAGER'),
+  async (c) => {
+    const id = c.req.param('id');
+    const recipes = await prisma.recipe.findMany({
+      where: { menuItemId: id },
+      include: { inventoryItem: true },
+    });
+    return ok(c, recipes);
+  },
 );

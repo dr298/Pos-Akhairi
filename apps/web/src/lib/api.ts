@@ -110,6 +110,33 @@ export interface MenuItem {
   barcode?: string | null;
   category?: Category;
   modifiers?: Modifier[];
+  // Sprint 12 — HPP from Recipe + FIFO.
+  // `hppSource` is 'RECIPE' once a recipe is configured; the auto-
+  // computed HPP lives in `computedHppCents` and is what the UI
+  // should display in margin/engineering pages. `hppBreakdown` is
+  // shown on hover (or in the menu-edit dialog) for transparency.
+  hppSource?: 'RECIPE' | 'MANUAL';
+  computedHppCents?: number;
+  hppBreakdown?: Array<{
+    inventoryItemId: string;
+    name: string;
+    qty: number;
+    costPerUnit: number;
+    cents: number;
+  }>;
+  hppShortfall?: boolean;
+  recipes?: Array<{
+    id: string;
+    inventoryItemId: string;
+    quantity: number;
+    unit: string;
+    inventoryItem?: {
+      id: string;
+      name: string;
+      unit: string;
+      costPerUnit: number;
+    };
+  }>;
 }
 
 export type OrderType = 'DINE_IN' | 'TAKEOUT' | 'TAKEAWAY' | 'KIOSK'; // UI = DINE_IN | TAKEOUT; server returns TAKEAWAY | KIOSK too
@@ -125,6 +152,17 @@ export interface OrderItem {
   status?: string;
   modifiersJson?: string | null;
   menuItemId?: string;
+  // Sprint 12 — HPP locked at payment time. `hppCentsUsed` is the
+  // FIFO-derived cost basis (sum of recipe.qty × oldest batch cost).
+  // `batchConsumptions` is the per-batch audit trail — useful for
+  // "where did this order's cost come from?" reports.
+  hppCentsUsed?: number | null;
+  batchConsumptions?: Array<{
+    batchId: string;
+    inventoryItemId: string;
+    qty: number;
+    costPerUnit: number;
+  }> | null;
 }
 
 export interface OrderPayment {
@@ -431,6 +469,19 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  // Sprint 12 — Recipe management. Replaces the full recipe list for
+  // a menu item. Used by the menu-edit dialog's "Ingredients" tab.
+  // `recipes: []` clears all ingredients.
+  replaceMenuItemRecipes: (
+    id: string,
+    recipes: Array<{ inventoryItemId: string; quantity: number; unit: string }>,
+  ) =>
+    request<{ data: { menuItemId: string; recipes: any[] } }>(
+      `/api/menu/items/${id}/recipes`,
+      { method: 'PUT', body: JSON.stringify({ recipes }) },
+    ),
+  getMenuItemRecipes: (id: string) =>
+    request<{ data: any[] }>(`/api/menu/items/${id}/recipes`),
 
   // Shifts
   getCurrentShift: () => request<{ data: Shift | null }>('/api/shifts/current'),

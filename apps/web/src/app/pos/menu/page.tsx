@@ -249,8 +249,38 @@ export default function MenuManagementPage() {
                         <td className="py-2 px-3 text-right text-slate-100 font-medium">
                           {fmt(it.priceCents)}
                         </td>
-                        <td className="py-2 px-3 text-right text-slate-400">
-                          {it.costCents != null ? fmt(it.costCents) : '—'}
+                        <td className="py-2 px-3 text-right text-slate-400 group relative">
+                          {it.hppSource === 'RECIPE' && it.computedHppCents != null ? (
+                            <>
+                              <span className="text-emerald-400 cursor-help">
+                                {fmt(it.computedHppCents)}
+                                <sup className="text-[10px] ml-0.5">†</sup>
+                              </span>
+                              {it.hppBreakdown && it.hppBreakdown.length > 0 && (
+                                <div className="absolute right-0 top-full mt-1 z-50 hidden group-hover:block bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-3 min-w-[200px] text-xs">
+                                  <div className="text-slate-300 font-medium mb-1.5">Rincian HPP</div>
+                                  {it.hppBreakdown.map((b, i) => (
+                                    <div key={i} className="flex justify-between gap-4 py-0.5">
+                                      <span className="text-slate-400">{b.name}</span>
+                                      <span className="text-slate-200">{fmt(b.cents)}</span>
+                                    </div>
+                                  ))}
+                                  <div className="border-t border-slate-700 mt-1 pt-1 flex justify-between font-medium">
+                                    <span className="text-slate-300">Total</span>
+                                    <span className="text-emerald-400">{fmt(it.computedHppCents!)}</span>
+                                  </div>
+                                  {it.hppShortfall && (
+                                    <p className="text-amber-400 mt-1 text-[10px]">⚠ Beberapa bahan habis — HPP estimasi</p>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {it.costCents != null ? fmt(it.costCents) : '—'}
+                              <span className="text-[10px] text-slate-500 ml-1">(manual)</span>
+                            </>
+                          )}
                         </td>
                         <td className="py-2 px-3 text-center text-xs">
                           <span className="text-slate-400">{((it.taxRateBp ?? 0) / 100).toFixed(1)}%</span>
@@ -313,6 +343,30 @@ export default function MenuManagementPage() {
               <CardTitle>Edit: {editing.name}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* HPP source indicator */}
+              {editing.hppSource === 'RECIPE' && editing.computedHppCents != null && (
+                <div className="bg-emerald-950/40 border border-emerald-800/40 rounded-lg px-3 py-2">
+                  <p className="text-xs text-emerald-400 font-medium">HPP Auto (Recipe + FIFO)</p>
+                  <p className="text-sm text-emerald-300 mt-0.5">
+                    {fmt(editing.computedHppCents)}
+                    <span className="text-slate-500 ml-2">
+                      Margin: {fmt(editing.priceCents - editing.computedHppCents)}
+                    </span>
+                  </p>
+                  {editing.hppBreakdown && editing.hppBreakdown.length > 0 && (
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {editing.hppBreakdown.map((b) => b.name).join(' + ')}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-slate-600 mt-1">Modal dihitung dari resep bahan baku</p>
+                </div>
+              )}
+              {editing.hppSource === 'MANUAL' && (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2">
+                  <p className="text-xs text-slate-400">HPP Manual</p>
+                  <p className="text-[10px] text-slate-600 mt-0.5">Belum ada resep bahan baku — modal diinput manual</p>
+                </div>
+              )}
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Harga (Rp)</label>
                 <Input
@@ -323,13 +377,22 @@ export default function MenuManagementPage() {
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Modal (Rp)</label>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Modal (Rp)
+                  {editing.hppSource === 'RECIPE' && (
+                    <span className="text-emerald-400/60 ml-1">dari resep</span>
+                  )}
+                </label>
                 <Input
                   type="number"
                   step="100"
                   value={editCost}
-                  onChange={(e) => setEditCost(e.target.value)}
+                  disabled={editing.hppSource === 'RECIPE'}
+                  className={editing.hppSource === 'RECIPE' ? 'opacity-50 cursor-not-allowed' : ''}
                 />
+                {editing.hppSource === 'RECIPE' && (
+                  <p className="text-[10px] text-slate-600 mt-0.5">Edit via resep bahan baku, bukan di sini</p>
+                )}
               </div>
               <label className="flex items-center gap-2 text-sm text-slate-300">
                 <input
