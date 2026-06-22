@@ -43,6 +43,9 @@ export default function SuccessPage() {
     address: string;
     footer: string;
   } | null>(null);
+  // Sprint 19 — paper width from PRINTER_PAPER_WIDTH setting. Default
+  // 80mm until the settings fetch returns.
+  const [paperWidthMm, setPaperWidthMm] = useState<58 | 80>(80);
   // Sprint 14 — use the shared printer context so the connection persists
   // across /pos → /pos/success navigation.
   const printerCtx = usePrinter();
@@ -65,6 +68,17 @@ export default function SuccessPage() {
         if (!cancelled) setBusiness(b.data);
       } catch (e) {
         // ignore
+      }
+      // Sprint 19 — load paper width for the receipt layout. Same
+      // source-of-truth as /pos/settings (PRINTER_PAPER_WIDTH).
+      try {
+        const s = await api.listSettings();
+        const pw = s.data?.settings?.find((x: any) => x.key === 'PRINTER_PAPER_WIDTH');
+        if (!cancelled && pw && (pw.value === '58' || pw.value === '80')) {
+          setPaperWidthMm(pw.value === '58' ? 58 : 80);
+        }
+      } catch (e) {
+        // ignore — keep default 80
       }
     })();
     return () => {
@@ -119,6 +133,7 @@ export default function SuccessPage() {
         changeCents: method === 'CASH' ? change : undefined,
         paymentMethod: method,
         footer: business?.footer || 'Terima kasih!',
+        paperWidthMm, // Sprint 19 — 58 or 80 from /pos/settings
       });
       await writeBytes(conn.characteristic, data);
       toast.success('Struk dicetak ke printer Bluetooth');
@@ -218,7 +233,12 @@ export default function SuccessPage() {
       </Card>
 
       {/* Print-only receipt */}
-      <div ref={receiptRef} className="hidden print:block w-full max-w-xs mx-auto p-4 text-black">
+      <div
+        ref={receiptRef}
+        className={`hidden print:block w-full mx-auto p-4 text-black ${
+          paperWidthMm === 58 ? 'max-w-[14.5rem]' : 'max-w-xs'
+        }`}
+      >
         <div className="text-center font-bold text-lg">{business?.name || 'BKJ POS'}</div>
         {business?.address && (
           <div className="text-center text-[10px] text-zinc-500 mt-0.5">{business.address}</div>

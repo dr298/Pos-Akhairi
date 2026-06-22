@@ -12,7 +12,7 @@
 #     component reached the served bundle (skill: pos-akhairi-e2e)
 set -euo pipefail
 
-WEB=http://127.0.0.1:3030
+WEB=http://127.0.0.1:3080
 API=http://127.0.0.1:8787
 COOKIE=""
 ORDER_ID=""

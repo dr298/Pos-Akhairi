@@ -224,7 +224,18 @@ async function main() {
     update: {},
   });
 
-  console.log('[seed] settings: 5 rows');
+  // Sprint 19 — default paper width = 80mm.
+  await prisma.setting.upsert({
+    where: { key: 'PRINTER_PAPER_WIDTH' },
+    create: {
+      key: 'PRINTER_PAPER_WIDTH',
+      value: '80',
+      description: 'Thermal printer paper width: "58" (32 chars/line) or "80" (42 chars/line). Default 80mm.',
+    },
+    update: {},
+  });
+
+  console.log('[seed] settings: 6 rows');
   console.log('[seed] done');
 }
 

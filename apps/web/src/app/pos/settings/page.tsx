@@ -31,6 +31,9 @@ export default function PosSettingsPage() {
   const [businessAddress, setBusinessAddress] = useState<string>('');
   const [receiptFooter, setReceiptFooter] = useState<string>('');
   const [savingGeneral, setSavingGeneral] = useState(false);
+  // Sprint 19 — printer paper width. Default 80mm.
+  const [paperWidthMm, setPaperWidthMm] = useState<58 | 80>(80);
+  const [savingPaper, setSavingPaper] = useState(false);
 
   // Route guard: OWNER only (settings can change tax behaviour for the
   // whole resto; we don't want any cashier to flip this).
@@ -65,6 +68,11 @@ export default function PosSettingsPage() {
         if (addr) setBusinessAddress(addr.value);
         const footer = res.data.settings.find((s) => s.key === 'RECEIPT_FOOTER');
         if (footer) setReceiptFooter(footer.value);
+        // Sprint 19 — hydrate paper width from settings.
+        const pw = res.data.settings.find((s) => s.key === 'PRINTER_PAPER_WIDTH');
+        if (pw && (pw.value === '58' || pw.value === '80')) {
+          setPaperWidthMm(pw.value === '58' ? 58 : 80);
+        }
       } catch (e) {
         toast.error('Gagal memuat settings');
       } finally {
@@ -133,7 +141,7 @@ export default function PosSettingsPage() {
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Settings</h1>
         <p className="text-sm text-zinc-500 mt-1">
           Pengaturan global resto. Perubahan tersimpan ke database dan langsung berlaku
-          untuk order berikutnya.
+          untuk order berikutnya. <span className="text-amber-600 dark:text-amber-400 font-medium">Hanya OWNER yang bisa mengubah.</span>
         </p>
       </div>
 
@@ -233,6 +241,72 @@ export default function PosSettingsPage() {
               <span>
                 Update terakhir: {new Date(ppnBp.updatedAt).toLocaleString('id-ID')}
               </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Printer Thermal</CardTitle>
+          <CardDescription>
+            Lebar kertas printer Bluetooth. 80mm = 42 karakter per baris (lebih
+            luang). 58mm = 32 karakter per baris (lebih hemat kertas).
+            Berlaku untuk struk BT dan preview print browser.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+                Lebar Kertas
+              </label>
+              <div className="flex gap-2">
+                <Button
+                  variant={paperWidthMm === 80 ? 'primary' : 'outline'}
+                  onClick={() => setPaperWidthMm(80)}
+                  type="button"
+                >
+                  80mm
+                </Button>
+                <Button
+                  variant={paperWidthMm === 58 ? 'primary' : 'outline'}
+                  onClick={() => setPaperWidthMm(58)}
+                  type="button"
+                >
+                  58mm
+                </Button>
+              </div>
+            </div>
+            <Button
+              onClick={async () => {
+                setSavingPaper(true);
+                try {
+                  await api.upsertSetting(
+                    'PRINTER_PAPER_WIDTH',
+                    String(paperWidthMm),
+                    null,
+                  );
+                  const res = await api.listSettings();
+                  setSettings(res.data.settings);
+                  toast.success(`Paper width diset ke ${paperWidthMm}mm`);
+                } catch (e) {
+                  toast.error('Gagal menyimpan paper width');
+                } finally {
+                  setSavingPaper(false);
+                }
+              }}
+              disabled={savingPaper}
+            >
+              {savingPaper ? 'Menyimpan…' : 'Simpan'}
+            </Button>
+          </div>
+          {settings.find((s) => s.key === 'PRINTER_PAPER_WIDTH') && (
+            <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <span>Aktif:</span>
+              <Badge>
+                {settings.find((s) => s.key === 'PRINTER_PAPER_WIDTH')?.value}mm
+              </Badge>
             </div>
           )}
         </CardContent>

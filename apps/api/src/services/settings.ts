@@ -97,6 +97,24 @@ export const KNOWN_SETTINGS = {
     },
     format: (s: string) => s.trim(),
   },
+  // Sprint 19 — thermal printer paper width. 58mm = 32 chars/line;
+  // 80mm = 42 chars/line. Affects receipt body line padding and the
+  // TOTAL (SIZE_DOUBLE) layout. Default '80' for BKJ resto.
+  PRINTER_PAPER_WIDTH: {
+    description:
+      'Thermal printer paper width: "58" (32 chars/line) or "80" (42 chars/line). Default 80mm.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') {
+        throw new Error('PRINTER_PAPER_WIDTH must be a string');
+      }
+      const t = raw.trim();
+      if (t !== '58' && t !== '80') {
+        throw new Error('PRINTER_PAPER_WIDTH must be "58" or "80"');
+      }
+      return t;
+    },
+    format: (s: string) => (s === '58' ? '58' : '80'),
+  },
   // Sprint audit — inter-account cash transfer log. Stored as a JSON
   // string (e.g. '[]' or a serialized array of entries). The /pos/transfers
   // page POSTs to /api/transfers which appends a row, and the page reads

@@ -5,7 +5,7 @@
 // global Settings table so the OWNER can edit it from /pos/settings
 // without redeploying.
 
-import { getBusinessSnapshot } from './settings.js';
+import { getBusinessSnapshot, getSetting } from './settings.js';
 //
 // Public surface
 //   renderReceipt(orderId)              → { text, html, subject, meta }
@@ -121,11 +121,19 @@ function formatDateId(d: Date): string {
   }
 }
 
-function itemLine(name: string, qty: number, lineTotalCents: number): string {
-  // Layout: 22-char name | 3-char qty | 9-char subtotal right-aligned → 34 cols
-  const nameCol = pad(name, 22);
-  const qtyCol = pad(String(qty), 3, 'right');
-  const totalCol = pad(formatRupiah(lineTotalCents), 9, 'right');
+// Sprint 19 — make item line width dynamic. Defaults match the old
+// 58mm layout (22+3+9 = 34) for back-compat. The 80mm variant
+// widens the name column and adds a 1-col buffer for breathing room.
+function itemLine(name: string, qty: number, lineTotalCents: number, bodyCols: number): string {
+  // Layout: nameCol + ' ' + qtyCol + ' ' + totalCol → bodyCols total.
+  // 58mm (32): 19 + 3 + 9 = 32 (use this since getSetting isn't in scope)
+  // 80mm (42): 28 + 3 + 11 = 42
+  const totalColWidth = bodyCols >= 40 ? 11 : 9;
+  const qtyColWidth = 3;
+  const nameColWidth = bodyCols - totalColWidth - qtyColWidth - 2; // 2 = 2 spaces
+  const nameCol = pad(name, nameColWidth);
+  const qtyCol = pad(String(qty), qtyColWidth, 'right');
+  const totalCol = pad(formatRupiah(lineTotalCents), totalColWidth, 'right');
   return `${nameCol} ${qtyCol} ${totalCol}`;
 }
 
@@ -179,12 +187,16 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
     lineTotalCents: it.lineTotalCents,
   }));
 
-  // ─── Plain text (32-col body, used for WhatsApp + console preview) ────
-  const divider = '-'.repeat(34);
+  // ─── Plain text (32-col body for 58mm / 42-col for 80mm) ─────────
+  // Sprint 19 — read PRINTER_PAPER_WIDTH from settings so the WhatsApp
+  // + console preview match the BT printer layout. Default 80mm.
+  const paperWidthRaw = await getSetting('PRINTER_PAPER_WIDTH').catch(() => '80');
+  const bodyCols = paperWidthRaw === '58' ? 32 : 42;
+  const divider = '-'.repeat(bodyCols);
   const headerLines: string[] = [];
   headerLines.push('=== ' + branchName + ' ===');
-  headerLines.push(pad(branchName, 34, 'left'));
-  if (branchAddress) headerLines.push(pad(branchAddress, 34, 'left'));
+  headerLines.push(pad(branchName, bodyCols, 'left'));
+  if (branchAddress) headerLines.push(pad(branchAddress, bodyCols, 'left'));
   headerLines.push('');
 
   const metaLines: string[] = [];
@@ -196,7 +208,7 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
 
   const itemLines: string[] = [divider];
   for (const it of items) {
-    itemLines.push(itemLine(it.name, it.quantity, it.lineTotalCents));
+    itemLines.push(itemLine(it.name, it.quantity, it.lineTotalCents, bodyCols));
   }
 
   // Sprint 13 — pull the actual PPN rate used when this order was
@@ -204,15 +216,21 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
   const ppnBp = (order as unknown as { ppnBpUsed?: number | null }).ppnBpUsed ?? 0;
   const showTax = ppnBp > 0 && order.taxCents > 0;
   const taxLabel = showTax ? `PPN ${(ppnBp / 100).toFixed(ppnBp % 100 === 0 ? 0 : 2)}%` : null;
+  // Sprint 19 — totals use the same dynamic bodyCols as items/divider.
+  // Label col gets the rest, value col stays 10 chars (formatRupiah
+  // max is "Rp 999.999.999" = 15 chars, so 10 fits all "Rp X.XXX" use
+  // cases). If bodyCols is wide (80mm) we widen the label col.
+  const totalValueCol = 10;
+  const totalLabelCol = Math.max(8, bodyCols - totalValueCol - 1); // 1 space gap
   const totalsLines: string[] = [
     divider,
-    `${pad('Subtotal:', 24)} ${pad(formatRupiah(order.subtotalCents), 10, 'right')}`,
+    `${pad('Subtotal:', totalLabelCol)} ${pad(formatRupiah(order.subtotalCents), totalValueCol, 'right')}`,
     ...(showTax && taxLabel
-      ? [`${pad(taxLabel + ':', 24)} ${pad(formatRupiah(order.taxCents), 10, 'right')}`]
+      ? [`${pad(taxLabel + ':', totalLabelCol)} ${pad(formatRupiah(order.taxCents), totalValueCol, 'right')}`]
       : []),
-    `${pad('Diskon:', 24)} ${pad(formatRupiah(order.discountCents), 10, 'right')}`,
+    `${pad('Diskon:', totalLabelCol)} ${pad(formatRupiah(order.discountCents), totalValueCol, 'right')}`,
     divider,
-    `${pad('TOTAL:', 24)} ${pad(formatRupiah(order.totalCents), 10, 'right')}`,
+    `${pad('TOTAL:', totalLabelCol)} ${pad(formatRupiah(order.totalCents), totalValueCol, 'right')}`,
   ];
 
   const paymentLines: string[] = [];
@@ -226,12 +244,12 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
             ? 'E-Wallet'
             : payment.method;
     paymentLines.push('');
-    paymentLines.push(`${pad(`Bayar (${methodLabel}):`, 24)} ${pad(formatRupiah(payment.amountCents), 10, 'right')}`);
+    paymentLines.push(`${pad(`Bayar (${methodLabel}):`, totalLabelCol)} ${pad(formatRupiah(payment.amountCents), totalValueCol, 'right')}`);
     if (amountGiven != null) {
-      paymentLines.push(`${pad('Diterima:', 24)} ${pad(formatRupiah(amountGiven), 10, 'right')}`);
+      paymentLines.push(`${pad('Diterima:', totalLabelCol)} ${pad(formatRupiah(amountGiven), totalValueCol, 'right')}`);
     }
     if (changeCents != null) {
-      paymentLines.push(`${pad('Kembali:', 24)} ${pad(formatRupiah(changeCents), 10, 'right')}`);
+      paymentLines.push(`${pad('Kembali:', totalLabelCol)} ${pad(formatRupiah(changeCents), totalValueCol, 'right')}`);
     }
   }
 

@@ -1,6 +1,15 @@
 // ESC/POS command builder. Produces a Uint8Array suitable for writing to a
-// Bluetooth characteristic in 512-byte chunks. All commands are standard
+// Bluetooth characteristic in 20-byte chunks. All commands are standard
 // ESC/POS as supported by common 58mm/80mm thermal receipt printers.
+
+// Character widths for Font A (default for most thermal printers):
+//   58mm paper = 32 chars/line
+//   80mm paper = 42 chars/line
+// When `SIZE_DOUBLE` is active, each char counts as 2 horizontally.
+// We track the current effective width as we go so `pad()` always
+// produces a line that fits on the paper.
+const WIDTH_58MM = 32;
+const WIDTH_80MM = 42;
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -39,10 +48,12 @@ function strBytes(s: string): number[] {
   return Array.from(enc.encode(s));
 }
 
-function pad(left: string, right: string, width: number): string {
-  // Approximation: printers use proportional fonts. We pad with spaces and
-  // hope for the best. Width 32 ≈ 58mm; 48 ≈ 80mm.
-  const gap = Math.max(1, width - left.length - right.length);
+function pad(left: string, right: string, width: number, doubleSize = false): string {
+  // Account for SIZE_DOUBLE — when active, each printable char takes 2
+  // cells horizontally. Without this, "TOTAL  Rp 25.000" on 80mm wraps
+  // to 2 lines (was 64 effective chars in a 42-char line).
+  const effective = doubleSize ? Math.floor(width / 2) : width;
+  const gap = Math.max(1, effective - left.length - right.length);
   return left + ' '.repeat(gap) + right;
 }
 
@@ -71,7 +82,16 @@ export interface ReceiptData {
   changeCents?: number;
   paymentMethod?: string;
   footer?: string;
-  /** Approximate line width in characters (32 for 58mm, 48 for 80mm). */
+  /**
+   * Sprint 19 — physical paper width in millimetres (58 or 80).
+   * Replaces the older `width` field. 58mm → 32 chars/line;
+   * 80mm → 42 chars/line.
+   */
+  paperWidthMm?: 58 | 80;
+  /**
+   * Approximate line width in characters. Derived from `paperWidthMm`
+   * if not given. Kept for back-compat with existing callers.
+   */
   width?: number;
   /**
    * Sprint 8.10 — prepend the cash-drawer kick (ESC/POS `\x1B\x70\x00\x19\x19`)
@@ -89,7 +109,7 @@ export interface ReceiptData {
   drawerPin?: 2 | 5;
 }
 
-const DEFAULT_WIDTH = 32;
+const DEFAULT_WIDTH = WIDTH_80MM; // Sprint 19 — 80mm is the most common for resto POS
 
 // Sprint 8.10 — the ESC/POS cash-drawer pulse. Mirrors the server-side
 // `apps/api/src/services/cash-drawer.ts` so the print job that opens the
@@ -131,7 +151,18 @@ function prependDrawerKick(buf: Uint8Array, d: ReceiptData): Uint8Array {
 }
 
 export function buildReceipt(d: ReceiptData): Uint8Array {
-  const w = d.width ?? DEFAULT_WIDTH;
+  // Sprint 19 — derive line width from `paperWidthMm` first, then
+  // fall back to the legacy `width` field, then to the default
+  // (80mm / 42 chars). Most callers will pass paperWidthMm now
+  // because the success page reads it from the PRINTER_PAPER_WIDTH
+  // setting on /pos/settings.
+  const w =
+    d.width ??
+    (d.paperWidthMm === 58
+      ? WIDTH_58MM
+      : d.paperWidthMm === 80
+        ? WIDTH_80MM
+        : DEFAULT_WIDTH);
   const parts: number[][] = [];
 
   // Reset
@@ -197,7 +228,7 @@ export function buildReceipt(d: ReceiptData): Uint8Array {
     parts.push(CMD.LF);
   }
   parts.push(CMD.BOLD_ON, CMD.SIZE_DOUBLE);
-  parts.push(strBytes(pad('TOTAL', formatIDRPlain(d.totalCents), w)));
+  parts.push(strBytes(pad('TOTAL', formatIDRPlain(d.totalCents), w, true)));
   parts.push(CMD.LF, CMD.BOLD_OFF, CMD.SIZE_NORMAL);
 
   // Payment
