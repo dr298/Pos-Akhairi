@@ -36,10 +36,17 @@ export async function connectPrinter(
   const serviceUuid = opts.serviceUuid ?? DEFAULT_PRINTER_SERVICE_UUID;
   const characteristicUuid = opts.characteristicUuid ?? DEFAULT_WRITE_CHARACTERISTIC_UUID;
 
+  // Chrome Web Bluetooth quirk: when a filter uses only `namePrefix` (no
+  // `services` inside the filter object) and no `acceptAllDevices`, some
+  // Chrome builds throw "either filters should be present or
+  // acceptAllDevices should be true, but not both". Workaround: always
+  // include the printer service UUID inside the filter (so Chrome's
+  // preflight validation is satisfied) and ALSO keep optionalServices for
+  // the GATT connect path.
+  const serviceFilter = { services: [serviceUuid] };
+  const nameFilter = opts.namePrefix ? { namePrefix: opts.namePrefix } : {};
   const device = await bt.requestDevice({
-    filters: opts.namePrefix
-      ? [{ namePrefix: opts.namePrefix }]
-      : [{ services: [serviceUuid] }],
+    filters: [{ ...serviceFilter, ...nameFilter }],
     optionalServices: [serviceUuid],
   });
 
