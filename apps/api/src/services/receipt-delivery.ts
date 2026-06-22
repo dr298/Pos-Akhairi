@@ -188,14 +188,17 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
     itemLines.push(itemLine(it.name, it.quantity, it.lineTotalCents));
   }
 
-  // Tax label — try to show 11% rate when PPN is present (matches the
-  // Indonesian receipt example). If tax is 0, show "PPN 11% (0)" so the
-  // receipt layout stays consistent.
-  const taxLabel = order.taxCents > 0 ? `PPN 11%:` : `PPN 11%:`;
+  // Sprint 13 — pull the actual PPN rate used when this order was
+  // created. Falls back to 0 if the order is older than the migration.
+  const ppnBp = (order as unknown as { ppnBpUsed?: number | null }).ppnBpUsed ?? 0;
+  const showTax = ppnBp > 0 && order.taxCents > 0;
+  const taxLabel = showTax ? `PPN ${(ppnBp / 100).toFixed(ppnBp % 100 === 0 ? 0 : 2)}%` : null;
   const totalsLines: string[] = [
     divider,
     `${pad('Subtotal:', 24)} ${pad(formatRupiah(order.subtotalCents), 10, 'right')}`,
-    `${pad(taxLabel, 24)} ${pad(formatRupiah(order.taxCents), 10, 'right')}`,
+    ...(showTax && taxLabel
+      ? [`${pad(taxLabel + ':', 24)} ${pad(formatRupiah(order.taxCents), 10, 'right')}`]
+      : []),
     `${pad('Diskon:', 24)} ${pad(formatRupiah(order.discountCents), 10, 'right')}`,
     divider,
     `${pad('TOTAL:', 24)} ${pad(formatRupiah(order.totalCents), 10, 'right')}`,
@@ -252,7 +255,7 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
   <hr style="border:0;border-top:1px dashed #525252"/>
   <table style="width:100%;font-size:14px;">
     <tr><td>Subtotal</td><td style="text-align:right">${formatRupiah(order.subtotalCents)}</td></tr>
-    <tr><td>PPN 11%</td><td style="text-align:right">${formatRupiah(order.taxCents)}</td></tr>
+    ${showTax ? `<tr><td>PPN ${(ppnBp / 100).toFixed(ppnBp % 100 === 0 ? 0 : 2)}%</td><td style="text-align:right">${formatRupiah(order.taxCents)}</td></tr>` : ''}
     <tr><td>Diskon</td><td style="text-align:right">${formatRupiah(order.discountCents)}</td></tr>
     <tr><td><b>TOTAL</b></td><td style="text-align:right"><b>${formatRupiah(order.totalCents)}</b></td></tr>
   </table>

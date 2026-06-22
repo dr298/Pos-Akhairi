@@ -169,6 +169,18 @@ async function main() {
   }
   console.log(`[seed] discounts: ${discountsData.length} items`);
 
+  // Sprint 13 — default global settings.
+  await prisma.setting.upsert({
+    where: { key: 'DEFAULT_PPN_BP' },
+    create: {
+      key: 'DEFAULT_PPN_BP',
+      value: '0',
+      description: 'Default PPN / VAT rate in basis points (1100 = 11%, 0 = no PPN shown)',
+    },
+    update: {},
+  });
+  console.log('[seed] settings: DEFAULT_PPN_BP=0 (no PPN)');
+
   console.log('[seed] done');
 }
 

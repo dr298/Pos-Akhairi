@@ -7,6 +7,7 @@ import { logger } from '../logger.js';
 import { computeDiscount } from './discounts.js';
 import { computePromo, type PromoLineItem, type PromoLike } from './promos.js';
 import { finalizeOrderPayment, restoreInventoryForOrder } from '../services/payment-finalize.js';
+import { getEffectivePpnBp } from '../services/settings.js';
 import { wsBus } from '../lib/ws-bus.js';
 import { incCounter, observeHistogram } from '../middleware/metrics.js';
 
@@ -139,10 +140,17 @@ orderRoutes.post('/', async (c) => {
     }
   }
 
-  // PPN config: use MenuItem.taxRateBp directly (no per-branch fallback).
+  // PPN config: Sprint 13 — global DEFAULT_PPN_BP (default 0%).
+  // Per-menu MenuItem.taxRateBp > 0 acts as an override (e.g. tax-exempt
+  // menu items stay at 0 even if global is 11%; or a luxury item at 12%).
+  // Otherwise we fall back to the global rate. The order snapshot stores
+  // the effective PPN basis points in `ppnBpUsed` so historical receipts
+  // show the rate active at the time of the order, not the current one.
+  const defaultPpnBp = await getEffectivePpnBp();
   function effectivePpnBp(m: { taxRateBp: number }): number {
-    return m.taxRateBp;
+    return m.taxRateBp > 0 ? m.taxRateBp : defaultPpnBp;
   }
+  // ppnBpUsed is set as we iterate over line items (max rate used).
 
   // Optionally attach to active shift
   let shiftId = parsed.data.shiftId;
@@ -165,11 +173,13 @@ orderRoutes.post('/', async (c) => {
   }> = [];
 
   // Build line items from regular menu items.
+  let ppnBpUsed = 0; // track highest effective PPN rate used
   for (const it of regularItems) {
     const m = menuMap.get(it.menuItemId)!;
     const lineTotal = m.priceCents * it.quantity;
     subtotal += lineTotal;
     const rateBp = effectivePpnBp(m);
+    if (rateBp > ppnBpUsed) ppnBpUsed = rateBp;
     if (rateBp > 0) {
       tax += Math.floor((lineTotal * rateBp) / 10000);
     }
@@ -221,6 +231,7 @@ orderRoutes.post('/', async (c) => {
       subtotal += lineTotal;
       if (repMenu) {
         const rateBp = effectivePpnBp(repMenu);
+        if (rateBp > ppnBpUsed) ppnBpUsed = rateBp;
         if (rateBp > 0) {
           tax += Math.floor((lineTotal * rateBp) / 10000);
         }
@@ -327,6 +338,7 @@ orderRoutes.post('/', async (c) => {
         customerId: parsed.data.customerId,
         subtotalCents: subtotal,
         taxCents: tax,
+        ppnBpUsed,
         discountCents,
         ...(discountId ? { discountId } : {}),
         totalCents: total,

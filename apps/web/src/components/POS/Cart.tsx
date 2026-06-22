@@ -272,10 +272,15 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
               <span>-{formatIDR(cart.discountCents)}</span>
             </div>
           )}
-          <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
-            <span>Pajak ({(cart.taxRateBp / 100).toFixed(1)}%)</span>
-            <span>{formatIDR(cart.taxCents)}</span>
-          </div>
+          {/* Sprint 13: hide PPN row when effective tax rate is 0.
+              The backend already sends taxCents=0 in that case; we just
+              don't want to show "Pajak (0.0%) Rp 0" to the cashier. */}
+          {cart.taxRateBp > 0 && (
+            <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
+              <span>Pajak ({(cart.taxRateBp / 100).toFixed(1)}%)</span>
+              <span>{formatIDR(cart.taxCents)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-base font-semibold text-neutral-900 dark:text-neutral-100 pt-1 border-t border-neutral-200 dark:border-neutral-800">
             <span>Total</span>
             <span>{formatIDR(cart.totalCents)}</span>

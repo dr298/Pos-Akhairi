@@ -84,6 +84,7 @@ const NAV: NavGroup[] = [
       { href: '/pos/orders/[id]/receipt',  label: 'Receipt',       icon: 'printer', match: p => p.includes('/receipt'), show: () => true },
       { href: '/display',                  label: 'Customer Display', icon: 'tv',   match: p => p.startsWith('/display'), show: () => true,        shortcut: 'D' },
       { href: '/pos/settings/hardware',    label: 'Hardware',      icon: 'cog',     match: p => p.startsWith('/pos/settings/hardware'), show: r => isManager(r) },
+      { href: '/pos/settings',             label: 'Settings',      icon: 'cog',     match: p => p === '/pos/settings',                  show: r => r === 'OWNER' },
     ],
   },
 ];

@@ -1277,6 +1277,35 @@ export const api = {
     }),
   deleteWaste: (id: string) =>
     request<{ data: { entry: WasteEntry } }>(`/api/waste/${id}`, { method: 'DELETE' }),
+
+  // Sprint 13 — Settings
+  listSettings: () =>
+    request<{
+      data: {
+        settings: {
+          key: string;
+          value: string;
+          description: string | null;
+          updatedById: string | null;
+          updatedAt: string;
+          createdAt: string;
+        }[];
+        known: string[];
+      };
+    }>('/api/settings'),
+  upsertSetting: (key: string, value: string, description?: string | null) =>
+    request<{
+      data: {
+        key: string;
+        value: string;
+        description: string | null;
+        updatedById: string | null;
+        updatedAt: string;
+      };
+    }>(`/api/settings/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value, description }),
+    }),
 };
 
 export { API_URL };
