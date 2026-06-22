@@ -5,7 +5,7 @@
 **Stack:** Cloudflare tunnel → Docker (Hono 4 + Next.js 16 + Postgres 18 + Redis 8)
 **Repo:** github.com/dr298/Pos-Akhairi (SSH alias `github.com-pos`)
 **Local path:** /home/dr298/projects/pos-akhairi-com
-**Last commit:** 309fe55
+**Last commit:** see `git log -1 --format='%h %s'` (HEAD of `master`)
 
 ---
 
@@ -38,7 +38,7 @@
 
 ---
 
-## All features (10 sprints, 0-9+)
+## All features (12 sprints, 0-11)
 
 | # | Feature | Where |
 |---|---------|-------|
@@ -66,10 +66,63 @@
 | **Waste tracking** | FOOD/INGREDIENT/PACKAGING, auto cost | /pos/waste |
 | **Observability** | Pino logs, X-Request-Id, self-hosted errors | /api/metrics, /api/ready |
 | **Backups** | Daily 03:00 UTC, 30-day retention | /root/archives/pos-akhairi-backups/ |
+| **Light/Dark theme** | Tailwind v4 class-based, persist localStorage | Sun/moon toggle in navbar |
+| **Menu click animation** | Scale 0.96 + radial ripple, 150ms | POS menu grid (`/pos`) |
 
 ---
 
 ## Architecture (TL;DR)
+
+---
+
+## Post-Sprint 9 changes (2026-06-21 → 2026-06-22)
+
+A handful of refactors and features have been added since the Sprint 9 cutover. None of them change the public surface; they're all backward compatible.
+
+### Sprint 10 — Delivery removal
+3rd-party delivery aggregator UI (`/pos/delivery`, `/pos/channels`) removed.
+Domain models (`Aggregator`, `AggregatorOrder`, `ChannelOrder`) and webhook
+routes still exist in the schema and API but are no longer surfaced in
+the UI. The aggregator integration code is wired but disabled (no
+credentials configured). Re-enabling is a 1-line config change.
+
+### Sprint "No-Branch" — Branch refactor
+Removed the `branchId` column from 13 core tables and the `Branch` model
+entirely. The deployment is now single-location (BKJ Bakmie Ciputat); the
+branch scoping layer was overhead. Net change: −`branchId` everywhere,
+simpler queries, simpler auth, no cross-branch ambiguity. Migration
+applied; 42 tables, 21 enums remain. No data loss — existing rows had
+branchId = null or a single shared value.
+
+### Sprint 11 — UX polish
+- **Light/Dark theme toggle** — sun/moon icon in navbar (top right, next
+  to language switcher). Default: dark (preserves existing UX).
+  Persistence: localStorage `pos:theme`. Implementation: Tailwind v4
+  `@custom-variant dark` + CSS variables (`--background`,
+  `--foreground`, `--card`, `--border`, `--primary`) + `useTheme` hook
+  with no-flash inline script. 43 source files converted to use
+  `dark:` variant pairs.
+- **Menu click animation** — `MenuItemCard` now gives visual feedback on
+  tap: scale to 0.96, red-50 tint flash, and a 500ms radial ripple from
+  the click origin. Pure CSS animation, no deps. Animation is throttled
+  by CSS `transform` (compositor-friendly) so it doesn't jank during
+  fast-tap sequences.
+- **Engineering page fix** — `/pos/menu/engineering` was failing to
+  load due to a JSON-column type mismatch: API returned `itemsJson` /
+  `totalsJson` (raw Prisma column names) but the web client expected
+  `items` / `totals`. API normalized: list + detail endpoints now spread
+  the JSON columns into properly-named `items` / `totals` keys, matching
+  the type contract used by the create endpoint. Also added theme-aware
+  quadrant colors (`bg-emerald-50` in light, `bg-emerald-900/20` in
+  dark) so the BCG matrix is readable in both modes.
+
+### Verified
+- tsc apps/web = 0 errors
+- 9/9 E2E tests pass (real-browser, theme, full-verify, sprint-11)
+- Visual screenshots of all 9 main pages in both themes confirm correct
+  rendering
+
+---
 
 ```
 Browser → Cloudflare → Caddy (in stack) → Hono 4 API (8787) + Next.js 16 (3000)
@@ -93,7 +146,11 @@ WebSocket: wss://pos.akhairi.com/ws (tunnel path, handled by Hono).
    ```
 2. **3 aggregator channels (GoFood/GrabFood/ShopeeFood)** wired but credentials not configured. To enable: /pos/channels → Add channel.
 3. **Grafana not deployed** (optional). Setup doc at `docs/sprint-7/GRAFANA-SETUP.md`. Self-monitoring via /api/ready is in place.
-4. **Old Stocky containers still running** at `/home/dr298/apps/pos_akhairi/` (data preserved 30 days, then archive). See `docs/sprint-7/DR-RUNBOOK.md` for the legacy data path.
+4. **Old Stocky containers were removed** in Sprint "No-Branch". The legacy
+   data path (`/home/dr298/apps/pos_akhairi/`) is gone. Active data
+   resides in the `pos-postgres` container only. If you need historical
+   Stocky data, restore from a pre-refactor backup (see
+   `docs/sprint-7/DR-RUNBOOK.md`).
 
 ---
 

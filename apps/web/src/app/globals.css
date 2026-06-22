@@ -3,6 +3,12 @@
 /* Tailwind v4: enable class-based dark mode (`.dark` on <html>) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Click ripple animation for menu item cards */
+@keyframes ripple {
+  from { transform: scale(0); opacity: 0.6; }
+  to   { transform: scale(2.4); opacity: 0; }
+}
+
 :root {
   /* Light mode (default) */
   --background: #fafafa;

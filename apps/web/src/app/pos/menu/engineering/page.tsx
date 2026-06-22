@@ -52,33 +52,33 @@ const QUADRANT_META: Record<
     label: 'Star',
     indonesian: 'Bintang',
     description: 'Penjualan tinggi, margin tinggi',
-    color: 'text-emerald-400',
-    border: 'border-emerald-700/60',
-    bg: 'bg-emerald-900/20',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    border: 'border-emerald-300 dark:border-emerald-700/60',
+    bg: 'bg-emerald-50 dark:bg-emerald-900/20',
   },
   PLOWHORSE: {
     label: 'Plowhorse',
     indonesian: 'Kuda',
     description: 'Penjualan tinggi, margin rendah',
-    color: 'text-amber-400',
-    border: 'border-amber-700/60',
-    bg: 'bg-amber-900/20',
+    color: 'text-amber-600 dark:text-amber-400',
+    border: 'border-amber-300 dark:border-amber-700/60',
+    bg: 'bg-amber-50 dark:bg-amber-900/20',
   },
   PUZZLE: {
     label: 'Puzzle',
     indonesian: 'Teka-teki',
     description: 'Penjualan rendah, margin tinggi',
-    color: 'text-sky-400',
-    border: 'border-sky-700/60',
-    bg: 'bg-sky-900/20',
+    color: 'text-sky-600 dark:text-sky-400',
+    border: 'border-sky-300 dark:border-sky-700/60',
+    bg: 'bg-sky-50 dark:bg-sky-900/20',
   },
   DOG: {
     label: 'Dog',
     indonesian: 'Anjing',
     description: 'Penjualan rendah, margin rendah',
-    color: 'text-rose-400',
-    border: 'border-rose-700/60',
-    bg: 'bg-rose-900/20',
+    color: 'text-rose-600 dark:text-rose-400',
+    border: 'border-rose-300 dark:border-rose-700/60',
+    bg: 'bg-rose-50 dark:bg-rose-900/20',
   },
 };
 
@@ -413,7 +413,7 @@ function QuadrantCard({
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-xs text-neutral-800 dark:text-neutral-200">{formatIDR(it.totalRevenueCents)}</div>
-                  <div className={cn('text-[10px]', it.marginCents >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                  <div className={cn('text-[10px]', it.marginCents >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400')}>
                     {formatIDR(it.marginCents)}
                   </div>
                 </div>
@@ -492,7 +492,7 @@ function DetailRow({
       <div
         className={cn(
           'text-sm font-semibold mt-0.5',
-          tone === 'good' ? 'text-emerald-400' : tone === 'bad' ? 'text-rose-400' : 'text-neutral-900 dark:text-neutral-100',
+          tone === 'good' ? 'text-emerald-600 dark:text-emerald-400' : tone === 'bad' ? 'text-rose-600 dark:text-rose-400' : 'text-neutral-900 dark:text-neutral-100',
         )}
       >
         {value}

@@ -261,7 +261,16 @@ menuEngineeringRoutes.get('/snapshots', async (c) => {
     orderBy: { generatedAt: 'desc' },
     take: limit,
   });
-  return ok(c, snapshots);
+  // Normalize JSON columns so the web client gets `items`/`totals` keys
+  // (matching the type contract on create endpoint).
+  return ok(
+    c,
+    snapshots.map((s) => ({
+      ...s,
+      items: s.itemsJson as unknown as MenuEngineeringItem[],
+      totals: s.totalsJson as unknown as MenuEngineeringTotals,
+    })),
+  );
 });
 
 // ─── Detail snapshot ───────────────────────────────────────────────────────
@@ -270,5 +279,11 @@ menuEngineeringRoutes.get('/snapshots/:id', async (c) => {
   const id = c.req.param('id');
   const snapshot = await prisma.menuEngineeringSnapshot.findUnique({ where: { id } });
   if (!snapshot) return fail(c, 'NotFound', 'Snapshot not found', 404);
-  return ok(c, snapshot);
+  // Normalize JSON columns to match the type contract used by the create
+  // endpoint and the web UI.
+  return ok(c, {
+    ...snapshot,
+    items: snapshot.itemsJson as unknown as MenuEngineeringItem[],
+    totals: snapshot.totalsJson as unknown as MenuEngineeringTotals,
+  });
 });
