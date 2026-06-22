@@ -58,6 +58,14 @@ export interface KickDrawerOptions {
   printerCharacteristic?: BluetoothCharacteristic | null;
   /** Pin 2 (default) or pin 5. */
   drawerPin?: DrawerPin;
+  /**
+   * If true, the helper is allowed to pop the Chrome Web Serial / Web USB
+   * pickers as fallback transports. Defaults to false. The auto-flow
+   * (CASH payment finalize on /pos) MUST leave this false — the picker
+   * pops mid-navigation and confuses the cashier. Only manual "test
+   * drawer" buttons should set it to true.
+   */
+  interactive?: boolean;
 }
 
 export interface UseDrawerKickOptions extends KickDrawerOptions {
@@ -304,7 +312,7 @@ async function kickViaApi(drawerPin: DrawerPin): Promise<DrawerKickResult> {
  * always considered best-effort.
  */
 export async function kickDrawerWeb(opts: KickDrawerOptions = {}): Promise<DrawerKickResult> {
-  const { printerCharacteristic = null, drawerPin = 2 } = opts;
+  const { printerCharacteristic = null, drawerPin = 2, interactive = false } = opts;
   const bytes = kickPrinterBytes(drawerPin);
 
   // 1. Printer (BLE) — silent no-op if not connected.
@@ -314,13 +322,12 @@ export async function kickDrawerWeb(opts: KickDrawerOptions = {}): Promise<Drawe
     // Fall through; don't fail loud — printer might be the wrong one.
   }
 
-  // 2/3. Web Serial / Web USB — these both need a user gesture; we try
-  // them only if the caller is okay being prompted. For auto-flows
-  // (CASH payment finalize), we go straight to the API. For the
-  // "Test Buka Drawer" button the caller can pass `interactive: true`.
-  // The `kickDrawerWeb` helper is best-effort: if both are absent we
-  // fall through to the API.
-  if (typeof navigator !== 'undefined') {
+  // 2/3. Web Serial / Web USB — these both need a user gesture (they
+  // pop a Chrome picker). We ONLY try them when the caller explicitly
+  // opts in via `interactive: true`. For auto-flows (CASH payment
+  // finalize) we go straight to the API to avoid the picker popping
+  // mid-navigation and confusing the cashier.
+  if (interactive && typeof navigator !== 'undefined') {
     const nav = navigator as Navigator & NavigatorExtras;
     if (nav.serial) {
       // Note: the requestPort() call will trigger a permission prompt.

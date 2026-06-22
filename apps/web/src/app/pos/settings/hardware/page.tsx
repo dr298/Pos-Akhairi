@@ -158,8 +158,11 @@ export default function HardwareSettingsPage() {
 
   // Quick sanity check the kicker is wired correctly — we can call
   // kickDrawerWeb directly to verify the bytes it produces.
+  // `interactive: true` is required for the Web Serial/USB pickers
+  // to appear. The auto-flow (CASH payment) deliberately does NOT
+  // pass this, so it skips straight to the API.
   const handleVerifyBytes = useCallback(() => {
-    void kickDrawerWeb({ drawerPin }).then((res) => {
+    void kickDrawerWeb({ drawerPin, interactive: true }).then((res) => {
       if (res.ok) {
         toast.success(`Bytes terkirim via ${res.transport}`);
       } else {

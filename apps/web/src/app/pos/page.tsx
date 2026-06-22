@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { formatIDR } from '@/lib/format';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useDrawerKick } from '@/lib/cash-drawer';
+import { usePrinter } from '@/contexts/PrinterContext';
 import {
   useBarcodeScanner,
   lookupBarcode,
@@ -128,9 +129,14 @@ export default function PosPage() {
   // Sprint 8.10 — wire the cash-drawer kick. The hook auto-fires when
   // `drawerKickTrigger` flips to true, then we reset the trigger. We
   // only show the "Drawer opened" toast when a real transport succeeded
-  // (i.e. Web Serial / Web USB / printer BLE). The API-only fallback is
-  // silent — it's a diagnostic path.
-  const drawerKick = useDrawerKick({ triggerOn: drawerKickTrigger });
+  // (i.e. printer BLE — we deliberately do NOT pop the Web Serial/USB
+  // pickers during auto-flow, see `interactive: false` below). The
+  // API-only fallback is silent — it's a diagnostic path.
+  const printerCtx = usePrinter();
+  const drawerKick = useDrawerKick({
+    triggerOn: drawerKickTrigger,
+    printerCharacteristic: printerCtx.connection?.characteristic ?? null,
+  });
   useEffect(() => {
     if (drawerKickTrigger && !drawerKick.busy) {
       if (drawerKick.lastResult?.ok) {
