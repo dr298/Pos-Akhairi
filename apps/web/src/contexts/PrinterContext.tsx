@@ -55,7 +55,7 @@ interface PrinterState {
 }
 
 interface PrinterActions {
-  connect: () => Promise<void>;
+  connect: (opts?: { unfiltered?: boolean }) => Promise<void>;
   disconnect: () => void;
   // Run the ESC/POS self-test command. Only meaningful when connected.
   testPrint: () => Promise<boolean>;
@@ -140,7 +140,11 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     setError('Printer terputus dari Bluetooth (baterai / jarak / dimatikan)');
   }, []);
 
-  const connect = useCallback(async () => {
+  // Default connect (filtered by service+namePrefix). The picker may
+  // show 0 devices if the printer advertises a non-standard GATT
+  // service — call `connect({ unfiltered: true })` from the UI to fall
+  // back to "show all BLE devices" mode.
+  const connect = useCallback(async (opts: { unfiltered?: boolean } = {}) => {
     if (!supported) {
       setError('Browser tidak mendukung Web Bluetooth. Pakai Chrome desktop atau Android Chrome.');
       return;
@@ -148,7 +152,10 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     setError(null);
     try {
-      const conn = await connectPrinter({ namePrefix: namePrefix || undefined });
+      const conn = await connectPrinter({
+        namePrefix: namePrefix || undefined,
+        unfiltered: opts.unfiltered,
+      });
       // Attach disconnect listener.
       conn.device.addEventListener('gattserverdisconnected', handleDisconnectEvent);
       setConnection(conn);

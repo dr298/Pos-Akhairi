@@ -46,6 +46,13 @@ export function PrinterStatusBadge() {
     setOpen(false);
     await connect();
   };
+  // Fallback for printers (NYK L6 and other Chinese 58mm clones) that
+  // advertise a non-standard GATT service and don't show up in the
+  // default filter. Asks Chrome to list ALL nearby BLE devices.
+  const handleConnectAll = async () => {
+    setOpen(false);
+    await connect({ unfiltered: true });
+  };
   const handleDisconnect = () => {
     setOpen(false);
     disconnect();
@@ -145,14 +152,25 @@ export function PrinterStatusBadge() {
           )}
           <div className="space-y-1">
             {supported && !connection && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleConnect}
-                className="w-full rounded px-2 py-1.5 text-left text-xs text-emerald-300 hover:bg-neutral-800 disabled:opacity-50"
-              >
-                {busy ? 'Menghubungkan…' : 'Hubungkan Printer BT'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleConnect}
+                  className="w-full rounded px-2 py-1.5 text-left text-xs text-emerald-300 hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {busy ? 'Menghubungkan…' : 'Hubungkan Printer BT'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleConnectAll}
+                  className="w-full rounded px-2 py-1.5 text-left text-xs text-neutral-400 hover:bg-neutral-800 disabled:opacity-50"
+                  title="Tampilkan semua device BLE (untuk printer NYK L6 dan 58mm China yang advertise service non-standar)"
+                >
+                  Cari semua device…
+                </button>
+              </>
             )}
             {supported && connection && (
               <>
