@@ -64,16 +64,18 @@ export function isWebBluetoothSupported(): boolean {
   if (typeof navigator === 'undefined') return false;
   return 'bluetooth' in navigator;
 }
-
 export async function connectPrinter(
   opts: BluetoothPrinterOptions = {},
 ): Promise<ConnectedPrinter> {
+  // eslint-disable-next-line no-console
+  console.log('[BT] connectPrinter called', { opts, stack: new Error().stack });
   if (typeof navigator === 'undefined' || !navigator.bluetooth) {
     throw new Error('Web Bluetooth tidak didukung di browser ini.');
   }
   const bt: Bluetooth = navigator.bluetooth;
   const serviceUuid = opts.serviceUuid ?? DEFAULT_PRINTER_SERVICE_UUID;
   const characteristicUuid = opts.characteristicUuid ?? DEFAULT_WRITE_CHARACTERISTIC_UUID;
+  const knownServices = KNOWN_PRINTER_SERVICE_UUIDS;
 
   // Chrome Web Bluetooth quirk: when a filter uses only `namePrefix` (no
   // `services` inside the filter object) and no `acceptAllDevices`, some
@@ -92,18 +94,35 @@ export async function connectPrinter(
   // acceptAllDevices mode — needed for printers that don't advertise
   // any of the standard 0x18F0 / Nordic UART services (some Chinese
   // 58mm / NYK L6 clones ship with vendor-specific GATT services).
-  const knownServices = KNOWN_PRINTER_SERVICE_UUIDS;
   const nameFilter = opts.namePrefix ? { namePrefix: opts.namePrefix } : {};
-  // Single-filter approach: one filter object with the multi-service
-  // list + the name prefix. Chrome supports services: string[] on a
-  // single filter object (it's a union, not a per-entry match).
-  const requestOptions: RequestDeviceOptions = opts.unfiltered
-    ? { acceptAllDevices: true, optionalServices: knownServices as string[] }
-    : {
-        filters: [{ services: knownServices as string[], ...nameFilter }],
-        optionalServices: knownServices as string[],
-      };
+  // Sprint 17 — use unfiltered picker (acceptAllDevices: true) to
+  // avoid "No compatible devices found" when the PRINTER_NAME_PREFIX
+  // is stale or mismatched. The hard `filters`+`services`+`namePrefix`
+  // approach is too strict: a cashier who set "MTP-" once and then
+  // paired a NYK L6 will see an empty picker with no recovery path.
+  //
+  // The knownServices list is still passed as `optionalServices` so
+  // the GATT connect path can read the printer's characteristics.
+  // Trade-off: the picker shows ALL nearby BLE devices (headphones,
+  // mice, beacons, etc.) but the cashier usually has only one or two
+  // printers in range so this is fine.
+  void opts.unfiltered; // kept for API compatibility, no longer branches
+  void nameFilter;
+  const requestOptions: RequestDeviceOptions = {
+    acceptAllDevices: true,
+    optionalServices: knownServices as string[],
+  };
   const device = await bt.requestDevice(requestOptions as any);
+
+  // Soft prefix check — log a warning if the device name doesn't
+  // match the configured prefix, but don't block. This is the only
+  // way to apply a name filter in acceptAllDevices mode.
+  if (opts.namePrefix && device.name && !device.name.startsWith(opts.namePrefix)) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[BT] picked device "${device.name}" doesn't match namePrefix="${opts.namePrefix}" — proceeding anyway`,
+    );
+  }
 
   if (!device.gatt) {
     throw new Error('Perangkat Bluetooth tidak memiliki GATT server.');
