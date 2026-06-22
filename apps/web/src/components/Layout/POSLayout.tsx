@@ -202,28 +202,124 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
         .slice(0, 10)
     : [];
 
+  // Sprint 20 — sidebar collapse state. Persisted to localStorage so
+  // the cashier's preference survives refreshes. Default: expanded.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('pos_sidebar_collapsed');
+      if (stored === 'true') setSidebarCollapsed(true);
+    } catch {
+      /* localStorage unavailable, keep default */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem('pos_sidebar_collapsed', String(sidebarCollapsed));
+    } catch {
+      /* best-effort persistence */
+    }
+  }, [sidebarCollapsed]);
+
+  // Sprint 20 — extract the sidebar/drawer body so it can be rendered
+  // both as a drawer overlay (mobile) and as a persistent left rail
+  // (md+). Drawer copy on mobile includes an X close button; the
+  // desktop rail omits the X (no need to dismiss something that
+  // never went away).
+  const sidebarContent = (
+    <SidebarContent
+      visibleGroups={visibleGroups}
+      pathname={pathname}
+      user={user}
+      onNavClick={() => setDrawerOpen(false)}
+      showCloseButton
+      collapsed={sidebarCollapsed}
+    />
+  );
+
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 print:bg-white">
-      <header
-        className="sticky top-0 z-30 border-b border-neutral-200 dark:border-white/5 bg-neutral-50 dark:bg-neutral-950/80 backdrop-blur-md print:hidden"
-        style={{ fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
+    <div className="min-h-screen flex bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 print:bg-white">
+      {/* Sprint 20 — persistent left sidebar (md+). On mobile this is
+          hidden; the drawer overlay (further down) is the mobile nav. */}
+      <aside
+        className={cn(
+          'hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:z-30',
+          'bg-neutral-50 dark:bg-neutral-950 border-r border-neutral-200 dark:border-white/5',
+          'print:hidden transition-[width] duration-200',
+          sidebarCollapsed ? 'md:w-16' : 'md:w-64',
+        )}
       >
-        <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-5 h-14">
-          {/* Left: logo */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-neutral-100 dark:bg-white/5 active:bg-neutral-200 dark:bg-white/10 transition-colors"
-              aria-label="Open menu"
-            >
-              <Icon name="menu" className="h-5 w-5" />
-            </button>
-            <Link href="/pos" className="flex items-center gap-2 font-semibold whitespace-nowrap">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-neutral-900 dark:text-white text-sm font-bold">BKJ</span>
-              <span className="hidden sm:inline text-neutral-900 dark:text-neutral-100">POS</span>
-            </Link>
-          </div>
+        <SidebarContent
+          visibleGroups={visibleGroups}
+          pathname={pathname}
+          user={user}
+          onNavClick={() => {}}
+          showCloseButton={false}
+          collapsed={sidebarCollapsed}
+        />
+      </aside>
+
+      {/* Right column: header + main content. Padded on desktop to
+          leave room for the fixed sidebar. */}
+      <div
+        className={cn(
+          'flex-1 flex flex-col min-w-0',
+          sidebarCollapsed ? 'md:pl-16' : 'md:pl-64',
+        )}
+      >
+        <header
+          className="sticky top-0 z-20 border-b border-neutral-200 dark:border-white/5 bg-neutral-50 dark:bg-neutral-950/80 backdrop-blur-md print:hidden"
+          style={{ fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
+        >
+          <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-5 h-14">
+            {/* Sprint 20 — on desktop, the logo lives in the left sidebar,
+                not here. On mobile we still need a header to house the
+                hamburger button and the search trigger. */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-neutral-100 dark:bg-white/5 active:bg-neutral-200 dark:bg-white/10 transition-colors"
+                aria-label="Open menu"
+              >
+                <Icon name="menu" className="h-5 w-5" />
+              </button>
+              {/* Sprint 20 — sidebar collapse toggle (desktop only) */}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(c => !c)}
+                className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-neutral-100 dark:bg-white/5 active:bg-neutral-200 dark:bg-white/10 transition-colors"
+                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                <Icon
+                  name={sidebarCollapsed ? 'panel-left-open' : 'panel-left-close'}
+                  className="h-5 w-5"
+                />
+              </button>
+              {/* Mobile-only title (no sidebar visible). Desktop users
+                  see the logo in the sidebar already. */}
+              <Link
+                href="/pos"
+                className="md:hidden flex items-center gap-2 font-semibold whitespace-nowrap"
+              >
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-neutral-900 dark:text-white text-sm font-bold">
+                  BKJ
+                </span>
+                <span className="text-neutral-900 dark:text-neutral-100">POS</span>
+              </Link>
+              <span className="hidden md:inline text-sm text-neutral-500 dark:text-neutral-400 font-medium">
+                {/* Sprint 20 — current page title, derived from the active
+                    nav item label. Kept simple — just shows the parent
+                    group label. */}
+                {(() => {
+                  const active = visibleGroups
+                    .flatMap(g => g.items)
+                    .find(i => i.match(pathname));
+                  return active ? active.label : 'POS';
+                })()}
+              </span>
+            </div>
 
           {/* Center: search (desktop only) */}
           <div className="hidden md:flex flex-1 max-w-md">
@@ -313,37 +409,9 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Sub-nav: current section + breadcrumbs (desktop) */}
-        <div className="hidden md:flex items-center gap-1 px-3 sm:px-5 h-10 border-t border-neutral-200 dark:border-white/5 overflow-x-auto">
-          {visibleGroups.flatMap(g => g.items).slice(0, 14).map(item => {
-            const active = item.match(pathname);
-            return (
-              <Link
-                key={item.href}
-                href={item.href.replace(/\[id\]/g, '')}
-                target={item.external ? '_blank' : undefined}
-                rel={item.external ? 'noopener noreferrer' : undefined}
-                className={cn(
-                  'h-8 px-3 inline-flex items-center gap-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap',
-                  active
-                    ? 'bg-neutral-200 dark:bg-white/10 text-neutral-900 dark:text-white'
-                    : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:bg-white/5 hover:text-neutral-800 dark:text-neutral-200',
-                )}
-              >
-                <Icon name={item.icon} className="h-3.5 w-3.5" />
-                <span>{item.label}</span>
-                {item.shortcut && (
-                  <kbd className="hidden xl:inline text-[9px] px-1 rounded bg-neutral-100 dark:bg-white/5 text-neutral-500 font-mono ml-0.5">
-                    {item.shortcut}
-                  </kbd>
-                )}
-              </Link>
-            );
-          })}
-        </div>
       </header>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer (Sprint 20 — reuses SidebarContent) */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div
@@ -352,66 +420,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             aria-label="Close menu"
           />
           <aside className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-neutral-50 dark:bg-neutral-950 border-r border-neutral-300 dark:border-white/10 flex flex-col">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-200 dark:border-white/5 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-neutral-900 dark:text-white text-sm font-bold">BKJ</span>
-                <span className="font-semibold">Bakmie Kota Juang</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                className="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-neutral-100 dark:bg-white/5"
-                aria-label="Close"
-              >
-                <Icon name="x" className="h-5 w-5" />
-              </button>
-            </div>
-            <nav className="flex-1 overflow-y-auto py-2">
-              {visibleGroups.map(group => (
-                <div key={group.id} className="mb-3">
-                  <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
-                    {group.label}
-                  </div>
-                  {group.items.map(item => {
-                    const active = item.match(pathname);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href.replace(/\[id\]/g, '')}
-                        target={item.external ? '_blank' : undefined}
-                        rel={item.external ? 'noopener noreferrer' : undefined}
-                        className={cn(
-                          'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
-                          active
-                            ? 'bg-neutral-200 dark:bg-white/10 text-neutral-900 dark:text-white border-l-2 border-red-500'
-                            : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-white/5 border-l-2 border-transparent',
-                        )}
-                      >
-                        <Icon name={item.icon} className="h-4 w-4 shrink-0" />
-                        <span className="flex-1">{item.label}</span>
-                        {item.shortcut && (
-                          <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-white/5 border border-neutral-300 dark:border-white/10 text-neutral-500 font-mono">
-                            {item.shortcut}
-                          </kbd>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              ))}
-            </nav>
-            <div className="border-t border-neutral-200 dark:border-white/5 px-4 py-3 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="h-8 w-8 inline-flex items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-700 text-neutral-900 dark:text-white text-xs font-semibold">
-                  {user.name?.charAt(0) ?? '?'}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-neutral-900 dark:text-neutral-100 truncate">{user.name}</div>
-                  <div className="text-[10px] text-neutral-500">{user.role}</div>
-                </div>
-                <Button size="sm" variant="outline" onClick={logout}>Keluar</Button>
-              </div>
-            </div>
+            {sidebarContent}
           </aside>
         </div>
       )}
@@ -483,6 +492,129 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
       )}
 
       <main className="flex-1 min-h-0 flex flex-col">{children}</main>
+      </div>{/* end right-column wrapper (header + main) */}
     </div>
+  );
+}
+
+// ─── SidebarContent ────────────────────────────────────────────────────
+// Sprint 20 — extracted from POSLayout so the same nav tree can be
+// rendered as a mobile drawer overlay or a persistent left rail on
+// desktop. Props:
+//   - showCloseButton: render the X button in the header (drawer mode)
+//   - collapsed: hide labels and only show icons (icon-rail mode)
+//   - onNavClick: close the drawer after a link tap (mobile only)
+function SidebarContent({
+  visibleGroups,
+  pathname,
+  user,
+  onNavClick,
+  showCloseButton,
+  collapsed,
+}: {
+  visibleGroups: NavGroup[];
+  pathname: string;
+  user: { name: string; email: string; role: string };
+  onNavClick: () => void;
+  showCloseButton: boolean;
+  collapsed: boolean;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-200 dark:border-white/5 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-neutral-900 dark:text-white text-sm font-bold shrink-0">
+            BKJ
+          </span>
+          {!collapsed && (
+            <span className="font-semibold truncate">Bakmie Kota Juang</span>
+          )}
+        </div>
+        {showCloseButton && (
+          <button
+            type="button"
+            onClick={onNavClick}
+            className="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-neutral-100 dark:bg-white/5"
+            aria-label="Close"
+          >
+            <Icon name="x" className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+      <nav className="flex-1 overflow-y-auto py-2">
+        {visibleGroups.map(group => (
+          <div key={group.id} className="mb-3">
+            {!collapsed && (
+              <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
+                {group.label}
+              </div>
+            )}
+            {group.items.map(item => {
+              const active = item.match(pathname);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href.replace(/\[id\]/g, '')}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noopener noreferrer' : undefined}
+                  onClick={onNavClick}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                    collapsed && 'justify-center px-2',
+                    active
+                      ? 'bg-neutral-200 dark:bg-white/10 text-neutral-900 dark:text-white border-l-2 border-red-500'
+                      : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-white/5 border-l-2 border-transparent',
+                  )}
+                >
+                  <Icon name={item.icon} className="h-4 w-4 shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 truncate">{item.label}</span>
+                      {item.shortcut && (
+                        <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-white/5 border border-neutral-300 dark:border-white/10 text-neutral-500 font-mono">
+                          {item.shortcut}
+                        </kbd>
+                      )}
+                    </>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+      <div className="border-t border-neutral-200 dark:border-white/5 px-4 py-3 shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="h-8 w-8 inline-flex items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-700 text-neutral-900 dark:text-white text-xs font-semibold shrink-0">
+            {user.name?.charAt(0) ?? '?'}
+          </span>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-neutral-900 dark:text-neutral-100 truncate">
+                {user.name}
+              </div>
+              <div className="text-[10px] text-neutral-500">{user.role}</div>
+            </div>
+          )}
+          {collapsed ? (
+            <span className="text-[10px] text-neutral-500">{user.role}</span>
+          ) : (
+            <LogoutButton />
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// LogoutButton — small wrapper that pulls logout from useAuth().
+// Kept separate to avoid running useAuth() twice in the tree.
+function LogoutButton() {
+  const { logout } = useAuth();
+  return (
+    <Button size="sm" variant="outline" onClick={logout}>
+      Keluar
+    </Button>
   );
 }
