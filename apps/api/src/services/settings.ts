@@ -48,6 +48,55 @@ export const KNOWN_SETTINGS = {
     },
     format: (s: string) => s.trim(),
   },
+  // Sprint 15 — business identity shown on receipts, POS header, and
+  // any customer-facing print. All three are owner-editable from
+  // /pos/settings (General section).
+  BUSINESS_NAME: {
+    description:
+      'Business name printed on receipts and shown in the POS header.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') {
+        throw new Error('BUSINESS_NAME must be a string');
+      }
+      const trimmed = raw.trim();
+      if (trimmed.length === 0) {
+        throw new Error('BUSINESS_NAME cannot be empty');
+      }
+      if (trimmed.length > 80) {
+        throw new Error('BUSINESS_NAME max 80 chars');
+      }
+      return trimmed;
+    },
+    format: (s: string) => s.trim(),
+  },
+  BUSINESS_ADDRESS: {
+    description:
+      'Business address printed under the business name on receipts. Empty = no address line.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') {
+        throw new Error('BUSINESS_ADDRESS must be a string');
+      }
+      if (raw.length > 200) {
+        throw new Error('BUSINESS_ADDRESS max 200 chars');
+      }
+      return raw.trim();
+    },
+    format: (s: string) => s.trim(),
+  },
+  RECEIPT_FOOTER: {
+    description:
+      'Custom thank-you / closing line at the bottom of every receipt. Empty = default ("Terima kasih!").',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') {
+        throw new Error('RECEIPT_FOOTER must be a string');
+      }
+      if (raw.length > 200) {
+        throw new Error('RECEIPT_FOOTER max 200 chars');
+      }
+      return raw.trim();
+    },
+    format: (s: string) => s.trim(),
+  },
 } as const;
 
 export type KnownSettingKey = keyof typeof KNOWN_SETTINGS;
@@ -75,6 +124,23 @@ export async function getEffectivePpnBp(): Promise<number> {
 export function invalidateSettingCache(key?: string) {
   if (key) cache.delete(key);
   else cache.clear();
+}
+
+// Sprint 15 — single read of all business-identity settings. Cached
+// internally per-key. Used by /api/business and the receipt builder.
+export async function getBusinessSnapshot() {
+  const [name, address, footer] = await Promise.all([
+    getSetting('BUSINESS_NAME'),
+    getSetting('BUSINESS_ADDRESS'),
+    getSetting('RECEIPT_FOOTER'),
+  ]);
+  return {
+    name: name ?? 'BKJ Tangerang',
+    address: address ?? '',
+    // Empty footer means "use the default" — the caller is responsible
+    // for the fallback copy. We just expose whatever the OWNER set.
+    footer: footer ?? '',
+  };
 }
 
 export async function listSettings() {

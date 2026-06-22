@@ -191,7 +191,40 @@ async function main() {
     update: {},
   });
 
-  console.log('[seed] settings: 2 rows');
+  // Sprint 15 — business identity. Real resto is "Bakmie BKJ" at
+  // Jln. … Tangerang; seeded as sensible defaults the OWNER can edit
+  // from /pos/settings.
+  await prisma.setting.upsert({
+    where: { key: 'BUSINESS_NAME' },
+    create: {
+      key: 'BUSINESS_NAME',
+      value: 'Bakmie BKJ',
+      description: 'Business name printed on receipts and shown in the POS header.',
+    },
+    update: {},
+  });
+
+  await prisma.setting.upsert({
+    where: { key: 'BUSINESS_ADDRESS' },
+    create: {
+      key: 'BUSINESS_ADDRESS',
+      value: 'Jl. Raya Serang No. 88, Tangerang',
+      description: 'Business address printed under the business name on receipts. Empty = no address line.',
+    },
+    update: {},
+  });
+
+  await prisma.setting.upsert({
+    where: { key: 'RECEIPT_FOOTER' },
+    create: {
+      key: 'RECEIPT_FOOTER',
+      value: 'Terima kasih, sampai jumpa lagi!',
+      description: 'Custom thank-you / closing line at the bottom of every receipt. Empty = default ("Terima kasih!").',
+    },
+    update: {},
+  });
+
+  console.log('[seed] settings: 5 rows');
   console.log('[seed] done');
 }
 

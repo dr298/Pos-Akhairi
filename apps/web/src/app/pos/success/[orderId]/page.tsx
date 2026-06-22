@@ -37,6 +37,12 @@ export default function SuccessPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [printing, setPrinting] = useState(false);
+  // Sprint 15 — fetch business identity for receipt header / footer.
+  const [business, setBusiness] = useState<{
+    name: string;
+    address: string;
+    footer: string;
+  } | null>(null);
   // Sprint 14 — use the shared printer context so the connection persists
   // across /pos → /pos/success navigation.
   const printerCtx = usePrinter();
@@ -51,6 +57,14 @@ export default function SuccessPage() {
         if (!cancelled) setOrder(res.data);
       } catch (e) {
         // It's fine to render with query params even if fetch fails.
+      }
+      // Sprint 15 — load business identity. Failure is non-fatal; the
+      // receipt falls back to the hardcoded defaults.
+      try {
+        const b = await api.getBusiness();
+        if (!cancelled) setBusiness(b.data);
+      } catch (e) {
+        // ignore
       }
     })();
     return () => {
@@ -84,7 +98,8 @@ export default function SuccessPage() {
         return;
       }
       const data = buildReceipt({
-        header: 'BKJ POS',
+        header: business?.name || 'BKJ POS',
+        subheader: business?.address || undefined,
         orderNumber: order?.orderNumber || orderNumber || '—',
         orderType: order?.type,
         tableNumber: order?.tableNumber,
@@ -102,7 +117,7 @@ export default function SuccessPage() {
         amountGivenCents: method === 'CASH' ? given : undefined,
         changeCents: method === 'CASH' ? change : undefined,
         paymentMethod: method,
-        footer: 'Terima kasih!',
+        footer: business?.footer || 'Terima kasih!',
       });
       await writeBytes(conn.characteristic, data);
       toast.success('Struk dicetak ke printer Bluetooth');
@@ -203,7 +218,10 @@ export default function SuccessPage() {
 
       {/* Print-only receipt */}
       <div ref={receiptRef} className="hidden print:block w-full max-w-xs mx-auto p-4 text-black">
-        <div className="text-center font-bold text-lg">BKJ POS</div>
+        <div className="text-center font-bold text-lg">{business?.name || 'BKJ POS'}</div>
+        {business?.address && (
+          <div className="text-center text-[10px] text-zinc-500 mt-0.5">{business.address}</div>
+        )}
         <div className="text-center text-sm">No. {order?.orderNumber || orderNumber}</div>
         <div className="text-center text-xs">
           {new Date().toLocaleString('id-ID')}
@@ -249,7 +267,7 @@ export default function SuccessPage() {
           </>
         )}
         <hr className="my-2 border-black" />
-        <div className="text-center text-xs">Terima kasih!</div>
+        <div className="text-center text-xs">{business?.footer || 'Terima kasih!'}</div>
       </div>
     </div>
   );

@@ -1306,7 +1306,18 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ value, description }),
     }),
+  // Sprint 15 — public business identity. Same shape as getBusiness()
+  // (exported below) so callers can use either reference.
+  getBusiness: () => request<{ data: BusinessSnapshot }>('/api/business'),
 };
+
+// Sprint 15 — public business identity (name, address, footer). Read-only
+// from the web; the OWNER writes via upsertSetting above.
+export interface BusinessSnapshot {
+  name: string;
+  address: string;
+  footer: string;
+}
 
 export { API_URL };
 

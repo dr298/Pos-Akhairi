@@ -54,6 +54,9 @@ export interface ReceiptLineItem {
 
 export interface ReceiptData {
   header: string; // shop name
+  // Sprint 15 — optional second header line (usually the business
+  // address). The receipt renderer writes it directly under the header.
+  subheader?: string;
   orderNumber: string;
   orderType?: string;
   tableNumber?: string | null;
@@ -138,6 +141,12 @@ export function buildReceipt(d: ReceiptData): Uint8Array {
   parts.push(CMD.ALIGN_CENTER, CMD.SIZE_DOUBLE, CMD.BOLD_ON);
   parts.push(strBytes(d.header));
   parts.push(CMD.LF, CMD.BOLD_OFF, CMD.SIZE_NORMAL);
+
+  // Sprint 15 — optional subheader (e.g. business address), smaller.
+  if (d.subheader) {
+    parts.push(strBytes(d.subheader));
+    parts.push(CMD.LF);
+  }
 
   // Order meta (centered)
   parts.push(CMD.ALIGN_CENTER);

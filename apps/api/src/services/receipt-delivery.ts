@@ -1,6 +1,11 @@
 // apps/api/src/services/receipt-delivery.ts
 //
 // Sprint 8.9 — Digital receipt delivery (WhatsApp / Email / Print).
+// Sprint 15 — Business identity (name/address/footer) read from the
+// global Settings table so the OWNER can edit it from /pos/settings
+// without redeploying.
+
+import { getBusinessSnapshot } from './settings.js';
 //
 // Public surface
 //   renderReceipt(orderId)              → { text, html, subject, meta }
@@ -143,11 +148,17 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
   }
 
   const cashierName = order.openedBy?.name ?? '—';
-  // Single-restaurant deployment. The legacy `branchName` / `branchAddress`
-  // fields are kept for receipt-template compatibility and fall back to the
-  // brand header when not set.
-  const branchName = BRAND_HEADER;
-  const branchAddress = null;
+  // Sprint 15 — business identity from the Settings table (cached for
+  // 30s). If the OWNER hasn't set anything yet, fall back to the brand
+  // defaults that were here pre-Sprint 15.
+  const business = await getBusinessSnapshot().catch(() => ({
+    name: 'BAKMIE KOTA JUANG',
+    address: '',
+    footer: 'Terima kasih atas kunjungannya!',
+  }));
+  const branchName = business.name || 'BAKMIE KOTA JUANG';
+  const branchAddress = business.address || null;
+  const receiptFooter = business.footer || 'Terima kasih atas kunjungannya!';
   const openedAt = order.openedAt;
   const closedAt = order.closedAt ?? null;
 
@@ -171,7 +182,7 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
   // ─── Plain text (32-col body, used for WhatsApp + console preview) ────
   const divider = '-'.repeat(34);
   const headerLines: string[] = [];
-  headerLines.push('=== ' + BRAND_HEADER + ' ===');
+  headerLines.push('=== ' + branchName + ' ===');
   headerLines.push(pad(branchName, 34, 'left'));
   if (branchAddress) headerLines.push(pad(branchAddress, 34, 'left'));
   headerLines.push('');
@@ -224,7 +235,7 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
     }
   }
 
-  const footer = '\nTerima kasih atas kunjungannya!\n';
+  const footer = `\n${receiptFooter}\n`;
   const text =
     [...headerLines, ...metaLines, ...itemLines, ...totalsLines, ...paymentLines].join('\n') +
     footer;
@@ -238,7 +249,7 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
     .join('');
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Struk ${escapeHtml(order.orderNumber)}</title></head>
 <body style="font-family:monospace,Courier,monospace;max-width:480px;margin:0 auto;padding:16px;background:#0a0a0a;color:#e5e5e5;">
-  <h2 style="text-align:center;margin:0 0 4px;color:#fbbf24;">${escapeHtml(BRAND_HEADER)}</h2>
+  <h2 style="text-align:center;margin:0 0 4px;color:#fbbf24;">${escapeHtml(branchName)}</h2>
   <p style="text-align:center;margin:0 0 4px;">${escapeHtml(branchName)}</p>
   ${branchAddress ? `<p style="text-align:center;margin:0 0 12px;color:#9ca3af;">${escapeHtml(branchAddress)}</p>` : ''}
   <hr style="border:0;border-top:1px dashed #525252"/>
@@ -268,7 +279,7 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
       : ''
   }
   <hr style="border:0;border-top:1px dashed #525252"/>
-  <p style="text-align:center;margin-top:16px;color:#9ca3af;">Terima kasih atas kunjungannya!</p>
+  <p style="text-align:center;margin-top:16px;color:#9ca3af;">${escapeHtml(receiptFooter)}</p>
 </body></html>`;
 
   const subject = `Struk ${order.orderNumber} — ${branchName}`;

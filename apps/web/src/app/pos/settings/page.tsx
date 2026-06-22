@@ -26,6 +26,11 @@ export default function PosSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [ppnPercent, setPpnPercent] = useState<string>('0');
   const [saving, setSaving] = useState(false);
+  // Sprint 15 — general business identity.
+  const [businessName, setBusinessName] = useState<string>('');
+  const [businessAddress, setBusinessAddress] = useState<string>('');
+  const [receiptFooter, setReceiptFooter] = useState<string>('');
+  const [savingGeneral, setSavingGeneral] = useState(false);
 
   // Route guard: OWNER only (settings can change tax behaviour for the
   // whole resto; we don't want any cashier to flip this).
@@ -53,6 +58,13 @@ export default function PosSettingsPage() {
           // Display in percent (divide by 100). "1100" basis points → "11"
           setPpnPercent((Number(ppn.value) / 100).toString());
         }
+        // Sprint 15 — hydrate business identity fields.
+        const name = res.data.settings.find((s) => s.key === 'BUSINESS_NAME');
+        if (name) setBusinessName(name.value);
+        const addr = res.data.settings.find((s) => s.key === 'BUSINESS_ADDRESS');
+        if (addr) setBusinessAddress(addr.value);
+        const footer = res.data.settings.find((s) => s.key === 'RECEIPT_FOOTER');
+        if (footer) setReceiptFooter(footer.value);
       } catch (e) {
         toast.error('Gagal memuat settings');
       } finally {
@@ -63,6 +75,27 @@ export default function PosSettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  const saveGeneral = async () => {
+    if (!businessName.trim()) {
+      toast.error('Nama bisnis tidak boleh kosong');
+      return;
+    }
+    setSavingGeneral(true);
+    try {
+      await api.upsertSetting('BUSINESS_NAME', businessName.trim(), null);
+      await api.upsertSetting('BUSINESS_ADDRESS', businessAddress.trim(), null);
+      await api.upsertSetting('RECEIPT_FOOTER', receiptFooter.trim(), null);
+      toast.success('Identitas bisnis disimpan');
+      const res = await api.listSettings();
+      setSettings(res.data.settings);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal menyimpan';
+      toast.error(msg);
+    } finally {
+      setSavingGeneral(false);
+    }
+  };
 
   const savePpn = async () => {
     const percent = Number(ppnPercent);
@@ -103,6 +136,62 @@ export default function PosSettingsPage() {
           untuk order berikutnya.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Identitas Bisnis (General)</CardTitle>
+          <CardDescription>
+            Nama, alamat, dan pesan penutup yang muncul di struk dan header POS.
+            Berlaku untuk semua order berikutnya.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+              Nama Bisnis <span className="text-rose-400">*</span>
+            </label>
+            <Input
+              type="text"
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              placeholder="Bakmie BKJ"
+              maxLength={80}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+              Alamat
+            </label>
+            <Input
+              type="text"
+              value={businessAddress}
+              onChange={(e) => setBusinessAddress(e.target.value)}
+              placeholder="Jl. Raya Serang No. 88, Tangerang"
+              maxLength={200}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+              Footer Struk
+            </label>
+            <Input
+              type="text"
+              value={receiptFooter}
+              onChange={(e) => setReceiptFooter(e.target.value)}
+              placeholder="Terima kasih, sampai jumpa lagi!"
+              maxLength={200}
+            />
+            <p className="mt-1 text-[10px] text-zinc-500">
+              Pesan penutup di bawah struk. Kosongkan untuk default "Terima kasih!".
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={saveGeneral} disabled={savingGeneral}>
+              {savingGeneral ? 'Menyimpan…' : 'Simpan Identitas'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
