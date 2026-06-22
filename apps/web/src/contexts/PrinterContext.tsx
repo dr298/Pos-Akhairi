@@ -275,18 +275,25 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
       // builder on pages that don't print.
       const { buildTestReceipt } = await import('@/lib/escpos');
       const data = buildTestReceipt();
-      // Write in chunks so the printer's tiny buffer doesn't drop bytes.
-      const chunkSize = 100;
+      // BLE MTU is 20 bytes per packet by default. The Chrome
+      // implementation does NOT auto-split writeValueWithoutResponse
+      // payloads on all platforms (Android in particular throws
+      // "GATT Data too large" if you exceed 20 bytes). Chunk to 20
+      // bytes to be safe. We could request a larger MTU via
+      // gatt.requestMtu(247), but for a few-kilobyte receipt the
+      // round-trip overhead is negligible and 20-byte chunks are
+      // universally supported.
+      const chunkSize = 20;
       for (let i = 0; i < data.length; i += chunkSize) {
         const slice = data.slice(i, Math.min(i + chunkSize, data.length));
         await conn.characteristic.writeValueWithoutResponse(slice);
-        // small drain delay
-        await new Promise((r) => setTimeout(r, 30));
+        // small drain delay so the printer's buffer doesn't overflow
+        await new Promise((r) => setTimeout(r, 25));
       }
       return true;
     } catch (e) {
-      const err = e as { message?: string };
-      setError(`Test print gagal: ${err.message || 'unknown'}`);
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Test print gagal: ${msg}`);
       return false;
     }
   }, []);

@@ -74,8 +74,9 @@ export default function SuccessPage() {
 
   async function handleBluetoothPrint() {
     if (!printerEnabled) {
-      toast.info('Printer Bluetooth belum diaktifkan (set NEXT_PUBLIC_PRINTER_ENABLED=true).');
-      handleBrowserPrint();
+      toast.error(
+        'Printer Bluetooth belum diaktifkan. Set NEXT_PUBLIC_PRINTER_ENABLED=true di .env lalu rebuild pos-web.',
+      );
       return;
     }
     if (!isWebBluetoothSupported()) {

@@ -110,6 +110,18 @@ export async function connectPrinter(
   }
 
   const server = await device.gatt.connect();
+  // MTU negotiation: nRF Connect dump of NYK L6 shows MTU 240 is
+  // supported. The default BLE MTU is 23 bytes (20 payload). Request
+  // a larger MTU to reduce chunking overhead. requestMtu is a
+  // Chrome 108+ feature; on older browsers the call may throw — we
+  // ignore that and keep going with the default MTU.
+  try {
+    if (typeof (server as any).requestMtu === 'function') {
+      await (server as any).requestMtu(247);
+    }
+  } catch {
+    // MTU request not supported by browser / device — fine.
+  }
   // GATT service discovery: try the requested serviceUuid first, then
   // walk KNOWN_PRINTER_SERVICE_UUIDS looking for a service that exists
   // on this device. This is needed for hybrid SPP+BLE printers (e.g.
@@ -192,12 +204,12 @@ export async function connectPrinter(
 export async function writeBytes(
   characteristic: BluetoothCharacteristic,
   data: Uint8Array,
-  chunkSize = 100,
+  chunkSize = 20,
 ): Promise<void> {
   for (let i = 0; i < data.length; i += chunkSize) {
     const slice = data.slice(i, Math.min(i + chunkSize, data.length));
     await characteristic.writeValueWithoutResponse(slice);
     // Tiny delay so the printer's buffer can drain.
-    await new Promise((r) => setTimeout(r, 30));
+    await new Promise((r) => setTimeout(r, 25));
   }
 }
