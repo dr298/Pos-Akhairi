@@ -10,6 +10,7 @@ import { LanguageSwitcher } from '@/components/Layout/LanguageSwitcher';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { PrinterStatusBadge } from '@/components/POS/PrinterStatusBadge';
 
 // Role-based access helpers
 const isOwner = (r?: string) => r === 'OWNER';
@@ -254,6 +255,8 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
               </span>
               <span className="text-[10px] text-neutral-500">{now ? formatDate(now) : ''}</span>
             </div>
+            {/* Sprint 14 — printer status badge */}
+            <PrinterStatusBadge />
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"

@@ -31,6 +31,23 @@ export const KNOWN_SETTINGS = {
     },
     format: (n: number) => String(Math.trunc(n)),
   },
+  // Sprint 14 — name prefix for the BT printer. Chrome's device picker
+  // only shows devices whose name starts with this string. Empty = no
+  // filter (show all printers in range).
+  PRINTER_NAME_PREFIX: {
+    description:
+      'Name prefix for the Bluetooth printer (e.g. "MTP-" or "RPP"). Empty = no filter.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') {
+        throw new Error('PRINTER_NAME_PREFIX must be a string');
+      }
+      if (raw.length > 32) {
+        throw new Error('PRINTER_NAME_PREFIX max 32 chars');
+      }
+      return raw.trim();
+    },
+    format: (s: string) => s.trim(),
+  },
 } as const;
 
 export type KnownSettingKey = keyof typeof KNOWN_SETTINGS;

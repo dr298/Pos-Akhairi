@@ -175,12 +175,23 @@ async function main() {
     create: {
       key: 'DEFAULT_PPN_BP',
       value: '0',
-      description: 'Default PPN / VAT rate in basis points (1100 = 11%, 0 = no PPN shown)',
+      description: 'Default PPN / VAT rate in basis points. 1100 = 11%, 0 = hide PPN everywhere.',
     },
     update: {},
   });
-  console.log('[seed] settings: DEFAULT_PPN_BP=0 (no PPN)');
 
+  // Sprint 14 — default printer name prefix.
+  await prisma.setting.upsert({
+    where: { key: 'PRINTER_NAME_PREFIX' },
+    create: {
+      key: 'PRINTER_NAME_PREFIX',
+      value: '',
+      description: 'Name prefix for the Bluetooth printer (e.g. "MTP-" or "RPP"). Empty = no filter.',
+    },
+    update: {},
+  });
+
+  console.log('[seed] settings: 2 rows');
   console.log('[seed] done');
 }
 

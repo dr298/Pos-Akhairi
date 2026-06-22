@@ -237,3 +237,34 @@ export function chunkForBluetooth(buf: Uint8Array, chunkSize = 100): Uint8Array[
   }
   return out;
 }
+
+
+/**
+ * Sprint 14 — minimal self-test receipt used to verify the printer
+ * connection without going through the full order flow. Prints:
+ *   - Header "PRINTER TEST"
+ *   - Date/time + printer-friendly name (from localStorage)
+ *   - A divider, then a short message
+ *   - 4 line feeds + full cut
+ */
+export function buildTestReceipt(opts: { deviceName?: string | null } = {}): Uint8Array {
+  const parts: number[][] = [];
+  parts.push(CMD.INIT);
+  parts.push(CMD.ALIGN_CENTER, CMD.SIZE_DOUBLE, CMD.BOLD_ON);
+  parts.push(strBytes('PRINTER TEST'));
+  parts.push(CMD.LF, CMD.BOLD_OFF, CMD.SIZE_NORMAL);
+  parts.push(CMD.LF);
+  parts.push(strBytes(new Date().toLocaleString('id-ID')));
+  parts.push(CMD.LF);
+  if (opts.deviceName) {
+    parts.push(strBytes(`Device: ${opts.deviceName}`));
+    parts.push(CMD.LF);
+  }
+  parts.push(CMD.LF, strBytes('--------------------------------'), CMD.LF);
+  parts.push(strBytes('Koneksi Bluetooth OK.'), CMD.LF);
+  parts.push(strBytes('Struk ini bukan bukti transaksi.'), CMD.LF);
+  parts.push(strBytes('--------------------------------'), CMD.LF, CMD.LF);
+  // 4 line feeds to push the receipt out of the cutter path
+  for (let i = 0; i < 4; i++) parts.push(CMD.LF);
+  return bytes(...parts);
+}

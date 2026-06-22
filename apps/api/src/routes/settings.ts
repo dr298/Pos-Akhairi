@@ -20,8 +20,10 @@ settingsRoutes.use('*', requireAuth);
 
 const KNOWN_KEYS = Object.keys(KNOWN_SETTINGS);
 
+// Empty string is valid (e.g. PRINTER_NAME_PREFIX="" = "no filter"), so
+// we don't enforce .min(1) here. Length is bounded by .max(50).
 const upsertSchema = z.object({
-  value: z.string().min(1).max(50),
+  value: z.string().max(50),
   description: z.string().max(200).nullable().optional(),
 });
 

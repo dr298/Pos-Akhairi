@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
+import { usePrinter } from '@/contexts/PrinterContext';
 
 export default function HardwareSettingsPage() {
   const router = useRouter();
@@ -33,6 +34,44 @@ export default function HardwareSettingsPage() {
 
   const support = typeof window !== 'undefined' ? getDrawerSupport() : { bluetooth: false, serial: false, usb: false };
   const drawerKick = useDrawerKick({ drawerPin });
+
+  // Sprint 14 — printer connection state from the shared context.
+  const printer = usePrinter();
+  const [printerPrefix, setPrinterPrefix] = useState<string>('');
+  const [savingPrefix, setSavingPrefix] = useState(false);
+
+  // Hydrate the name prefix input from the context (which itself pulled
+  // it from /api/settings on mount).
+  useEffect(() => {
+    setPrinterPrefix(printer.namePrefix);
+  }, [printer.namePrefix]);
+
+  const handleSavePrefix = useCallback(async () => {
+    setSavingPrefix(true);
+    try {
+      await api.upsertSetting('PRINTER_NAME_PREFIX', printerPrefix, undefined);
+      await printer.refreshNamePrefix();
+      toast.success('Name prefix disimpan');
+    } catch (e) {
+      toast.error((e as Error).message || 'Gagal menyimpan');
+    } finally {
+      setSavingPrefix(false);
+    }
+  }, [printerPrefix, printer]);
+
+  const handleTestPrint = useCallback(async () => {
+    const ok = await printer.testPrint();
+    if (ok) toast.success('Test print terkirim');
+  }, [printer]);
+
+  const handleConnect = useCallback(async () => {
+    await printer.connect();
+  }, [printer]);
+
+  const handleDisconnect = useCallback(() => {
+    printer.disconnect();
+    toast.info('Printer diputuskan');
+  }, [printer]);
 
   // Route guard: OWNER + MANAGER only.
   useEffect(() => {
@@ -261,19 +300,107 @@ export default function HardwareSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Printer</CardTitle>
+          <CardTitle className="text-base">Printer Bluetooth</CardTitle>
           <CardDescription>
-            Printer thermal terhubung via Bluetooth. Hubungkan dari halaman POS
-            sebelum transaksi pertama.
+            Printer thermal ESC/POS terhubung via Web Bluetooth. Setiap kali buka
+            POS di browser baru, perlu di-pair ulang (Chrome tidak izinkan pair
+            otomatis karena privacy).
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button
-            variant="outline"
-            onClick={() => router.push('/pos')}
-          >
-            Buka POS untuk Hubungkan Printer
-          </Button>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={printer.supported ? 'success' : 'danger'}>
+              Web Bluetooth: {printer.supported ? '✓ Didukung' : '✕ Tidak'}
+            </Badge>
+            {printer.connection && (
+              <Badge tone="success">
+                ✓ Terhubung: {printer.connection.device.name || '(tanpa nama)'}
+              </Badge>
+            )}
+            {!printer.connection && printer.lastDeviceName && (
+              <Badge tone={printer.lastDisconnect === 'gatt-lost' ? 'muted' : 'muted'}>
+                {printer.lastDisconnect === 'gatt-lost' ? '⚠' : '○'}{' '}
+                {printer.lastDeviceName}
+              </Badge>
+            )}
+            {!printer.connection && !printer.lastDeviceName && (
+              <Badge tone="muted">Belum pernah pair</Badge>
+            )}
+          </div>
+
+          {printer.error && (
+            <div className="rounded-md border border-rose-700 bg-rose-950/30 px-3 py-2 text-xs text-rose-200">
+              {printer.error}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {!printer.connection ? (
+              <Button
+                onClick={handleConnect}
+                disabled={printer.busy || !printer.supported}
+              >
+                {printer.busy ? 'Menghubungkan…' : 'Hubungkan Printer'}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleTestPrint}
+                  disabled={printer.busy}
+                >
+                  🖨 Test Print
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleDisconnect}
+                  disabled={printer.busy}
+                >
+                  Putuskan
+                </Button>
+              </>
+            )}
+            {printer.lastDeviceName && !printer.connection && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  printer.forgetDevice();
+                  toast.info('Device dilupakan');
+                }}
+              >
+                Lupakan Device
+              </Button>
+            )}
+          </div>
+
+          <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4 space-y-2">
+            <div>
+              <label className="text-xs font-medium text-neutral-600 dark:text-neutral-400 block mb-1">
+                Name Prefix (filter Chrome picker)
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={printerPrefix}
+                  onChange={(e) => setPrinterPrefix(e.target.value)}
+                  placeholder="MTP-, RPP, …"
+                  maxLength={32}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleSavePrefix}
+                  disabled={savingPrefix}
+                >
+                  {savingPrefix ? 'Menyimpan…' : 'Simpan'}
+                </Button>
+              </div>
+              <p className="mt-1 text-[10px] text-neutral-500">
+                Kosongkan untuk menampilkan semua printer. Misal "MTP-" agar Chrome
+                cuma munculkan printer MTP series.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

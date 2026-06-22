@@ -17,6 +17,7 @@ import {
 } from '@/lib/bluetooth-printer';
 import { buildReceipt } from '@/lib/escpos';
 import { useAuth } from '@/hooks/useAuth';
+import { usePrinter } from '@/contexts/PrinterContext';
 
 const printerEnabled =
   typeof process !== 'undefined' &&
@@ -36,7 +37,10 @@ export default function SuccessPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [printing, setPrinting] = useState(false);
-  const [printer, setPrinter] = useState<ConnectedPrinter | null>(null);
+  // Sprint 14 — use the shared printer context so the connection persists
+  // across /pos → /pos/success navigation.
+  const printerCtx = usePrinter();
+  const printer = printerCtx.connection;
   const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,19 +58,6 @@ export default function SuccessPage() {
     };
   }, [orderId]);
 
-  // Auto-disconnect on unmount.
-  useEffect(() => {
-    return () => {
-      if (printer) {
-        try {
-          printer.disconnect();
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, [printer]);
-
   async function handleBluetoothPrint() {
     if (!printerEnabled) {
       toast.info('Printer Bluetooth belum diaktifkan (set NEXT_PUBLIC_PRINTER_ENABLED=true).');
@@ -80,10 +71,17 @@ export default function SuccessPage() {
     }
     setPrinting(true);
     try {
-      let conn = printer;
+      // Sprint 14 — defer to the shared context so the connection sticks
+      // around for the next order (no re-prompting the cashier).
+      let conn = printerCtx.connection;
       if (!conn) {
-        conn = await connectPrinter();
-        setPrinter(conn);
+        await printerCtx.connect();
+        conn = printerCtx.connection;
+      }
+      if (!conn) {
+        // user cancelled picker or other failure
+        setPrinting(false);
+        return;
       }
       const data = buildReceipt({
         header: 'BKJ POS',
