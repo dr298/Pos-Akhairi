@@ -75,8 +75,21 @@ export function requireRole(...allowed: UserRole[]): MiddlewareHandler<AppEnv> {
   };
 }
 
+// JSON-safe BigInt replacer: BigInt cents from Prisma (PO totals, etc.)
+// would otherwise crash `JSON.stringify` with "Do not know how to
+// serialize a BigInt". We render them as decimal strings — the web layer
+// reads them as strings and casts to Number / Prisma.Decimal locally.
+const bigintSafeReplacer = (_key: string, value: unknown) =>
+  typeof value === 'bigint' ? value.toString() : value;
+
 export function ok<T>(c: Context, data: T, status: 200 | 201 | 202 | 204 = 200) {
-  return c.json({ data }, status as any);
+  // Pre-stringify with our BigInt replacer, then hand the body to Hono as
+  // a string. Hono's c.json() can't take a custom replacer, so we build
+  // the response manually.
+  const body = JSON.stringify({ data }, bigintSafeReplacer);
+  return c.body(body, status, {
+    'Content-Type': 'application/json; charset=UTF-8',
+  });
 }
 
 export function fail(

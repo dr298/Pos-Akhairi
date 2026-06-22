@@ -24,6 +24,8 @@ type NavItem = {
   match: (p: string) => boolean;
   show: (role?: string) => boolean;
   shortcut?: string;
+  // Sprint audit — open in a new tab (e.g. external kiosk display)
+  external?: boolean;
 };
 
 type NavGroup = {
@@ -80,7 +82,10 @@ const NAV: NavGroup[] = [
     id: 'tools',
     label: 'Tools',
     items: [
-      { href: '/pos/kiosk',                label: 'Kiosk',         icon: 'kiosk',   match: () => false, show: () => true,        shortcut: 'K' },
+      // /kiosk is a PUBLIC self-order page. Authenticated users open it
+      // in a new tab to launch the kiosk on a tablet. href points to the
+      // public path (not /pos/kiosk, which 404s).
+      { href: '/kiosk',                  label: 'Kiosk',         icon: 'kiosk',   match: () => false, show: () => true,        shortcut: 'K', external: true },
       { href: '/pos/orders/[id]',          label: 'Order Detail',  icon: 'receipt', match: p => /^\/pos\/orders\/[^/]+$/.test(p) || /^\/pos\/success\//.test(p), show: () => true },
       { href: '/pos/orders/[id]/receipt',  label: 'Receipt',       icon: 'printer', match: p => p.includes('/receipt'), show: () => true },
       { href: '/display',                  label: 'Customer Display', icon: 'tv',   match: p => p.startsWith('/display'), show: () => true,        shortcut: 'D' },
@@ -316,6 +321,8 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href.replace(/\[id\]/g, '')}
+                target={item.external ? '_blank' : undefined}
+                rel={item.external ? 'noopener noreferrer' : undefined}
                 className={cn(
                   'h-8 px-3 inline-flex items-center gap-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap',
                   active
@@ -371,6 +378,8 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
                       <Link
                         key={item.href}
                         href={item.href.replace(/\[id\]/g, '')}
+                        target={item.external ? '_blank' : undefined}
+                        rel={item.external ? 'noopener noreferrer' : undefined}
                         className={cn(
                           'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
                           active

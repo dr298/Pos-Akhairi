@@ -97,6 +97,33 @@ export const KNOWN_SETTINGS = {
     },
     format: (s: string) => s.trim(),
   },
+  // Sprint audit — inter-account cash transfer log. Stored as a JSON
+  // string (e.g. '[]' or a serialized array of entries). The /pos/transfers
+  // page POSTs to /api/transfers which appends a row, and the page reads
+  // via /api/transfers GET which parses the JSON. Maximum stored size is
+  // 50 KB which fits ~250 entries of 200 chars each; rotate the log
+  // periodically if it ever approaches the cap.
+  CASH_TRANSFERS_LOG: {
+    description:
+      'JSON array of cash transfer entries (id, at, byName, fromAccount, toAccount, amountCents, notes). Append-only.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') {
+        throw new Error('CASH_TRANSFERS_LOG must be a JSON string');
+      }
+      if (raw.length > 50_000) {
+        throw new Error('CASH_TRANSFERS_LOG max 50 KB (rotate the log)');
+      }
+      // validate JSON shape on read
+      try {
+        const v = JSON.parse(raw);
+        if (!Array.isArray(v)) throw new Error('must be an array');
+      } catch (e) {
+        throw new Error(`CASH_TRANSFERS_LOG invalid JSON: ${(e as Error).message}`);
+      }
+      return raw;
+    },
+    format: (s: string) => s,
+  },
 } as const;
 
 export type KnownSettingKey = keyof typeof KNOWN_SETTINGS;

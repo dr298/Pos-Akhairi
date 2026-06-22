@@ -65,10 +65,10 @@ export default function NewPurchaseOrderPage() {
     setLoadingInv(true);
     void (async () => {
       try {
-        // The transfers/inventory route is being consolidated to a global
-        // (non-branch-scoped) inventory endpoint. We hit the same path
-        // without the trailing branch id; backend returns all active items.
-        const res = await fetch('/api/transfers/inventory', {
+        // Global (non-branch-scoped) inventory endpoint. The legacy
+        // /api/transfers/inventory path was retired when the multi-branch
+        // scope was collapsed; /api/inventory is the canonical surface.
+        const res = await fetch('/api/inventory', {
           credentials: 'include',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -39,6 +39,7 @@ import { metricsRoutes } from './routes/metrics.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { settingsRoutes } from './routes/settings.js';
 import { businessRoutes } from './routes/business.js';
+import { transfersRoutes } from './routes/transfers.js';
 import './payments/index.js'; // ensure providers register on boot
 
 const app = new Hono();
@@ -87,6 +88,7 @@ app.route('/api/metrics', metricsRoutes);
 app.route('/api/inventory', inventoryRoutes);
 app.route('/api/settings', settingsRoutes);
 app.route('/api/business', businessRoutes);
+app.route('/api/transfers', transfersRoutes);
 
 app.notFound((c) => c.json({ error: 'Not Found', path: c.req.path }, 404));
 app.onError((err, c) => {

@@ -1309,6 +1309,19 @@ export const api = {
   // Sprint 15 — public business identity. Same shape as getBusiness()
   // (exported below) so callers can use either reference.
   getBusiness: () => request<{ data: BusinessSnapshot }>('/api/business'),
+  // Sprint audit — cash transfer log. See api/routes/transfers.ts.
+  getCashTransfers: () =>
+    request<{ data: { entries: CashTransfer[] } }>('/api/transfers'),
+  createCashTransfer: (body: {
+    fromAccount: string;
+    toAccount: string;
+    amountCents: number;
+    notes?: string;
+  }) =>
+    request<{ data: CashTransfer }>('/api/transfers', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
 
 // Sprint 15 — public business identity (name, address, footer). Read-only
@@ -1583,6 +1596,18 @@ export interface PrepSheetDetail extends PrepSheet {
 
 export type AccountingFormat = 'JURNAL' | 'ACCURATE' | 'MEKARI' | 'GENERIC';
 export type AccountingJournalType = 'sales' | 'purchase';
+
+// ─── Sprint audit — Cash transfer log ───────────────────────────────────
+export interface CashTransfer {
+  id: string;
+  at: string;
+  byUserId: string;
+  byName: string;
+  fromAccount: string;
+  toAccount: string;
+  amountCents: number;
+  notes: string;
+}
 
 // ─── Sprint 9.9 — Waste tracking types ────────────────────────────────────
 
