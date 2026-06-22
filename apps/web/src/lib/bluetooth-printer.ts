@@ -17,11 +17,26 @@ export const DEFAULT_WRITE_CHARACTERISTIC_UUID = '00002af1-0000-1000-8000-00805f
 // "Cari semua device…" UI action which uses acceptAllDevices: true.
 export const KNOWN_PRINTER_SERVICE_UUIDS: readonly string[] = [
   '000018f0-0000-1000-8000-00805f9b34fb', // Nordic UART (default)
-  '0000ff00-0000-1000-8000-00805f9b34fb', // Xprinter family
+  '0000ff00-0000-1000-8000-00805f9b34fb', // Xprinter family + NYK L6
+  '0000ff10-0000-1000-8000-00805f9b34fb', // NYK L6 secondary vendor service
   '0000ae00-0000-1000-8000-00805f9b34fb', // MTP-58 / generic 58mm
   '0000ffe0-0000-1000-8000-00805f9b34fb', // HM-10 clones
   '0000af00-0000-1000-8000-00805f9b34fb', // some NYK models
   '0000ee00-0000-1000-8000-00805f9b34fb', // additional Chinese vendor
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Nordic UART (alternate base UUID)
+];
+
+// Write characteristic candidates in priority order. The connect path
+// tries DEFAULT_WRITE_CHARACTERISTIC_UUID first, then walks this list
+// against the actually-exposed characteristics of the matching
+// service. NYK L6 exposes 0xFF02 (Xprinter-compatible) and Nordic
+// UART's 0x...8841 — both are listed.
+export const KNOWN_WRITE_CHARACTERISTIC_UUIDS: readonly string[] = [
+  '0000ff02-0000-1000-8000-00805f9b34fb', // Xprinter / NYK L6 primary
+  '00002af1-0000-1000-8000-00805f9b34fb', // Nordic UART TX
+  '49535343-8841-43f4-a8d4-ecbe34729bb3', // Nordic UART alternate
+  '0000ff12-0000-1000-8000-00805f9b34fb', // NYK L6 secondary
+  '0000ae02-0000-1000-8000-00805f9b34fb', // MTP-58 data
 ];
 
 export interface BluetoothPrinterOptions {
@@ -95,49 +110,69 @@ export async function connectPrinter(
   }
 
   const server = await device.gatt.connect();
-  // GATT service discovery: if the printer doesn't expose the default
-  // service UUID (some NYK L6 / Chinese 58mm models use vendor-specific
-  // GATT services), fall back to enumerating all primary services and
-  // pick the first one that has a writable characteristic matching
-  // our known characteristic UUIDs.
-  let service;
-  try {
-    service = await server.getPrimaryService(serviceUuid);
-  } catch {
-    // Service not found by primary UUID — try the known printer list.
-    const allServices = await server.getPrimaryServices();
-    let found = null;
-    for (const s of allServices) {
-      try {
-        // Try to grab a write-ish characteristic; many Chinese printers
-        // expose the data characteristic at 0x2af1 / 0x2af2 / 0xff02.
-        const candidates = await s.getCharacteristics();
-        const writable = candidates.find((c) =>
-          c.uuid.toLowerCase().endsWith('2af1') ||
-          c.uuid.toLowerCase().endsWith('2af2') ||
-          c.uuid.toLowerCase().endsWith('ff02'),
-        );
-        if (writable) {
-          found = s;
-          break;
-        }
-      } catch {
-        // service error, try next
-      }
+  // GATT service discovery: try the requested serviceUuid first, then
+  // walk KNOWN_PRINTER_SERVICE_UUIDS looking for a service that exists
+  // on this device. This is needed for hybrid SPP+BLE printers (e.g.
+  // NYK L6) that expose multiple vendor services — getPrimaryService
+  // throws if you ask for a UUID the device doesn't have.
+  let service: BluetoothService | null = null;
+  const servicesToTry = Array.from(
+    new Set([
+      serviceUuid,
+      ...KNOWN_PRINTER_SERVICE_UUIDS.filter((u) => u !== serviceUuid),
+    ]),
+  );
+  for (const uuid of servicesToTry) {
+    try {
+      service = await server.getPrimaryService(uuid);
+      break;
+    } catch {
+      // not present, try next
     }
-    if (!found) {
-      throw new Error(
-        'Printer tidak expose service yang dikenali. Coba matikan namePrefix, atau klik "Cari semua device".'
-      );
-    }
-    service = found;
   }
-  const characteristic = await service.getCharacteristic(characteristicUuid);
-  // If the canonical write char doesn't exist (different vendor), use
-  // the first writable characteristic we found during discovery above.
-  // For simplicity here, we still try the default UUID first and rely
-  // on a clear error if it's not present — the unfiltered mode above
-  // surfaces most of these cases before we get to this point.
+  if (!service) {
+    throw new Error(
+      'Printer tidak expose service GATT yang dikenali. Kemungkinan SPP-only — coba inspect GATT untuk konfirmasi.'
+    );
+  }
+  // Pick a write characteristic. Try the requested UUID first, then
+  // walk KNOWN_WRITE_CHARACTERISTIC_UUIDS, then fall back to any
+  // characteristic on this service that supports write or
+  // writeWithoutResponse. This handles NYK L6 (uses 0xFF02) and
+  // Nordic-UART printers (uses 0x2AF1) transparently.
+  let characteristic: BluetoothCharacteristic | null = null;
+  const charUuids = Array.from(
+    new Set([
+      characteristicUuid,
+      ...KNOWN_WRITE_CHARACTERISTIC_UUIDS.filter((u) => u !== characteristicUuid),
+    ]),
+  );
+  for (const uuid of charUuids) {
+    try {
+      characteristic = await service.getCharacteristic(uuid);
+      break;
+    } catch {
+      // not present, try next
+    }
+  }
+  if (!characteristic) {
+    // Last resort: enumerate chars on this service and pick the first
+    // writable one.
+    try {
+      const chars = await service.getCharacteristics();
+      characteristic =
+        chars.find(
+          (c) => c.properties.writeWithoutResponse || c.properties.write,
+        ) || null;
+    } catch {
+      // ignore
+    }
+  }
+  if (!characteristic) {
+    throw new Error(
+      'Service ditemukan tapi tidak ada characteristic yang bisa ditulis. Printer ini mungkin SPP-only.'
+    );
+  }
 
   const disconnect = () => {
     try {
