@@ -63,6 +63,11 @@ interface PrinterActions {
   refreshNamePrefix: () => Promise<void>;
   // Clear stored last-device-name (e.g. cashier wants to forget pairing).
   forgetDevice: () => void;
+  // Debug: connect unfiltered and enumerate ALL primary services +
+  // characteristics. Returns a human-readable report so the cashier
+  // can paste it back to ops when a printer is misbehaving. Used for
+  // diagnosing SPP-only / SPP+BLE hybrid printers (e.g. NYK L6).
+  inspectGatt: () => Promise<string>;
 }
 
 type PrinterContextValue = PrinterState & PrinterActions;
@@ -204,6 +209,61 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     setLastDeviceName(null);
   }, []);
 
+  // GATT inspector — connects to any device (unfiltered), enumerates
+  // all primary services + characteristics, returns a plain-text
+  // report. Lets ops see what the printer actually exposes over BLE
+  // (vs what we assume via the standard 0x18F0 service). For hybrid
+  // SPP+BLE printers (NYK L6, etc.) this is the fastest way to know
+  // whether ESC/POS commands can go over BLE at all, or only SPP
+  // classic (which Web Bluetooth does NOT support).
+  const inspectGatt = useCallback(async (): Promise<string> => {
+    if (!supported || !navigator.bluetooth) {
+      return 'Web Bluetooth not supported in this browser.';
+    }
+    const bt: Bluetooth = navigator.bluetooth;
+    const lines: string[] = [];
+    try {
+      // Always unfiltered — we want to see everything the device offers.
+      const device = await bt.requestDevice({
+        acceptAllDevices: true,
+        // No optionalServices — we'll discover them dynamically.
+      });
+      lines.push(`Device: ${device.name ?? '(no name)'}  id=${device.id}`);
+      if (!device.gatt) {
+        lines.push('No GATT server — this is a classic-only device.');
+        return lines.join('\n');
+      }
+      const server = await device.gatt.connect();
+      lines.push('GATT connected.');
+      const services = await server.getPrimaryServices();
+      lines.push(`Services (${services.length}):`);
+      for (const svc of services) {
+        lines.push(`  - ${svc.uuid}`);
+        try {
+          const chars = await svc.getCharacteristics();
+          for (const ch of chars) {
+            const props = [
+              ch.properties.read && 'read',
+              ch.properties.write && 'write',
+              ch.properties.writeWithoutResponse && 'writeNoResp',
+              ch.properties.notify && 'notify',
+              ch.properties.indicate && 'indicate',
+            ].filter(Boolean).join(',');
+            lines.push(`      char ${ch.uuid}  [${props}]`);
+          }
+        } catch (e) {
+          lines.push(`      (chars: error: ${(e as Error).message})`);
+        }
+      }
+      // Disconnect — we only inspected.
+      try { server.disconnect(); } catch { /* noop */ }
+      lines.push('Disconnected.');
+    } catch (e) {
+      lines.push(`Error: ${(e as Error).message}`);
+    }
+    return lines.join('\n');
+  }, [supported]);
+
   const testPrint = useCallback(async (): Promise<boolean> => {
     const conn = connectionRef.current;
     if (!conn) {
@@ -255,6 +315,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         testPrint,
         refreshNamePrefix,
         forgetDevice,
+        inspectGatt,
       }}
     >
       {children}

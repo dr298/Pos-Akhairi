@@ -28,8 +28,10 @@ export function PrinterStatusBadge() {
     disconnect,
     testPrint,
     forgetDevice,
+    inspectGatt,
   } = usePrinter();
   const [open, setOpen] = useState(false);
+  const [inspectReport, setInspectReport] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
 
   // Close on outside click.
@@ -52,6 +54,26 @@ export function PrinterStatusBadge() {
   const handleConnectAll = async () => {
     setOpen(false);
     await connect({ unfiltered: true });
+  };
+  // Debug — open device picker, connect, dump ALL GATT services +
+  // characteristics, show the report in a copyable textarea. Paste
+  // this back to ops when a printer model is misbehaving. This is
+  // the fastest way to know if a SPP+BLE hybrid printer (e.g. NYK
+  // L6) actually exposes ESC/POS commands over BLE, or only via
+  // classic SPP (which Web Bluetooth does not support).
+  const handleInspect = async () => {
+    setOpen(false);
+    const report = await inspectGatt();
+    setInspectReport(report);
+  };
+  const handleCopyInspect = async () => {
+    if (!inspectReport) return;
+    try {
+      await navigator.clipboard.writeText(inspectReport);
+      toast.success('Inspect report disalin ke clipboard');
+    } catch {
+      toast.error('Gagal salin ke clipboard');
+    }
   };
   const handleDisconnect = () => {
     setOpen(false);
@@ -207,6 +229,66 @@ export function PrinterStatusBadge() {
             >
               Buka Settings Hardware →
             </Link>
+            {/* Debug: GATT inspector. Hidden in normal flow — only shows
+                when an inspectReport is loaded. Useful for diagnosing
+                SPP+BLE hybrid printers (NYK L6 etc.) where the standard
+                service filters show 0 results. */}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleInspect}
+              className="w-full rounded px-2 py-1.5 text-left text-xs text-sky-300 hover:bg-neutral-800 disabled:opacity-50"
+              title="Dump semua GATT services + characteristics dari printer. Paste ke ops untuk diagnosa."
+            >
+              🔍 Inspect GATT…
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Inspect GATT report — rendered as a top-level modal-ish panel
+          outside the dropdown so it's readable. Copyable. */}
+      {inspectReport && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-2xl rounded-lg border border-neutral-700 bg-neutral-900 p-4 shadow-2xl">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-neutral-100">
+                GATT Inspector Report
+              </h3>
+              <button
+                type="button"
+                onClick={() => setInspectReport(null)}
+                className="rounded px-2 py-1 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100"
+              >
+                Tutup
+              </button>
+            </div>
+            <p className="mb-2 text-[11px] text-neutral-500">
+              Salin teks ini dan kirim ke tim dev. Membantu diagnosa printer
+              SPP+BLE (NYK L6 dll) yang ga expose writable characteristic
+              standar.
+            </p>
+            <textarea
+              readOnly
+              value={inspectReport}
+              className="h-64 w-full rounded border border-neutral-700 bg-neutral-950 p-2 font-mono text-[11px] text-neutral-200"
+              onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+            />
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCopyInspect}
+                className="rounded border border-neutral-700 bg-neutral-800 px-3 py-1 text-xs text-neutral-100 hover:bg-neutral-700"
+              >
+                Salin
+              </button>
+              <button
+                type="button"
+                onClick={() => setInspectReport(null)}
+                className="rounded bg-emerald-600 px-3 py-1 text-xs text-white hover:bg-emerald-500"
+              >
+                Selesai
+              </button>
+            </div>
           </div>
         </div>
       )}

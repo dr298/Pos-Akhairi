@@ -22,6 +22,13 @@ interface RequestDeviceOptions {
 interface BluetoothCharacteristic {
   uuid: string;
   value?: DataView;
+  properties: {
+    read?: boolean;
+    write?: boolean;
+    writeWithoutResponse?: boolean;
+    notify?: boolean;
+    indicate?: boolean;
+  };
   writeValue(value: BufferSource): Promise<void>;
   writeValueWithoutResponse(value: BufferSource): Promise<void>;
   startNotifications(): Promise<BluetoothCharacteristicNotifications>;
