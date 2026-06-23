@@ -16,6 +16,23 @@ import { getBusinessSnapshot } from '../services/settings.js';
 
 export const businessRoutes = new Hono();
 
+// Sprint 24 — public business-name endpoint for SSR metadata.
+// Only exposes the business name (not address/footer which can
+// contain PII or location info). Used by the root layout's
+// `generateMetadata` to render `<title>{BUSINESS_NAME}</title>`
+// in the browser tab.
+//
+// Registered BEFORE the auth middleware so it's reachable
+// without a session. The full /api/business route below is
+// auth-gated because address/footer may be considered
+// sensitive in some deployments. The name alone is fine to
+// expose for the page title — it's what the customer sees on
+// the receipt anyway.
+businessRoutes.get('/public-name', async (c) => {
+  const snap = await getBusinessSnapshot();
+  return c.json({ name: snap.name });
+});
+
 businessRoutes.use('*', requireAuth);
 
 businessRoutes.get('/', async (c) => {
