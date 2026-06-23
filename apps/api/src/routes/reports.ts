@@ -514,3 +514,169 @@ reportRoutes.get('/chain', async (c) => {
     410,
   );
 });
+
+// Sprint 21 — Profit & Loss summary over a date range.
+//
+// Numbers flow (top → bottom):
+//   Gross revenue      = sum(orders.totalCents) for PAID orders in range
+//   - Discounts         = sum(orders.discountCents)
+//   Net revenue        = gross - discounts
+//   - COGS (HPP)        = sum(orderItems.hppCentsUsed * orderItems.quantity)
+//                          for items in PAID orders in range. hppCentsUsed
+//                          is the locked-in per-unit cost at the moment
+//                          the order was paid (Sprint 12).
+//   Gross profit       = net revenue - COGS
+//
+//   Operating expenses (OpEx) — kept simple for now:
+//   - Stock opname LOSS (negative adjustments) treated as shrinkage
+//   - Waste entries cost (qty * costPerUnit)
+//   - Purchase orders received in range (cash going OUT to suppliers)
+//
+//   Net profit         = gross profit - OpEx
+//
+// Note: this is a "manager-level" P&L, not a tax filing. PPN tax
+// reporting is handled separately via /api/accounting-export.
+reportRoutes.get('/pnl', async (c) => {
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  if (!from || !to) {
+    return fail(c, 'ValidationError', 'from and to are required (YYYY-MM-DD)', 400);
+  }
+  const start = new Date(`${from}T00:00:00.000Z`);
+  const end = new Date(`${to}T23:59:59.999Z`);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    return fail(c, 'ValidationError', 'Invalid date range', 400);
+  }
+
+  // Revenue: PAID orders closed in range
+  const [paidAgg, itemHppAgg, paidOrderIds] = await Promise.all([
+    prisma.order.aggregate({
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
+      _count: { _all: true },
+      _sum: {
+        totalCents: true,
+        subtotalCents: true,
+        discountCents: true,
+        taxCents: true,
+      },
+    }),
+    // COGS via OrderItem.hppCentsUsed * quantity. We sum in JS because
+    // Prisma's aggregate can't multiply across two fields. We only
+    // touch PAID orders in range, indexed by closedAt.
+    prisma.orderItem.findMany({
+      where: {
+        order: { status: 'PAID', closedAt: { gte: start, lte: end } },
+      },
+      select: { quantity: true, hppCentsUsed: true },
+    }),
+    prisma.order.findMany({
+      where: { status: 'PAID', closedAt: { gte: start, lte: end } },
+      select: { id: true },
+    }),
+  ]);
+
+  let cogsCents = 0;
+  for (const it of itemHppAgg) {
+    if (it.hppCentsUsed == null) continue;
+    // quantity is Decimal; multiply by integer hppCents. To avoid
+    // float drift we do the multiply as integer (round to nearest) —
+    // for typical food items quantity < 1000, rounding error << 1 cent.
+    cogsCents += Math.round(Number(it.quantity) * it.hppCentsUsed);
+  }
+
+  // OpEx
+  const [lossLogs, wasteAgg, poAgg, refundAgg] = await Promise.all([
+    // Stock opname losses (negative adjustment logs) in range
+    prisma.inventoryLog.findMany({
+      where: {
+        type: 'ADJUSTMENT',
+        createdAt: { gte: start, lte: end },
+      },
+      select: { quantity: true, unitCostCents: true, inventoryItemId: true },
+    }),
+    prisma.wasteEntry.aggregate({
+      where: { createdAt: { gte: start, lte: end } },
+      _sum: { totalCostCents: true },
+      _count: { _all: true },
+    }),
+    // PO receipts: cash going out. RECEIVED = fully received, PARTIAL =
+    // partial delivery. DRAFT/SENT/CANCELLED don't count.
+    prisma.purchaseOrder.aggregate({
+      where: {
+        status: { in: ['RECEIVED', 'PARTIAL'] },
+        receivedAt: { gte: start, lte: end },
+      },
+      _sum: { totalCents: true },
+      _count: { _all: true },
+    }),
+    prisma.order.aggregate({
+      where: { status: 'REFUNDED', closedAt: { gte: start, lte: end } },
+      _sum: { totalCents: true },
+      _count: { _all: true },
+    }),
+  ]);
+
+  // Inventory shrinkage cost: only NEGATIVE deltas count as loss. We
+  // need the unit cost — pull per-item costPerUnit in a second pass.
+  const lossItemIds = Array.from(new Set(lossLogs.map((l) => l.inventoryItemId)));
+  const itemCostMap = new Map<string, number>();
+  if (lossItemIds.length) {
+    const items = await prisma.inventoryItem.findMany({
+      where: { id: { in: lossItemIds } },
+      select: { id: true, costPerUnit: true },
+    });
+    for (const it of items) {
+      // costPerUnit is Decimal (Rupiah per unit). Use unitCostCents
+      // captured at log time if present, else fall back to current cost.
+      itemCostMap.set(it.id, Math.round(Number(it.costPerUnit) * 100));
+    }
+  }
+  let shrinkageCents = 0;
+  for (const l of lossLogs) {
+    if (Number(l.quantity) >= 0) continue; // skip gains
+    const unitCents = l.unitCostCents ?? itemCostMap.get(l.inventoryItemId) ?? 0;
+    shrinkageCents += Math.round(Math.abs(Number(l.quantity)) * unitCents);
+  }
+
+  const grossRevenueCents = paidAgg._sum.subtotalCents ?? 0;
+  const discountCents = paidAgg._sum.discountCents ?? 0;
+  const taxCents = paidAgg._sum.taxCents ?? 0;
+  const netRevenueCents = grossRevenueCents - discountCents;
+  const totalRevenueCents = paidAgg._sum.totalCents ?? 0;
+  const grossProfitCents = netRevenueCents - cogsCents;
+  const wasteCents = wasteAgg._sum.totalCostCents ?? 0;
+  const poCents = poAgg._sum.totalCents ? Number(poAgg._sum.totalCents) : 0;
+  const refundCents = refundAgg._sum.totalCents ?? 0;
+  const totalOpExCents = shrinkageCents + wasteCents + poCents + refundCents;
+  const netProfitCents = grossProfitCents - totalOpExCents;
+
+  return ok(c, {
+    from,
+    to,
+    paidOrderCount: paidAgg._count._all,
+    revenue: {
+      gross: grossRevenueCents,
+      discount: discountCents,
+      net: netRevenueCents,
+      tax: taxCents,
+      total: totalRevenueCents,
+    },
+    cogsCents,
+    grossProfitCents,
+    grossMarginPct: netRevenueCents > 0
+      ? Number(((grossProfitCents / netRevenueCents) * 100).toFixed(2))
+      : 0,
+    opex: {
+      shrinkage: shrinkageCents,
+      waste: wasteCents,
+      purchaseOrders: poCents,
+      refunds: refundCents,
+      total: totalOpExCents,
+    },
+    netProfitCents,
+    netMarginPct: netRevenueCents > 0
+      ? Number(((netProfitCents / netRevenueCents) * 100).toFixed(2))
+      : 0,
+  });
+});
+

@@ -34,48 +34,70 @@ type NavGroup = {
   items: NavItem[];
 };
 
+// Sprint 21 — NAV reorganized to Odoo-style categories.
+// Categories: Sales / Purchase / Inventory / Accounting / Operations
+// (Operations holds cashier-facing items that don't fit cleanly into
+// the four Odoo boxes — reservations, waitstaff, shift tools.)
 const NAV: NavGroup[] = [
   {
-    id: 'operasional',
-    label: 'Operasional',
+    id: 'sales',
+    label: 'Sales',
     items: [
-      { href: '/pos',              label: 'Order',        icon: 'cart',     match: p => p === '/pos',                          show: () => true,        shortcut: 'O' },
-      { href: '/pos/history',      label: 'Riwayat',      icon: 'history',  match: p => p.startsWith('/pos/history'),          show: () => true,        shortcut: 'H' },
-      { href: '/pos/reservations', label: 'Reservasi',    icon: 'calendar', match: p => p.startsWith('/pos/reservations'),     show: () => true,        shortcut: 'R' },
-      { href: '/pos/shift',        label: 'Shift',        icon: 'clock',    match: p => p.startsWith('/pos/shift'),            show: () => true,        shortcut: 'S' },
-      { href: '/pos/shifts/history', label: 'Histori Shift', icon: 'history', match: p => p.startsWith('/pos/shifts/history'),  show: () => true },
-      { href: '/pos/waiter',       label: 'Waiter',       icon: 'bell',     match: p => p.startsWith('/pos/waiter'),           show: () => true },
-      { href: '/pos/waste',        label: 'Waste',        icon: 'trash',    match: p => p.startsWith('/pos/waste'),            show: r => isManager(r) },
+      // Sprint 21 — POS. The literal "Order" tab is the active
+      // order-taking surface. Renamed from /pos to keep canonical URL.
+      { href: '/pos',              label: 'POS',          icon: 'cart',     match: p => p === '/pos',                show: () => true,        shortcut: 'O' },
+      // Sprint 21 — sales order list. New alias at /pos/orders; the
+      // /pos/history page still works for backward compat.
+      { href: '/pos/orders',       label: 'Sales Report', icon: 'history',  match: p => p === '/pos/orders' || p === '/pos/history' || p.startsWith('/pos/orders') && !p.includes('/['), show: () => true, shortcut: 'H' },
+      // Sprint 21 — receipt delivery log (WhatsApp/Email/Print).
+      { href: '/pos/orders/receipt', label: 'Receipt Log', icon: 'printer', match: p => p.startsWith('/pos/orders/receipt'), show: r => isManager(r) },
+      { href: '/pos/customers',         label: 'Customer',     icon: 'users',  match: p => p.startsWith('/pos/customers') && !p.includes('/customers/['), show: () => true, shortcut: 'P' },
+      { href: '/pos/reservations',      label: 'Reservations', icon: 'calendar',match: p => p.startsWith('/pos/reservations'),     show: () => true, shortcut: 'R' },
     ],
   },
   {
-    id: 'menu',
-    label: 'Menu',
+    id: 'purchase',
+    label: 'Purchase',
     items: [
-      { href: '/pos/menu',                  label: 'Daftar Menu', icon: 'menu',     match: p => p === '/pos/menu',                                     show: r => isManager(r), shortcut: 'M' },
-      { href: '/pos/menu/engineering',      label: 'Engineering',  icon: 'cog',      match: p => p.startsWith('/pos/menu/engineering'),                 show: r => isManager(r) },
-      { href: '/pos/menu/combos',           label: 'Combo',        icon: 'layers',   match: p => p.startsWith('/pos/menu/combos'),                      show: r => isManager(r) },
-      { href: '/pos/prep-sheets',           label: 'Prep Sheet',   icon: 'clipboard',match: p => p.startsWith('/pos/prep-sheets'),                      show: r => isManager(r) },
-      { href: '/pos/promos',                label: 'Promo',        icon: 'tag',      match: p => p.startsWith('/pos/promos'),                           show: r => isManager(r) },
-      { href: '/pos/discounts',             label: 'Diskon',       icon: 'percent',  match: p => p.startsWith('/pos/discounts'),                        show: r => isManager(r) },
+      { href: '/pos/purchase-orders',       label: 'Purchase Order',  icon: 'cart',    match: p => p.startsWith('/pos/purchase-orders') && !p.endsWith('/new'), show: r => isManager(r) },
+      { href: '/pos/purchase-orders/report',label: 'Purchase Report', icon: 'truck',   match: p => p.startsWith('/pos/purchase-orders/report'), show: r => isManager(r) },
+      { href: '/pos/suppliers',             label: 'Supplier',        icon: 'truck',   match: p => p.startsWith('/pos/suppliers'),                                  show: r => isManager(r) },
     ],
   },
   {
-    id: 'people',
-    label: 'People',
+    id: 'inventory',
+    label: 'Inventory',
     items: [
-      { href: '/pos/customers',         label: 'Pelanggan', icon: 'users',  match: p => p.startsWith('/pos/customers') && !p.includes('/customers/['), show: () => true, shortcut: 'P' },
-      { href: '/pos/suppliers',         label: 'Supplier',  icon: 'truck',  match: p => p.startsWith('/pos/suppliers'),                                  show: r => isManager(r) },
+      // Sprint 21 — Product list (renamed from "Daftar Menu"). The
+      // page at /pos/menu has a built-in "Buat" form for new items.
+      { href: '/pos/menu',                  label: 'Product',         icon: 'menu',     match: p => p === '/pos/menu',                                     show: r => isManager(r), shortcut: 'M' },
+      { href: '/pos/menu/engineering',      label: 'Engineering',     icon: 'cog',      match: p => p.startsWith('/pos/menu/engineering'),                 show: r => isManager(r) },
+      { href: '/pos/menu/combos',           label: 'Combo',           icon: 'layers',   match: p => p.startsWith('/pos/menu/combos'),                      show: r => isManager(r) },
+      { href: '/pos/inventory/adjustment',  label: 'Adjustment',      icon: 'box',      match: p => p.startsWith('/pos/inventory/adjustment'),             show: r => isManager(r) },
+      { href: '/pos/waste',                 label: 'Waste',           icon: 'trash',    match: p => p.startsWith('/pos/waste'),                            show: r => isManager(r) },
+      { href: '/pos/prep-sheets',           label: 'Prep Sheet',      icon: 'clipboard',match: p => p.startsWith('/pos/prep-sheets'),                      show: r => isManager(r) },
+      { href: '/pos/promos',                label: 'Promo',           icon: 'tag',      match: p => p.startsWith('/pos/promos'),                           show: r => isManager(r) },
+      { href: '/pos/discounts',             label: 'Discount',        icon: 'percent',  match: p => p.startsWith('/pos/discounts'),                        show: r => isManager(r) },
     ],
   },
   {
-    id: 'finance',
-    label: 'Keuangan',
+    id: 'accounting',
+    label: 'Accounting',
     items: [
-      { href: '/pos/z-report',              label: 'Z-Report',          icon: 'doc',     match: p => p.startsWith('/pos/z-report'),         show: r => isManager(r), shortcut: 'Z' },
-      { href: '/pos/transfers',             label: 'Transfer Kas',      icon: 'arrow',   match: p => p.startsWith('/pos/transfers'),        show: r => isManager(r) },
-      { href: '/pos/accounting-export',     label: 'Export Akunting',   icon: 'download',match: p => p.startsWith('/pos/accounting-export'), show: r => isManager(r) },
-      { href: '/pos/purchase-orders',       label: 'Purchase Order',    icon: 'cart',    match: p => p.startsWith('/pos/purchase-orders') && !p.endsWith('/new'), show: r => isManager(r) },
+      { href: '/pos/z-report',              label: 'Z-Report',        icon: 'doc',     match: p => p.startsWith('/pos/z-report'),         show: r => isManager(r), shortcut: 'Z' },
+      // Sprint 21 — P&L report (NEW).
+      { href: '/pos/accounting/pnl',        label: 'P&L',             icon: 'arrow',   match: p => p.startsWith('/pos/accounting/pnl'), show: r => isManager(r) },
+      { href: '/pos/transfers',             label: 'Cash Transfer',   icon: 'arrow',   match: p => p.startsWith('/pos/transfers'),        show: r => isManager(r) },
+      { href: '/pos/accounting-export',     label: 'Export',          icon: 'download',match: p => p.startsWith('/pos/accounting-export'), show: r => isManager(r) },
+    ],
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    items: [
+      { href: '/pos/shift',                 label: 'Shift',           icon: 'clock',   match: p => p.startsWith('/pos/shift'),            show: () => true,        shortcut: 'S' },
+      { href: '/pos/shifts/history',        label: 'Shift History',   icon: 'history', match: p => p.startsWith('/pos/shifts/history'),   show: r => isManager(r) },
+      { href: '/pos/waiter',                label: 'Waiter',          icon: 'bell',    match: p => p.startsWith('/pos/waiter'),           show: () => true },
     ],
   },
   {
@@ -118,6 +140,9 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Sprint 20 — sidebar collapse state. Persisted to localStorage so
+  // the cashier's preference survives refreshes. Default: expanded.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -202,9 +227,9 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
         .slice(0, 10)
     : [];
 
-  // Sprint 20 — sidebar collapse state. Persisted to localStorage so
-  // the cashier's preference survives refreshes. Default: expanded.
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  // Sprint 20 — sidebar collapse persistence (state declared above
+  // alongside other useStates, BEFORE the loading early return, so
+  // React hook order is stable).
   useEffect(() => {
     try {
       const stored = localStorage.getItem('pos_sidebar_collapsed');

@@ -3,6 +3,8 @@
 // Sprint 8.9 — Digital receipt routes.
 //
 // Endpoints (all require auth):
+//   GET  /api/receipts                        — Sprint 21: list all delivery
+//                                                  attempts across orders (log)
 //   GET  /api/receipts/:orderId              — list all delivery attempts
 //   POST /api/receipts/send                  — trigger delivery (WHATSAPP / EMAIL)
 //   GET  /api/receipts/preview/:orderId      — render the receipt as text/html
@@ -25,6 +27,51 @@ export const receiptRoutes = new Hono<AppEnv>();
 receiptRoutes.use('*', requireAuth);
 
 // ─── list deliveries for an order ───────────────────────────────────────────
+
+// Sprint 21 — list ALL delivery attempts across all orders (most recent
+// first). Manager/Owner only — used by the /pos/orders/receipt log page.
+//
+// We can't `include` the order because ReceiptDelivery has no relation
+// field (it's orderId-as-string with no FK constraint, so it stays loose
+// for cross-system deliveries). We pull the order rows separately and
+// merge in JS — at most 200 rows, this is cheap.
+receiptRoutes.get('/', requireRole('MANAGER', 'OWNER'), async (c) => {
+  const limit = Math.min(parseInt(c.req.query('limit') || '100', 10) || 100, 500);
+
+  const [deliveries, orderIds] = await Promise.all([
+    prisma.receiptDelivery.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    }),
+    prisma.receiptDelivery.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: { orderId: true },
+    }),
+  ]);
+
+  const uniqueOrderIds = Array.from(new Set(orderIds.map((d) => d.orderId)));
+  const orders = uniqueOrderIds.length
+    ? await prisma.order.findMany({
+        where: { id: { in: uniqueOrderIds } },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          totalCents: true,
+          openedAt: true,
+        },
+      })
+    : [];
+
+  const orderMap = new Map(orders.map((o) => [o.id, o]));
+  const enriched = deliveries.map((d) => ({
+    ...d,
+    order: orderMap.get(d.orderId) ?? null,
+  }));
+
+  return ok(c, enriched);
+});
 
 receiptRoutes.get('/:orderId', async (c) => {
   const orderId = c.req.param('orderId');

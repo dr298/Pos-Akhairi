@@ -131,6 +131,94 @@ purchaseOrderRoutes.get('/', async (c) => {
 
 // ─── Detail ────────────────────────────────────────────────────────────────
 
+// Sprint 21 — Purchase report aggregate by date range.
+// Sums by supplier + by item, plus per-status counts.
+purchaseOrderRoutes.get('/report', async (c) => {
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  if (!from || !to) {
+    return fail(c, 'ValidationError', 'from and to are required (YYYY-MM-DD)', 400);
+  }
+  const start = new Date(`${from}T00:00:00.000Z`);
+  const end = new Date(`${to}T23:59:59.999Z`);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    return fail(c, 'ValidationError', 'Invalid date range', 400);
+  }
+
+  const [pos, bySupplier] = await Promise.all([
+    prisma.purchaseOrder.findMany({
+      where: { createdAt: { gte: start, lte: end } },
+      select: {
+        id: true,
+        poNumber: true,
+        status: true,
+        totalCents: true,
+        supplierId: true,
+        createdAt: true,
+        receivedAt: true,
+        supplier: { select: { name: true } },
+      },
+    }),
+    prisma.purchaseOrder.groupBy({
+      by: ['supplierId'],
+      where: { createdAt: { gte: start, lte: end } },
+      _sum: { totalCents: true },
+      _count: { _all: true },
+    }),
+  ]);
+
+  // Per-supplier name lookup (avoid a second pass with a Map)
+  const supplierIds = Array.from(new Set(bySupplier.map((b) => b.supplierId)));
+  const suppliers = supplierIds.length
+    ? await prisma.supplier.findMany({
+        where: { id: { in: supplierIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const nameMap = new Map(suppliers.map((s) => [s.id, s.name]));
+
+  const bySupplierWithName = bySupplier
+    .map((b) => ({
+      supplierId: b.supplierId,
+      supplierName: nameMap.get(b.supplierId) ?? 'Unknown',
+      count: b._count._all,
+      totalCents: b._sum.totalCents ? Number(b._sum.totalCents) : 0,
+    }))
+    .sort((a, b) => b.totalCents - a.totalCents);
+
+  // Per-status counts
+  const byStatus: Record<string, { count: number; totalCents: number }> = {};
+  for (const po of pos) {
+    const cur = byStatus[po.status] ?? { count: 0, totalCents: 0 };
+    cur.count += 1;
+    cur.totalCents += po.totalCents ? Number(po.totalCents) : 0;
+    byStatus[po.status] = cur;
+  }
+
+  const totalCents = pos.reduce((sum, po) => sum + (po.totalCents ? Number(po.totalCents) : 0), 0);
+
+  return ok(c, {
+    from,
+    to,
+    totalPos: pos.length,
+    totalCents,
+    byStatus,
+    bySupplier: bySupplierWithName,
+    recent: pos
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 20)
+      .map((p) => ({
+        id: p.id,
+        poNumber: p.poNumber,
+        status: p.status,
+        supplierName: p.supplier.name,
+        totalCents: p.totalCents ? Number(p.totalCents) : 0,
+        createdAt: p.createdAt,
+        receivedAt: p.receivedAt,
+      })),
+  });
+});
+
 purchaseOrderRoutes.get('/:id', async (c) => {
   const id = c.req.param('id');
   const po = await prisma.purchaseOrder.findUnique({
