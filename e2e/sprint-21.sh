@@ -99,8 +99,13 @@ done
 echo "== 11. Re-fetch /api/inventory — qty should reflect adjustment =="
 curl -s -b "$COOKIE" "$BASE/api/inventory" > /tmp/inv2.json
 NEW_SYSTEM_QTY=$(python3 -c "import json;d=json.load(open('/tmp/inv2.json'));print(d.get('data',{}).get('items',[{}])[0].get('quantity','0'))")
-if [ "$NEW_SYSTEM_QTY" = "$NEW_QTY2" ]; then
-  ok "system qty = $NEW_SYSTEM_QTY (matches last adjust)"
+# Compare as floats to avoid "256" vs "256.0" string mismatch.
+# Sprint 23 dedup: Prisma now returns "256" instead of "256.0000"
+# because the underlying column is numeric(12,4) but JS drops trailing
+# zeros on serialization. The test value comes from Python's round()
+# which keeps ".0". Normalize via float().
+if python3 -c "import sys; sys.exit(0 if abs(float('$NEW_QTY2') - float('$NEW_SYSTEM_QTY')) < 1e-6 else 1)"; then
+  ok "system qty = $NEW_SYSTEM_QTY (matches last adjust $NEW_QTY2)"
 else
   ko "expected $NEW_QTY2, got $NEW_SYSTEM_QTY"
 fi

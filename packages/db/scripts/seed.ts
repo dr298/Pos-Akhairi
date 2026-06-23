@@ -97,19 +97,22 @@ async function main() {
     { sku: 'RM-BAKSO',  name: 'Adonan Bakso',  unit: 'kg',  qty: 15,  reorder: 5,  cost: 45000 },
   ];
   for (const i of invData) {
-    const existing = await prisma.inventoryItem.findFirst({ where: { sku: i.sku } });
-    if (!existing) {
-      await prisma.inventoryItem.create({
-        data: {
-          sku: i.sku,
-          name: i.name,
-          unit: i.unit,
-          quantity: i.qty,
-          reorderPoint: i.reorder,
-          costPerUnit: i.cost,
-        },
-      });
-    }
+    // Sprint 23: use upsert with the new sku unique. The previous
+    // findFirst+create pattern was a race + drift hazard when the seed
+    // ran twice (e.g. after a partial reset). It also failed silently
+    // if the same row was added between findFirst and create.
+    await prisma.inventoryItem.upsert({
+      where: { sku: i.sku },
+      update: {},
+      create: {
+        sku: i.sku,
+        name: i.name,
+        unit: i.unit,
+        quantity: i.qty,
+        reorderPoint: i.reorder,
+        costPerUnit: i.cost,
+      },
+    });
   }
   console.log(`[seed] inventory: ${invData.length} items`);
 

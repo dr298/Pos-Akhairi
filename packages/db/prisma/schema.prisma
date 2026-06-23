@@ -376,6 +376,11 @@ model InventoryItem {
   recipes     Recipe[]
   batches     InventoryBatch[]
 
+  // Sprint 23: Unique on sku. Required because the seed re-run in
+  // Sprint 0 produced duplicates when the @@unique([branchId, sku])
+  // constraint was dropped with the Branch model in commit 8604cee.
+  // Without this, every re-seed silently doubles the inventory.
+  @@unique([sku])
   @@map("inventory_items")
 }
 
