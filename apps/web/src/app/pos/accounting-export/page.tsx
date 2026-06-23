@@ -41,9 +41,14 @@ export default function AccountingExportPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  if (!user) return null;
-  // Only OWNER/MANAGER — matches the API guard.
-  if (user.role !== 'OWNER' && user.role !== 'MANAGER') {
+  // Guard for non‑admin roles — placed after all hooks to satisfy React rule #310.
+  const isAuthorized = user?.role === 'OWNER' || user?.role === 'MANAGER';
+
+  if (!isAuthorized) {
+    if (!user) {
+      // Auth still loading; keep rendering hooks.
+      return null;
+    }
     if (typeof window !== 'undefined') router.replace('/pos');
     return null;
   }

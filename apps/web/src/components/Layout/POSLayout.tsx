@@ -218,6 +218,24 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [user, router, searchOpen]);
 
+  // Sprint 20 — sidebar collapse persistence. MUST be before the
+  // loading early-return so hook count is stable across renders.
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('pos_sidebar_collapsed');
+      if (stored === 'true') setSidebarCollapsed(true);
+    } catch {
+      /* localStorage unavailable, keep default */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem('pos_sidebar_collapsed', String(sidebarCollapsed));
+    } catch {
+      /* best-effort persistence */
+    }
+  }, [sidebarCollapsed]);
+
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950 text-neutral-700 dark:text-neutral-300 text-sm">
@@ -238,25 +256,6 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
         .filter(i => i.label.toLowerCase().includes(searchQuery.toLowerCase()))
         .slice(0, 10)
     : [];
-
-  // Sprint 20 — sidebar collapse persistence (state declared above
-  // alongside other useStates, BEFORE the loading early return, so
-  // React hook order is stable).
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('pos_sidebar_collapsed');
-      if (stored === 'true') setSidebarCollapsed(true);
-    } catch {
-      /* localStorage unavailable, keep default */
-    }
-  }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem('pos_sidebar_collapsed', String(sidebarCollapsed));
-    } catch {
-      /* best-effort persistence */
-    }
-  }, [sidebarCollapsed]);
 
   // Sprint 20 — extract the sidebar/drawer body so it can be rendered
   // both as a drawer overlay (mobile) and as a persistent left rail

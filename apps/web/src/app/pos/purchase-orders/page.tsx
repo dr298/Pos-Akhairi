@@ -71,7 +71,14 @@ export default function PurchaseOrdersListPage() {
     void load();
   }, [user, router, load]);
 
-  if (!user) return null;
+  // Auth guard — must be AFTER all hooks for React rule #310.
+  const isAuthorized = user?.role === 'OWNER' || user?.role === 'MANAGER';
+
+  if (!isAuthorized) {
+    if (!user) return null;
+    router.replace('/pos');
+    return null;
+  }
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-3 max-w-screen-2xl mx-auto">
