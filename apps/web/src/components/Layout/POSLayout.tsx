@@ -552,7 +552,7 @@ function SidebarContent({
             BKJ
           </span>
           {!collapsed && (
-            <span className="font-semibold truncate">Bakmie Kota Juang</span>
+            <span className="font-semibold truncate">Bakmie Khas Jaksel</span>
           )}
         </div>
         {showCloseButton && (

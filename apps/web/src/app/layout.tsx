@@ -6,7 +6,7 @@ import { ThemeProvider, NO_FLASH_SCRIPT } from '@/hooks/useTheme';
 
 export const metadata: Metadata = {
   title: 'pos.akhairi.com — Bakmie POS',
-  description: 'Bakmie Kota Juang POS system',
+  description: 'Bakmie Khas Jaksel POS system',
 };
 
 export const dynamic = 'force-dynamic';

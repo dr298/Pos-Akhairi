@@ -436,7 +436,7 @@ function KioskPageContent() {
         <div className="px-4 py-3 flex items-center justify-between gap-3">
           <div>
             <div className="text-xs text-neutral-500">Self-Order</div>
-            <div className="text-lg sm:text-xl font-semibold">Bakmie Kota Juang</div>
+            <div className="text-lg sm:text-xl font-semibold">Bakmie Khas Jaksel</div>
           </div>
           <button
             type="button"

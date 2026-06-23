@@ -1,6 +1,6 @@
 # pos.akhairi.com — Bakmie resto POS
 
-Sprint 0 monorepo scaffold for Bakmie Kota Juang (BKJ) Pasar Lama Tangerang.
+Sprint 0 monorepo scaffold for Bakmie Khas Jaksel (BKJ) Pasar Lama Tangerang.
 
 ## Stack
 
