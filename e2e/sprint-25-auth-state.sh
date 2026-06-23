@@ -295,6 +295,44 @@ else
   bad "$BAD_COUNT .tsx file(s) still have the pattern (run the audit manually)"
 fi
 
+# ─── L. Sprint 25.3 — Ctrl+R / Cmd+R intercepted shortcut (POSLayout) ──
+# User reports: refresh on any /pos page redirects to /pos/reservations.
+# Root cause: the global keydown handler in POSLayout didn't bail out
+# when modifier keys were held, so Cmd+R (refresh) was matched as 'R'
+# (Reservations shortcut) and replaced the browser reload with
+# router.push('/pos/reservations').
+# This test verifies the code: the keydown handler must check
+# metaKey/ctrlKey/altKey and bail BEFORE the shortcut match fires.
+echo ""
+echo "L. Ctrl+R / Cmd+R is not intercepted (Sprint 25.3 fix)"
+LAYOUT="/home/dr298/projects/pos-akhairi-com/apps/web/src/components/Layout/POSLayout.tsx"
+if [ ! -f "$LAYOUT" ]; then
+  bad "POSLayout.tsx missing — cannot audit"
+else
+  # The onKey handler must check altKey as well (we added it in S25.3)
+  if grep -q 'e\.altKey' "$LAYOUT"; then
+    ok "POSLayout keydown handler checks e.altKey (modifier-key bail-out present)"
+  else
+    bad "POSLayout keydown handler does NOT check e.altKey — Sprint 25.3 fix not applied"
+  fi
+  # Verify the bail-out happens BEFORE the shortcut match
+  er_line=$(grep -n 'e\.metaKey\|e\.ctrlKey\|e\.altKey' "$LAYOUT" | head -1 | cut -d: -f1)
+  sc_line=$(grep -n 'i\.shortcut?.toLowerCase' "$LAYOUT" | head -1 | cut -d: -f1)
+  if [ -n "$er_line" ] && [ -n "$sc_line" ] && [ "$er_line" -lt "$sc_line" ]; then
+    ok "modifier-key check (line $er_line) comes before shortcut match (line $sc_line)"
+  else
+    bad "modifier-key check (line ${er_line:-?}) is NOT before shortcut match (line ${sc_line:-?})"
+  fi
+  # Verify the /pos/reservations nav item still has shortcut: 'R' (the
+  # reason the bug happened). The fix doesn't remove the shortcut; it
+  # just bails out before matching it.
+  if grep -q "'/pos/reservations'.*shortcut: 'R'" "$LAYOUT"; then
+    ok "Reservations nav item still has shortcut 'R' (intentional, fix is in handler)"
+  else
+    bad "Reservations shortcut changed — verify the test still matches"
+  fi
+fi
+
 # ─── Summary ──────────────────────────────────────────────────────────────
 echo ""
 echo "== RESULT: $PASS pass, $FAIL fail =="
