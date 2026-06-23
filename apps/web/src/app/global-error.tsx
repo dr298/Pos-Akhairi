@@ -28,6 +28,27 @@ export default function GlobalError({
     // is the canonical handle for server-side correlation.
     // eslint-disable-next-line no-console
     console.error('[global-error]', error);
+
+    // Send to /api/errors/client-error so we have a persistent
+    // record. Fire-and-forget: failure to report should not block
+    // the error UI from rendering. The endpoint is public (no
+    // auth) and tolerant of malformed input.
+    try {
+      void fetch('/api/errors/client-error', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          message: error?.message,
+          stack: error?.stack,
+          digest: error?.digest,
+          source: 'global-error.tsx',
+          route: typeof window !== 'undefined' ? window.location.pathname : undefined,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+        }),
+      });
+    } catch {
+      // ignore — best effort
+    }
   }, [error]);
 
   const message = error?.message || 'Unknown error';

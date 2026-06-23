@@ -24,6 +24,27 @@ export default function AppError({
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.error('[app-error]', error);
+
+    // Sprint 25 — same fire-and-forget report as global-error.tsx.
+    // Either boundary firing tells us the same thing: a React tree
+    // crashed. Persist it so we can see it in the /pos/errors
+    // dashboard without needing browser devtools access.
+    try {
+      void fetch('/api/errors/client-error', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          message: error?.message,
+          stack: error?.stack,
+          digest: error?.digest,
+          source: 'app/error.tsx',
+          route: typeof window !== 'undefined' ? window.location.pathname : undefined,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+        }),
+      });
+    } catch {
+      // ignore
+    }
   }, [error]);
 
   return (

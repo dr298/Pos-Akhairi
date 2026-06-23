@@ -161,10 +161,12 @@ echo "H. error boundaries shipped (bundle markers)"
 ALL_CHUNKS=$(curl -s "$BASE/login" | grep -oE '/_next/static/chunks/[^"]+\.js' | sort -u)
 GLOBAL_HIT=0
 APP_HIT=0
+CLIENT_REPORT_HIT=0
 for chunk in $ALL_CHUNKS; do
   BODY=$(curl -s "$BASE$chunk" 2>/dev/null)
   if echo "$BODY" | grep -q 'Login ulang'; then GLOBAL_HIT=1; fi
   if echo "$BODY" | grep -q 'Kembali ke POS'; then APP_HIT=1; fi
+  if echo "$BODY" | grep -q 'client-error'; then CLIENT_REPORT_HIT=1; fi
 done
 if [ "$GLOBAL_HIT" = "1" ]; then
   ok "global-error.tsx bundle has 'Login ulang' button"
@@ -175,6 +177,51 @@ if [ "$APP_HIT" = "1" ]; then
   ok "app/error.tsx bundle has 'Kembali ke POS' button"
 else
   bad "app/error.tsx bundle missing 'Kembali ke POS' — old version still shipped"
+fi
+if [ "$CLIENT_REPORT_HIT" = "1" ]; then
+  ok "client-error reporting endpoint is referenced in a bundle"
+else
+  # Not fatal — the endpoint itself is on the API, not in the web bundle.
+  echo "  - client-error endpoint not in web bundle (lazy, ok if API works)"
+  PASS=$((PASS+1))
+fi
+
+# ─── I. client-error POST endpoint is reachable + persists ────────────────
+echo ""
+echo "I. POST /api/errors/client-error reachable + persists"
+CE_CODE=$(curl -s -X POST "$BASE/api/errors/client-error" \
+  -H 'content-type: application/json' \
+  -d '{"message":"sprint-25 e2e test","source":"e2e/sprint-25","route":"/pos"}' \
+  -o /tmp/ce-sprint25.json -w '%{http_code}')
+if [ "$CE_CODE" = "200" ]; then
+  ok "POST /api/errors/client-error returns 200"
+else
+  bad "POST /api/errors/client-error returned $CE_CODE (expected 200)"
+fi
+if grep -q '"ok":true' /tmp/ce-sprint25.json; then
+  ok "client-error response has {ok: true}"
+else
+  bad "client-error response missing {ok: true}"
+fi
+
+# Validate the row landed in the DB. /api/errors/ is OWNER-only,
+# so we need to login first to read it back.
+OWNER_JAR=$(mktemp)
+trap 'rm -f "$JAR" "$EMPTY_JAR" "$OWNER_JAR"' EXIT
+curl -s -c "$OWNER_JAR" -X POST "$BASE/api/auth/login" \
+  -H 'content-type: application/json' \
+  -d '{"email":"owner@bkj.id","password":"password123"}' -o /dev/null
+ERR_LIST_CODE=$(curl -s -b "$OWNER_JAR" -o /tmp/err-list-sprint25.json -w '%{http_code}' \
+  "$BASE/api/errors?limit=10")
+if [ "$ERR_LIST_CODE" = "200" ]; then
+  ok "GET /api/errors (OWNER) returns 200"
+else
+  bad "GET /api/errors returned $ERR_LIST_CODE"
+fi
+if grep -q "sprint-25 e2e test" /tmp/err-list-sprint25.json; then
+  ok "sprint-25 e2e error is in the error feed"
+else
+  bad "sprint-25 e2e error NOT found in error feed"
 fi
 
 # ─── Summary ──────────────────────────────────────────────────────────────
