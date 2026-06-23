@@ -59,14 +59,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    // Bump a guard so the layout's redirect useEffect doesn't double-fire
+    // on the same render. Without this, the layout sees `!user` mid-render
+    // and races our own `router.push('/login')` here, producing an
+    // intermittent "Terjadi kesalahan" page on the first click.
+    setLoading(true);
     try {
       await api.logout();
     } catch {
-      // ignore — we still clear local state
+      // ignore — we still clear local state. Server may already be
+      // gone (network blip, expired tab) and we don't want to strand
+      // the user.
     }
     setUser(null);
     clearAuthed();
-    router.push('/login');
+    // Keep loading=true so the layout's `if (!user) router.replace`
+    // effect owns the navigation — this avoids two near-simultaneous
+    // router calls clashing in Next 16's App Router.
+    router.replace('/login');
   }, [router]);
 
   return (

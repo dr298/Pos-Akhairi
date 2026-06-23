@@ -152,10 +152,10 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !pathname.startsWith('/login')) {
       router.replace('/login');
     }
-  }, [loading, user, router]);
+  }, [loading, user, router, pathname]);
 
   // Click-outside handlers
   useEffect(() => {
