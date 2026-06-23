@@ -94,23 +94,23 @@ echo "== 7. /pos HTML still returns 200 (auth is client-side) =="
 status=$(curl -s "$BASE/pos" -w '%{http_code}' -o /dev/null)
 check "pos page" "$status" "200"
 
-echo "== 8. /pos bundle has the fixed logout pattern (router.replace) =="
-# Check the actual built JS chunk — the minified code has the
-# `replace("/login")` call (not push). Pull any chunk that references
-# the auth provider, then grep for the marker.
-# We check by looking for the AuthProvider source in static chunks.
+echo "== 8. /pos bundle has the hard-nav logout pattern (window.location.href) =="
+# After Sprint 22 follow-up, logout is a hard navigation via
+# `window.location.href = '/login'`. This bypasses the React tree
+# teardown entirely — no possibility of an in-flight cleanup throwing
+# into the global-error boundary.
 if curl -s "$BASE/pos" 2>/dev/null | grep -oE '/_next/static/chunks/[a-z0-9_./-]+\.js' | sort -u | head -20 | while read chunk; do
   body=$(curl -s "$BASE$chunk" 2>/dev/null)
   if echo "$body" | grep -qE 'pos:authed|posSession'; then
-    if echo "$body" | grep -qE 'c\(.{0,3}!0\)|setLoading'; then
-      echo "  [PASS] logout function: setLoading(true) marker present in $chunk"
+    if echo "$body" | grep -qE 'window\.location\.href="/login"'; then
+      echo "  [PASS] logout function: window.location.href=\"/login\" marker present in $chunk"
       exit 0
     fi
   fi
 done; then
   pass=$((pass+1))
 else
-  echo "  [FAIL] could not verify setLoading(true) in built bundle"
+  echo "  [FAIL] could not verify window.location.href hard-nav in built bundle"
   fail=$((fail+1))
 fi
 
