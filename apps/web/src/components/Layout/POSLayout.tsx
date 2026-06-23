@@ -186,8 +186,20 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
     const onKey = (e: KeyboardEvent) => {
       // Don't trigger on inputs
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
-      if (e.metaKey || e.ctrlKey) {
-        if (e.key === 'k') { e.preventDefault(); setSearchOpen(true); return; }
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        if (e.metaKey || e.ctrlKey) {
+          if (e.key === 'k') { e.preventDefault(); setSearchOpen(true); }
+        }
+        // Sprint 25.3 — bug: Ctrl+R / Cmd+R (browser refresh) was being
+        // intercepted by the shortcut handler because 'R' is the
+        // Reservations shortcut. The browser fired keydown BEFORE the
+        // page reload, the handler matched 'R' without checking for
+        // modifier keys, and called router.push('/pos/reservations').
+        // Result: user did "refresh" and ended up on the Reservations
+        // page, losing their place. The fix is to bail out early if
+        // any modifier key is held (Meta, Ctrl, Alt) so we only react
+        // to plain keystrokes. Shift is allowed (uppercase shortcuts).
+        return;
       }
       if (e.key === 'Escape') {
         setSearchOpen(false);
