@@ -54,7 +54,11 @@ export default function WastePage() {
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
-  if (!user) return null;
+  // Sprint 25.2 — React #310 bug fix: an early return BEFORE
+  // useCallback/useEffect/useMemo caused React to throw
+  // "Rendered fewer hooks than expected" on first render (user=null
+  // from useAuth.loading=true). The guard has been moved to AFTER all
+  // hooks (see below, just before the JSX return). See Sprint 25.2.
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,6 +160,18 @@ export default function WastePage() {
       setError((e as Error).message);
     }
   };
+
+  // Sprint 25.2 — user guard moved here (after all hooks) so the
+  // hook count is stable across renders. Previously this was an
+  // early-return BEFORE useCallback/useEffect/useMemo which caused
+  // React #310 "Rendered fewer hooks than expected" on first render.
+  if (!user) {
+    return (
+      <div className="p-3 sm:p-4 md:p-6 text-sm text-neutral-500 dark:text-neutral-400">
+        Memuat sesi…
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-3 max-w-screen-2xl mx-auto">
