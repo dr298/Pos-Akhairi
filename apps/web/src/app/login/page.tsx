@@ -1,9 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+// apps/web/src/app/login/page.tsx
+//
+// Sprint 25 — login page now also bounces already-authed users to /pos.
+// Before: visiting /login while still authed (e.g. tab restore, browser
+// back from /pos) would show the form. Filling it and clicking Masuk
+// would log the user in AGAIN (POST /api/auth/login always returns a new
+// session), wasting a session rotation. Now we short-circuit.
+//
+// Two trigger paths:
+//   1. user is non-null  → AuthProvider already resolved, redirect.
+//   2. isAuthed() (localStorage flag) → AuthProvider not yet resolved
+//      but we have a local hint, push to /pos optimistically. The
+//      POSLayout's own auth gate will bounce us back if the cookie is
+//      actually stale.
+//
+// After successful login we use window.location.href (hard nav) instead
+// of router.push. The /pos tree's providers (Cart, Printer, WS, etc.)
+// re-mount cleanly with no leftover state. This is the same pattern
+// used in the logout flow (see useAuth.logout comment).
+
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { isAuthed } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -12,20 +33,37 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { user, loading, login } = useAuth();
   const [email, setEmail] = useState('cashier@bkj.id');
   const [password, setPassword] = useState('password123');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Sprint 25 — if already authed, kick over to /pos immediately.
+  useEffect(() => {
+    if (loading) return;
+    if (user || isAuthed()) {
+      const next = searchParams.get('next');
+      router.replace(next || '/pos');
+    }
+  }, [user, loading, router, searchParams]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     setErr(null);
-    setLoading(true);
+    setSubmitting(true);
     try {
       await login(email, password);
+      // Sprint 25 — hard nav so the /pos tree re-mounts with a clean
+      // provider state (no race with /api/auth/me call kicked off by
+      // POSLayout). Same pattern as logout.
       const next = searchParams.get('next');
-      router.push(next || '/pos');
+      if (typeof window !== 'undefined') {
+        window.location.href = next || '/pos';
+      } else {
+        router.push(next || '/pos');
+      }
     } catch (e: any) {
       const msg =
         e instanceof ApiError
@@ -34,7 +72,7 @@ export default function LoginPage() {
       setErr(msg);
       toast.error(msg);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
@@ -80,8 +118,8 @@ export default function LoginPage() {
                 {err}
               </p>
             )}
-            <Button type="submit" disabled={loading} className="w-full" size="lg">
-              {loading ? 'Masuk…' : 'Masuk'}
+            <Button type="submit" disabled={submitting} className="w-full" size="lg">
+              {submitting ? 'Masuk…' : 'Masuk'}
             </Button>
             <div className="text-xs text-neutral-500 space-y-0.5 pt-2 border-t border-neutral-200 dark:border-neutral-800">
               <p>Akun seed:</p>
