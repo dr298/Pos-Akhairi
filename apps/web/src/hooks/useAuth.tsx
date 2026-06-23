@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { api, ApiError, type User } from '@/lib/api';
 import { clearAuthed, isAuthed, markAuthed } from '@/lib/auth';
 
@@ -18,7 +17,6 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   const refresh = useCallback(async () => {
     // Skip the /api/auth/me round-trip on public pages (login, etc.) where
@@ -59,25 +57,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    // Bump a guard so the layout's redirect useEffect doesn't double-fire
-    // on the same render. Without this, the layout sees `!user` mid-render
-    // and races our own `router.push('/login')` here, producing an
-    // intermittent "Terjadi kesalahan" page on the first click.
-    setLoading(true);
+    // Strategy: hard-navigate to /login via window.location instead of
+    // router.replace. Three reasons:
+    //
+    // 1. The /pos tree (PrinterProvider, useWebSocket, useBarcodeScanner,
+    //    useDrawerKick, ongoing fetch polls) is mid-tear-down. Even with
+    //    setLoading(true) gating the layout's redirect, some cleanup
+    //    still fires, and any throw in cleanup bubbles to global-error
+    //    → "Terjadi kesalahan" flashes for <1s.
+    //
+    // 2. A hard nav gives us a clean React tree on /login. No leftover
+    //    WebSocket reconnect timers, no in-flight /api/me calls, no
+    //    stuck loading states. The cookie is already gone (we deleted
+    //    it on the server above), so /login renders immediately.
+    //
+    // 3. Browser back button after logout can't return to the
+    //    just-logged-out POS — there's no entry in the new history
+    //    stack pointing to /pos.
+    //
+    // The 300-500ms reload is a fair trade for zero flash.
     try {
       await api.logout();
     } catch {
-      // ignore — we still clear local state. Server may already be
-      // gone (network blip, expired tab) and we don't want to strand
-      // the user.
+      // ignore — local state still gets cleared
     }
-    setUser(null);
     clearAuthed();
-    // Keep loading=true so the layout's `if (!user) router.replace`
-    // effect owns the navigation — this avoids two near-simultaneous
-    // router calls clashing in Next 16's App Router.
-    router.replace('/login');
-  }, [router]);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
