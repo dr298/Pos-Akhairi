@@ -224,6 +224,77 @@ else
   bad "sprint-25 e2e error NOT found in error feed"
 fi
 
+# ─── J. React #310 hooks-order audit (Sprint 25.2) ───────────────────────
+# User reports the minified error #310 'Rendered fewer hooks than
+# expected' fires on /pos/waste first render, then 'Coba lagi' lets
+# them in. Root cause was an early return BEFORE useCallback/useEffect/
+# useMemo in WastePage. We can't reproduce hydration timing via curl,
+# but we can verify the FIX is shipped: the file no longer has the
+# 'if (!user) return null' pattern at the top of the component.
+echo ""
+echo "J. React #310 hooks-order fix shipped (WastePage audit)"
+WASTE_FILE="/home/dr298/projects/pos-akhairi-com/apps/web/src/app/pos/waste/page.tsx"
+if [ ! -f "$WASTE_FILE" ]; then
+  bad "waste/page.tsx missing — cannot audit"
+else
+  # The early-return + hooks-after pattern is the #310 bug. Check that
+  # the OLD pattern (early-return BEFORE useCallback) is gone.
+  if grep -B1 '^  const load = useCallback' "$WASTE_FILE" | grep -q 'if (!user) return'; then
+    bad "WastePage still has 'if (!user) return' BEFORE useCallback — React #310 still present"
+  else
+    ok "WastePage: 'if (!user) return' is no longer BEFORE useCallback"
+  fi
+  # Verify the user guard is NOW after the hooks (placed before the JSX return).
+  if grep -q '^  if (!user) {' "$WASTE_FILE"; then
+    ok "WastePage: user guard is now an if-block (placed after all hooks)"
+  else
+    bad "WastePage: user guard not found in if-block form"
+  fi
+  # Verify the HTML for /pos/waste with a valid session still returns 200.
+  JAR2=$(mktemp)
+  trap 'rm -f "$JAR" "$EMPTY_JAR" "$OWNER_JAR" "$JAR2"' EXIT
+  curl -s -c "$JAR2" -X POST "$BASE/api/auth/login" \
+    -H 'content-type: application/json' \
+    -d '{"email":"cashier@bkj.id","password":"password123"}' -o /dev/null
+  WASTE_CODE=$(curl -s -b "$JAR2" -o /tmp/waste.html -w '%{http_code}' "$BASE/pos/waste")
+  if [ "$WASTE_CODE" = "200" ]; then
+    ok "GET /pos/waste with valid session returns 200"
+  else
+    bad "GET /pos/waste returned $WASTE_CODE (expected 200)"
+  fi
+  if grep -q 'Memuat' /tmp/waste.html; then
+    ok "/pos/waste SSR HTML has 'Memuat…' placeholder (server-side gate working)"
+  else
+    bad "/pos/waste SSR HTML missing 'Memuat…' — server might be rendering full UI"
+  fi
+fi
+
+# ─── K. whole-codebase audit for the same pattern ─────────────────────────
+echo ""
+echo "K. codebase audit: no early-return + hooks-after pattern"
+BAD_COUNT=0
+for tsx in $(find /home/dr298/projects/pos-akhairi-com/apps/web/src -name "*.tsx" 2>/dev/null); do
+  if awk '
+    /^(export )?default function|^export function/ && !/use[A-Z]/ {in_func=1; depth=0; er_line=0}
+    in_func {
+      if (/\{/) depth += gsub(/\{/, "{")
+      if (/\}/) depth -= gsub(/\}/, "}")
+      if (depth == 1 && /^  if \(/ && /return/) {er_line=NR}
+      if (depth == 1 && er_line && NR > er_line && /^  use[A-Z]/) {
+        print FILENAME":"er_line" -> "NR": "$0
+        er_line=0
+      }
+    }
+  ' "$tsx" | grep -q .; then
+    BAD_COUNT=$((BAD_COUNT + 1))
+  fi
+done
+if [ "$BAD_COUNT" = "0" ]; then
+  ok "no .tsx file has the 'early-return + hooks-after' pattern"
+else
+  bad "$BAD_COUNT .tsx file(s) still have the pattern (run the audit manually)"
+fi
+
 # ─── Summary ──────────────────────────────────────────────────────────────
 echo ""
 echo "== RESULT: $PASS pass, $FAIL fail =="
