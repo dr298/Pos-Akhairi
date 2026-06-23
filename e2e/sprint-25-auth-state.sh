@@ -333,6 +333,57 @@ else
   fi
 fi
 
+
+# ─── M. Sprint 25.4 pos-tree-error-boundary (captures componentStack) ──
+echo ""
+echo "M. Sprint 25.4 pos-tree-error-boundary"
+
+if grep -q 'pos-tree-error' /home/dr298/projects/pos-akhairi-com/apps/web/src/app/pos/layout.tsx; then
+  ok "pos-tree-error-boundary class component installed in /pos layout"
+else
+  bad "pos-tree-error-boundary NOT in /pos layout"
+fi
+
+if grep -q "PosTreeErrorBoundary" /home/dr298/projects/pos-akhairi-com/apps/web/src/app/pos/layout.tsx; then
+  ok "PosTreeErrorBoundary wraps CartProvider + PrinterProvider + POSLayout"
+else
+  bad "PosTreeErrorBoundary does not wrap the /pos providers/layout"
+fi
+
+if grep -q "componentDidCatch" /home/dr298/projects/pos-akhairi-com/apps/web/src/app/pos/layout.tsx; then
+  ok "boundary implements componentDidCatch to capture componentStack"
+else
+  bad "boundary missing componentDidCatch"
+fi
+
+if grep -q "componentStack" /home/dr298/projects/pos-akhairi-com/apps/api/src/routes/errors.ts; then
+  ok "API schema accepts componentStack and stores it in context JSON"
+else
+  bad "API does not persist componentStack"
+fi
+
+# End-to-end round-trip test
+JAR=$(mktemp); trap "rm -f $JAR" EXIT
+curl -s -c "$JAR" -X POST https://pos.akhairi.com/api/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"owner@bkj.id","password":"password123"}' -o /dev/null
+
+TS=$(date +%s)
+MARKER="sprint-25-4-marker-$TS"
+curl -s -b "$JAR" -X POST 'https://pos.akhairi.com/api/errors/client-error' \
+  -H 'content-type: application/json' \
+  -d "{\"message\":\"$MARKER\",\"source\":\"pos-tree-error-boundary\",\"route\":\"/pos\",\"componentStack\":\"\\n    at TestComponent (test.tsx:1)\\n    at POSLayout (layout.tsx:133)\"}" \
+  -o /dev/null
+
+sleep 1
+RESP=$(curl -s -b "$JAR" "https://pos.akhairi.com/api/errors?limit=10")
+if echo "$RESP" | grep -q "$MARKER" && echo "$RESP" | grep -q "TestComponent" && echo "$RESP" | grep -q "POSLayout"; then
+  ok "client error with componentStack round-trips through /api/errors (marker=$MARKER)"
+else
+  bad "componentStack did NOT round-trip — API dropped it"
+  echo "  response head: $(echo "$RESP" | head -c 200)"
+fi
+
 # ─── Summary ──────────────────────────────────────────────────────────────
 echo ""
 echo "== RESULT: $PASS pass, $FAIL fail =="

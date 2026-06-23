@@ -103,9 +103,16 @@ const clientReportSchema = z.object({
   message: z.string().max(2000).optional(),
   stack: z.string().max(8000).optional(),
   digest: z.string().max(200).optional(),
-  source: z.string().max(200).optional(), // 'global-error.tsx' or 'app/error.tsx'
+  source: z.string().max(200).optional(), // 'global-error.tsx', 'app/error.tsx', or 'pos-tree-error-boundary'
   route: z.string().max(500).optional(),   // window.location.pathname
   userAgent: z.string().max(500).optional(),
+  // Sprint 25.4 — React component stack for debugging React #310
+  // ('Rendered fewer hooks than expected') and similar React-internal
+  // errors. The pos-tree-error-boundary captures this in
+  // componentDidCatch(error, info) and posts it here. The web's
+  // app/error.tsx doesn't get componentStack, so we use a class
+  // boundary INSIDE /pos/* to capture it.
+  componentStack: z.string().max(8000).optional(),
 });
 
 errorRoutes.post('/client-error', async (c) => {
@@ -119,7 +126,7 @@ errorRoutes.post('/client-error', async (c) => {
   if (!parsed.success) {
     return c.json({ error: 'BadRequest', details: parsed.error.flatten() }, 400);
   }
-  const { message, stack, digest, source, route, userAgent } = parsed.data;
+  const { message, stack, digest, source, route, userAgent, componentStack } = parsed.data;
 
   // Compose a single log-friendly message. Stack traces can be huge
   // and the ErrorEvent model expects a single string.
@@ -138,6 +145,9 @@ errorRoutes.post('/client-error', async (c) => {
         route: route ? `client:${route}` : 'client:unknown',
         message: composed.slice(0, 2000),
         stack: stack ? stack.slice(0, 8000) : null,
+        context: componentStack
+          ? { componentStack: componentStack.slice(0, 8000) }
+          : undefined,
         // No userId — could be unauthed, and the user may be on /login.
         userId: null,
       },

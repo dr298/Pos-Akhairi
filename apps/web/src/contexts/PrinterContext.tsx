@@ -35,6 +35,7 @@ import {
   type ConnectedPrinter,
 } from '@/lib/bluetooth-printer';
 import { api } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PrinterState {
   // Live Bluetooth device handle. Null when not connected.
@@ -78,9 +79,10 @@ const STORAGE_KEY_PREFIX = 'pos.printer.namePrefix';
 const PrinterContext = createContext<PrinterContextValue | null>(null);
 
 export function PrinterProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [connection, setConnection] = useState<ConnectedPrinter | null>(null);
   const [lastDeviceName, setLastDeviceName] = useState<string | null>(null);
-  const [supported] = useState<boolean>(() => isWebBluetoothSupported());
+  const [supported] = useState<boolean>(() => typeof navigator !== 'undefined' && !!navigator.bluetooth);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [namePrefix, setNamePrefix] = useState<string>('');
@@ -110,7 +112,11 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
   // Pull authoritative name prefix from /api/settings on mount. The
   // localStorage copy is a cache so the picker filter is applied
   // immediately even before the fetch resolves.
+  // Sprint 25.4 — /api/settings is OWNER/MANAGER only; CASHIER gets
+  // 403. Skip the call for non-admin roles to avoid noisy 403s.
   const refreshNamePrefix = useCallback(async () => {
+    // Only admin roles can read /api/settings
+    if (user?.role !== 'OWNER' && user?.role !== 'MANAGER') return;
     try {
       const res = await api.listSettings();
       const row = res.data.settings.find((s) => s.key === 'PRINTER_NAME_PREFIX');
@@ -125,7 +131,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     } catch {
       // Network error — keep local copy if any.
     }
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     void refreshNamePrefix();

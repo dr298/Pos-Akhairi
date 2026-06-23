@@ -41,6 +41,15 @@ process.stdin.on('end', () => {
         const head = it.stack.split('\n').slice(0, 3).join('\n           ');
         console.log('stack:   ' + head);
       }
+      // Sprint 25.4 — also show componentStack from the `context` JSON
+      // column. The pos-tree-error-boundary posts this whenever it
+      // catches an error. The component stack is the most useful
+      // piece of info for debugging React #310 (hooks-order errors)
+      // because it tells you WHICH component has the bad hook order.
+      if (it.context && it.context.componentStack) {
+        const cs = it.context.componentStack.split('\n').slice(0, 10).join('\n         ');
+        console.log('comp:    ' + cs);
+      }
       console.log('');
     }
   } catch (e) {
