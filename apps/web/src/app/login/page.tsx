@@ -34,10 +34,42 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading, login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  // Sprint 26 — AGGRESSIVE: Clear browser auto-fill on mount and focus
+  useEffect(() => {
+    // First: immediately clear on mount (before auto-fill happens)
+    const emailInput = document.getElementById('email') as HTMLInputElement
+    const pwInput = document.getElementById('pw') as HTMLInputElement
+    
+    if (emailInput) {
+      emailInput.value = ''
+      emailInput.setAttribute('readonly', 'readonly')
+      setTimeout(() => emailInput.removeAttribute('readonly'), 100)
+    }
+    if (pwInput) {
+      pwInput.value = ''
+      pwInput.setAttribute('readonly', 'readonly')
+      setTimeout(() => pwInput.removeAttribute('readonly'), 100)
+    }
+
+    // Second: clear on focus (in case browser auto-fill overrides)
+    const clearOnFocus = (input: HTMLInputElement | null) => {
+      if (input) {
+        input.addEventListener('focus', () => {
+          if (input.value && input.value !== '') {
+            input.value = ''
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+          }
+        })
+      }
+    }
+    clearOnFocus(emailInput)
+    clearOnFocus(pwInput)
+  }, [])
 
   // Sprint 25 — if already authed, kick over to /pos immediately.
   useEffect(() => {
