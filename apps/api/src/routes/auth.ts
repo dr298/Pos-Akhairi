@@ -16,7 +16,10 @@ const loginSchema = z.object({
 });
 
 function secretKey(): Uint8Array {
-  return new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret-change-me');
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return new TextEncoder().encode(process.env.JWT_SECRET);
 }
 
 async function buildToken(payload: Record<string, unknown>): Promise<string> {

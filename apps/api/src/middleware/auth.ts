@@ -20,7 +20,10 @@ export type AppEnv = {
 const COOKIE_NAME = 'pos_session';
 
 function secretKey(): Uint8Array {
-  return new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret-change-me');
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return new TextEncoder().encode(process.env.JWT_SECRET);
 }
 
 export async function readToken(token: string): Promise<SessionUser | null> {

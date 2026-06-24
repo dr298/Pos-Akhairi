@@ -53,6 +53,13 @@ export type XenditInvoice = {
   paid_at?: string;
 };
 
+function getWebOrigin(): string {
+  if (!process.env.WEB_ORIGIN) {
+    throw new Error('WEB_ORIGIN environment variable is required for payment provider redirects');
+  }
+  return process.env.WEB_ORIGIN;
+}
+
 export function mapXenditStatus(s: XenditInvoice['status']): PaymentResultStatus {
   if (s === 'PAID' || s === 'SETTLED') return 'PAID';
   if (s === 'EXPIRED' || s === 'INACTIVE') return 'EXPIRED';
@@ -67,8 +74,8 @@ export const xenditProvider: PaymentProvider = {
       amount: req.amount,
       payer_email: req.customerEmail || 'customer@example.com',
       description: `POS order ${req.orderId}`,
-      success_redirect_url: `${process.env.WEB_ORIGIN || 'http://localhost:3000'}/orders/${req.orderId}/finish`,
-      failure_redirect_url: `${process.env.WEB_ORIGIN || 'http://localhost:3000'}/orders/${req.orderId}/error`,
+      success_redirect_url: `${getWebOrigin()}/orders/${req.orderId}/finish`,
+      failure_redirect_url: `${getWebOrigin()}/orders/${req.orderId}/error`,
     };
     const res = await fetch(`${BASE}/v2/invoices`, {
       method: 'POST',

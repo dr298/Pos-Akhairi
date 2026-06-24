@@ -34,7 +34,18 @@ function baseUrl(): { snap: string; core: string } {
 }
 
 function serverKey(): string {
-  return process.env.MIDTRANS_SERVER_KEY || '';
+  const key = process.env.MIDTRANS_SERVER_KEY;
+  if (!key) {
+    throw new Error('MIDTRANS_SERVER_KEY environment variable is required');
+  }
+  return key;
+}
+
+function getWebOrigin(): string {
+  if (!process.env.WEB_ORIGIN) {
+    throw new Error('WEB_ORIGIN environment variable is required for payment provider redirects');
+  }
+  return process.env.WEB_ORIGIN;
 }
 
 function basicAuthHeader(): string {
@@ -110,9 +121,9 @@ export const midtransProvider: PaymentProvider = {
         phone: req.customerPhone,
       },
       callbacks: {
-        finish: `${process.env.WEB_ORIGIN || 'http://localhost:3000'}/orders/${req.orderId}/finish`,
-        error: `${process.env.WEB_ORIGIN || 'http://localhost:3000'}/orders/${req.orderId}/error`,
-        pending: `${process.env.WEB_ORIGIN || 'http://localhost:3000'}/orders/${req.orderId}/pending`,
+        finish: `${getWebOrigin()}/orders/${req.orderId}/finish`,
+        error: `${getWebOrigin()}/orders/${req.orderId}/error`,
+        pending: `${getWebOrigin()}/orders/${req.orderId}/pending`,
       },
     };
 

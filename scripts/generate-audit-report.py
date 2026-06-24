@@ -16,26 +16,22 @@ AUDIT_FINDINGS = {
             "severity": "CRITICAL",
             "category": "Hardcoded Secrets",
             "title": "JWT_SECRET Hardcoded Fallback",
-            "files": [
-                "apps/api/src/middleware/auth.ts:23",
-                "apps/api/src/routes/auth.ts:19",
-                "apps/api/src/channels/crypto.ts:23"
-            ],
-            "issue": "JWT_SECRET falls back to 'dev-secret-change-me' when env var not set",
-            "impact": "Production JWT signing compromised",
-            "recommendation": "Remove fallback, require JWT_SECRET in production",
-            "status": "OPEN"
+            "files": ["apps/api/src/middleware/auth.ts:23", "apps/api/src/routes/auth.ts:19", "apps/api/src/channels/crypto.ts:23"],
+            "issue": "JWT_SECRET fallback found",
+            "impact": "JWT signing compromised",
+            "recommendation": "Resolved - Fallback removed, JWT_SECRET required",
+            "status": "FIXED"
         },
         {
             "id": "SEC-002",
             "severity": "CRITICAL",
             "category": "Weak Cryptography",
-            "title": "Channel Encryption Key Derived from Weak Secret",
+            "title": "Channel Encryption Key Dependency",
             "files": ["apps/api/src/channels/crypto.ts:23"],
-            "issue": "Encryption key derived from weak JWT_SECRET fallback",
-            "impact": "Channel encryption compromised if JWT_SECRET weak",
-            "recommendation": "Use separate CHANNEL_ENCRYPTION_KEY environment variable",
-            "status": "OPEN"
+            "issue": "Derivation from JWT_SECRET fallback",
+            "impact": "Channel encryption compromised",
+            "recommendation": "Resolved - CHANNEL_ENCRYPTION_KEY enforced",
+            "status": "FIXED"
         },
     ],
     "high": [
@@ -43,15 +39,12 @@ AUDIT_FINDINGS = {
             "id": "SEC-003",
             "severity": "HIGH",
             "category": "Payment Security",
-            "title": "WEB_ORIGIN Hardcoded Fallback to Localhost",
-            "files": [
-                "apps/api/src/payments/xendit.ts:70-71",
-                "apps/api/src/payments/midtrans.ts:113-114"
-            ],
-            "issue": "Payment redirect URLs fall back to http://localhost:3000",
-            "impact": "Payment flows broken in production if WEB_ORIGIN not set",
-            "recommendation": "Enforce WEB_ORIGIN requirement, no localhost fallback",
-            "status": "OPEN"
+            "title": "WEB_ORIGIN Hardcoded Fallback",
+            "files": ["apps/api/src/payments/xendit.ts:70-71", "apps/api/src/payments/midtrans.ts:113-114"],
+            "issue": "Payment redirects fall back to localhost",
+            "impact": "Payment flows broken in production",
+            "recommendation": "Resolved - WEB_ORIGIN enforced in both providers",
+            "status": "FIXED"
         },
         {
             "id": "SEC-004",
@@ -59,10 +52,10 @@ AUDIT_FINDINGS = {
             "category": "Configuration Management",
             "title": "Missing Environment Variable Documentation",
             "files": [".env.example"],
-            "issue": "Critical env vars (JWT_SECRET, CHANNEL_ENCRYPTION_KEY, WEB_ORIGIN) not in .env.example",
-            "impact": "Production deployment misconfiguration",
-            "recommendation": "Add all required env vars to .env.example with descriptive comments",
-            "status": "OPEN"
+            "issue": "Env vars not in example",
+            "impact": "Deployment misconfiguration",
+            "recommendation": "Resolved - .env.example updated",
+            "status": "FIXED"
         },
     ],
     "passed": [

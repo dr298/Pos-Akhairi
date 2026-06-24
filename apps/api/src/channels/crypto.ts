@@ -18,9 +18,14 @@ function getKey(): Buffer {
     }
     return Buffer.from(envKey, 'utf8').subarray(0, 32);
   }
-  // Derive a 32-byte key from JWT_SECRET.
+  // Production must provide CHANNEL_ENCRYPTION_KEY as 32-byte key
+  if (!process.env.JWT_SECRET) {
+    throw new Error('CHANNEL_ENCRYPTION_KEY or JWT_SECRET environment variable is required for encryption');
+  }
+  // Fallback: derive from JWT_SECRET with warning (not recommended for production)
+  console.warn('WARNING: Using JWT_SECRET for channel encryption. Set CHANNEL_ENCRYPTION_KEY for production.');
   return createHash('sha256')
-    .update(process.env.JWT_SECRET || 'dev-secret-change-me')
+    .update(process.env.JWT_SECRET)
     .digest();
 }
 
