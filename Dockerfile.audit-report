@@ -1,0 +1,15 @@
+# Dockerfile for POS Audit Report Server
+FROM nginx:alpine
+
+# Copy audit report from build context
+COPY audit-report.html /usr/share/nginx/html/index.html
+
+# Expose port 80 (nginx default)
+EXPOSE 80
+
+# Health check on port 80
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
