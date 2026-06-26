@@ -327,7 +327,7 @@ export default function PosPage() {
   }, []);
 
   return (
-    <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] min-h-0">
+    <div className="h-full grid grid-cols-1 grid-rows-[1fr_auto] lg:grid-cols-[1fr_360px] lg:grid-rows-none xl:grid-cols-[1fr_400px] min-h-0">
       <div className="p-3 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 flex-wrap">
