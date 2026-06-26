@@ -527,7 +527,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <main className="flex-1 min-h-0 flex flex-col">{children}</main>
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">{children}</main>
       </div>{/* end right-column wrapper (header + main) */}
     </div>
   );

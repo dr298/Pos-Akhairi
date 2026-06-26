@@ -156,7 +156,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
         )}
       </div>
 
-      <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
+      <div className="shrink-0 border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3 overflow-y-auto">
         <div>
           <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-1.5">Tipe Pesanan</div>
           <div className="grid grid-cols-3 gap-1">
