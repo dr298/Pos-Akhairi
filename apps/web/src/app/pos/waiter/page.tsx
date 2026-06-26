@@ -461,10 +461,12 @@ function SessionSheet({
                 <span>Subtotal</span>
                 <span className="text-neutral-700 dark:text-neutral-300">{formatIDR(order.subtotalCents)}</span>
               </div>
+              {order.taxCents > 0 && (
               <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
                 <span>PPN</span>
                 <span>{formatIDR(order.taxCents)}</span>
               </div>
+              )}
               <div className="flex items-center justify-between text-base font-semibold pt-1 border-t border-neutral-200 dark:border-neutral-800">
                 <span>Total</span>
                 <span className="text-red-400">{formatIDR(order.totalCents)}</span>

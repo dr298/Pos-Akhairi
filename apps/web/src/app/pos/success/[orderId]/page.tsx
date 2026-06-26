@@ -267,10 +267,12 @@ export default function SuccessPage() {
             <span>-{formatIDR(order.discountCents)}</span>
           </div>
         )}
+        {(order?.taxCents ?? 0) > 0 && (
         <div className="text-sm flex justify-between">
           <span>Pajak</span>
           <span>{formatIDR(order?.taxCents ?? 0)}</span>
         </div>
+        )}
         <div className="text-base font-bold flex justify-between">
           <span>Total</span>
           <span>{formatIDR(order?.totalCents ?? total)}</span>

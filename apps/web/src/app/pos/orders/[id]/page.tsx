@@ -180,10 +180,12 @@ export default function OrderDetailPage() {
               <span>Subtotal</span>
               <span>{formatIDR(order.subtotalCents)}</span>
             </div>
+            {order.taxCents > 0 && (
             <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
               <span>Pajak</span>
               <span>{formatIDR(order.taxCents)}</span>
             </div>
+            )}
             {order.discountCents > 0 && (
               <div className="flex justify-between text-emerald-400">
                 <span>Diskon</span>
