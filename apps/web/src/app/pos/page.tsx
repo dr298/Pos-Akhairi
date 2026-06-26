@@ -327,7 +327,7 @@ export default function PosPage() {
   }, []);
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] min-h-0">
+    <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] min-h-0">
       <div className="p-3 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -374,7 +374,7 @@ export default function PosPage() {
           <MenuGrid onAdd={handleAdd} />
         </div>
       </div>
-      <div className="min-h-[60vh] lg:min-h-0">
+      <div className="min-h-0 flex flex-col">
         <Cart
           onCheckout={() => setPaymentOpen(true)}
           canCheckout={canCheckout}
