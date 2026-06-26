@@ -49,9 +49,13 @@ export function MenuGrid({ onAdd }: Props) {
 
     const itemsByCat = useMemo(() => {
       const m = new Map<string, MenuItem[]>();
-      // Initialize all categories including 'all'
+      // Initialize non-all categories to empty
+      for (const c of categories) {
+        if (c.id !== 'all') m.set(c.id, []);
+      }
+      // Populate 'all' with every active item
       m.set('all', items.filter(it => it.isActive));
-      for (const c of categories) m.set(c.id, []);
+      // Populate per-category
       for (const it of items) {
         if (it.isActive && m.has(it.categoryId)) m.get(it.categoryId)!.push(it);
       }

@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { MenuItem, Modifier } from '@/lib/api';
+import { api } from '@/lib/api';
 
 // Cart line: the item the user picked + the modifier choices they made.
 export interface CartLine {
@@ -53,7 +54,7 @@ export interface UseCart {
   itemCount: number;
 }
 
-const TAX_RATE_BP_DEFAULT = 1100; // 11% — matches backend seed (taxRateBp: 1100)
+const TAX_RATE_BP_DEFAULT = 0; // 0% — actual rate fetched from settings API
 
 function lineUnitPriceCents(line: CartLine): number {
   const modSum = line.modifiers.reduce((s, m) => s + m.priceDeltaCents, 0);
@@ -82,6 +83,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
   const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
+  const [taxRateBp, setTaxRateBp] = useState(TAX_RATE_BP_DEFAULT);
+
+  // Fetch PPN from settings on mount
+  useEffect(() => {
+    let cancelled = false;
+    api.listSettings().then((res) => {
+      if (cancelled) return;
+      const ppn = res.data.settings.find((s) => s.key === 'DEFAULT_PPN_BP');
+      if (ppn) setTaxRateBp(Number(ppn.value) || 0);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const addItem = useCallback(
     (item: MenuItem, opts?: { modifiers?: Modifier[]; notes?: string }) => {
@@ -147,7 +160,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     () => lines.reduce((s, l) => s + lineTotalCents(l), 0),
     [lines],
   );
-  const taxRateBp = TAX_RATE_BP_DEFAULT;
   // Tax is computed on the post-discount subtotal, matching backend behaviour
   // (total = subtotal + tax - discount, with tax = floor(subtotal*rate)).
   const discountCents = useMemo(() => {
