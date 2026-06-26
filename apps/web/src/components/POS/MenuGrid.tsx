@@ -114,13 +114,15 @@ export function MenuGrid({ onAdd }: Props) {
         />
       </div>
       <Tabs value={activeCat} onValueChange={setActiveCat} className="flex-1 min-h-0 flex flex-col">
-        <TabsList className="w-fit max-w-full">
-          {categories.map((c) => (
-            <TabsTrigger key={c.id} value={c.id}>
-              {c.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="max-h-[120px] overflow-y-auto pb-2">
+          <TabsList className="w-fit flex-wrap">
+            {categories.map((c) => (
+              <TabsTrigger key={c.id} value={c.id}>
+                {c.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
         {categories.map((c) => {
           const list = search
             ? c.id === activeCat
@@ -130,13 +132,13 @@ export function MenuGrid({ onAdd }: Props) {
               ? filteredActive
               : itemsByCat.get(c.id) || [];
           return (
-            <TabsContent key={c.id} value={c.id} className="flex-1 min-h-0 overflow-y-auto pt-3">
+            <TabsContent key={c.id} value={c.id} className="flex-1 min-h-0 overflow-y-auto pt-2">
               {list.length === 0 ? (
                 <div className="text-sm text-neutral-500 py-8 text-center">
                   {search ? 'Tidak ada hasil.' : 'Kategori kosong.'}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {list.map((it) => (
                     <MenuItemCard key={it.id} item={it} onClick={handleClick} />
                   ))}
