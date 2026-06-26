@@ -134,7 +134,7 @@ model MenuItem {
   description String?
   priceCents  Int          @map("price_cents")
   costCents   Int          @default(0) @map("cost_cents")
-  taxRateBp   Int          @default(1100) @map("tax_rate_bp") // basis points: 1100 = 11%
+  taxRateBp   Int          @default(0) @map("tax_rate_bp") // basis points: 1100 = 11%
   // Useful for "PPN-free" items (e.g. basic takeaway packaging) or
   // "follow branch default" items (e.g. items where tax should match
   // the local tax authority config per branch).

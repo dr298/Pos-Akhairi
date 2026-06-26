@@ -157,10 +157,12 @@ export default function HistoryPage() {
                       <span>Subtotal</span>
                       <span>{formatIDR(selected.subtotalCents)}</span>
                     </div>
+                    {selected.taxCents > 0 && (
                     <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
                       <span>Pajak</span>
                       <span>{formatIDR(selected.taxCents)}</span>
                     </div>
+                    )}
                     {selected.discountCents > 0 && (
                       <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
                         <span>Diskon</span>
