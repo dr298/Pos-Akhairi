@@ -17,7 +17,8 @@ name: Deploy
 #     added, so it can run docker build / up commands.
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches: [main]
   workflow_dispatch:  # Manual trigger button
 
@@ -44,6 +45,24 @@ jobs:
           echo "Docker: $(docker --version)"
           echo "Compose: $(docker compose version)"
           echo "Git: $(git --version)"
+
+      - name: Verify source branch (must be from uat)
+        if: github.event_name == 'pull_request'
+        run: |
+          HEAD_REF="${{ github.event.pull_request.head.ref }}"
+          MERGED="${{ github.event.pull_request.merged }}"
+          echo "PR head branch: $HEAD_REF"
+          echo "PR merged: $MERGED"
+          if [ "$MERGED" != "true" ]; then
+            echo "ERROR: PR not merged yet, skipping deploy"
+            exit 1
+          fi
+          if [ "$HEAD_REF" != "uat" ]; then
+            echo "❌ BLOCKED: PR to main must come from 'uat' branch, got '$HEAD_REF'"
+            echo "   Allowed flow: dev → uat → main"
+            exit 1
+          fi
+          echo "✓ Source branch verified: uat → main"
 
       - name: Build web image
         working-directory: /home/dr298/projects/pos-akhairi-com
