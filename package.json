@@ -24,6 +24,7 @@
     "playwright-core": "^1.61.1"
   },
   "devDependencies": {
+    "@playwright/browser-chromium": "^1.61.1",
     "@playwright/test": "^1.61.1"
   }
 }

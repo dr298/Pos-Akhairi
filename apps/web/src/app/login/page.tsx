@@ -153,11 +153,7 @@ export default function LoginPage() {
             <Button type="submit" disabled={submitting} className="w-full" size="lg">
               {submitting ? 'Masuk…' : 'Masuk'}
             </Button>
-            <div className="text-xs text-neutral-500 space-y-0.5 pt-2 border-t border-neutral-200 dark:border-neutral-800">
-              <p>Akun seed:</p>
-              <p>owner@bkj.id · manager@bkj.id · cashier@bkj.id</p>
-              <p>Password: <code className="text-neutral-500 dark:text-neutral-400">password123</code></p>
-            </div>
+            {/* Removed sensitive seed account info */} 
           </form>
         </CardContent>
       </Card>

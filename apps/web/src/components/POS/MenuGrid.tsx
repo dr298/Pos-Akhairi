@@ -22,36 +22,51 @@ export function MenuGrid({ onAdd }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [cats, its] = await Promise.all([api.getCategories(), api.getMenuItems()]);
-        if (cancelled) return;
-        const activeCats = (cats.data || [])
-          .filter((c) => c.isActive)
-          .sort((a, b) => a.sortOrder - b.sortOrder);
-        setCategories(activeCats);
-        setItems(its.data || []);
-        if (activeCats.length > 0) setActiveCat(activeCats[0].id);
-      } catch (e: any) {
-        toast.error('Gagal memuat menu: ' + (e?.message || 'unknown'));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      let cancelled = false;
+      (async () => {
+        try {
+          const [cats, its] = await Promise.all([api.getCategories(), api.getMenuItems()]);
+          if (cancelled) return;
+          const activeCats = (cats.data || [])
+            .filter((c) => c.isActive)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+          // Add ALL category at the beginning
+          const allCat: Category = { id: 'all', name: 'ALL', sortOrder: -1, isActive: true };
+          setCategories([allCat, ...activeCats]);
+          setItems(its.data || []);
+          // Default to 'all' category
+          setActiveCat('all');
+        } catch (e: any) {
+          toast.error('Gagal memuat menu: ' + (e?.message || 'unknown'));
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, []);
 
-  const itemsByCat = useMemo(() => {
-    const m = new Map<string, MenuItem[]>();
-    for (const c of categories) m.set(c.id, []);
-    for (const it of items) {
-      if (it.isActive && m.has(it.categoryId)) m.get(it.categoryId)!.push(it);
-    }
-    return m;
-  }, [items, categories]);
+    const itemsByCat = useMemo(() => {
+      const m = new Map<string, MenuItem[]>();
+      // Initialize all categories including 'all'
+      m.set('all', items.filter(it => it.isActive));
+      for (const c of categories) m.set(c.id, []);
+      for (const it of items) {
+        if (it.isActive && m.has(it.categoryId)) m.get(it.categoryId)!.push(it);
+      }
+      return m;
+    }, [items, categories]);
+
+    const filteredActive = useMemo(() => {
+      if (!search.trim()) return itemsByCat.get(activeCat) || [];
+      const q = search.toLowerCase();
+      return (itemsByCat.get(activeCat) || []).filter(
+        (it) =>
+          it.name.toLowerCase().includes(q) ||
+          (it.sku || '').toLowerCase().includes(q),
+      );
+    }, [search, activeCat, itemsByCat]);
 
   function handleClick(item: MenuItem) {
     if (item.modifiers && item.modifiers.length > 0) {
@@ -74,16 +89,6 @@ export function MenuGrid({ onAdd }: Props) {
     );
     toast.success(`${item.name} ditambahkan`);
   }
-
-  const filteredActive = useMemo(() => {
-    if (!search.trim()) return itemsByCat.get(activeCat) || [];
-    const q = search.toLowerCase();
-    return (itemsByCat.get(activeCat) || []).filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) ||
-        (i.sku || '').toLowerCase().includes(q),
-    );
-  }, [search, activeCat, itemsByCat]);
 
   if (loading) {
     return (

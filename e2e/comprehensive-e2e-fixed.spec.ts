@@ -12,7 +12,7 @@ import { test, expect, Browser, BrowserContext, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const BASE_URL = 'https://pos.akhairi.com';
+const BASE_URL = 'http://localhost:3080';
 const EVIDENCE_DIR = '/tmp/pos-e2e-evidence';
 const REPORT_FILE = '/tmp/pos-e2e-report.json';
 
