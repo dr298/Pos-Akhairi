@@ -113,9 +113,9 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Auto-reconnect on mount using stored device ID. Chrome reconnects
-  // silently (no picker) if the user previously granted permission and
-  // the device is in range. Fails silently if device unavailable.
+  // Auto-reconnect on mount using stored device ID. Uses getDevices()
+  // (no user gesture required) to find previously granted device,
+  // then gatt.connect(). Fails silently if device unavailable.
   useEffect(() => {
     if (!supported || connection) return;
     let cancelled = false;
@@ -123,20 +123,19 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
       try {
         const storedId = window.localStorage.getItem(STORAGE_KEY_DEVICE_ID);
         if (!storedId) return;
-        const bt: Bluetooth = navigator.bluetooth as Bluetooth;
-        // Re-request the specific device — Chrome skips the picker
-        // if permission was previously granted.
-        const device = await bt.requestDevice({
-          filters: [{ deviceId: storedId }],
-          optionalServices: KNOWN_PRINTER_SERVICE_UUIDS as string[],
-        } as any);
+        const bt = navigator.bluetooth as any;
+        // getDevices() returns previously granted devices without gesture.
+        if (!bt.getDevices) return;
+        const devices = await bt.getDevices();
         if (cancelled) return;
-        const server = await device.gatt?.connect();
-        if (!server || cancelled) return;
+        const device = devices.find((d: any) => d.id === storedId);
+        if (!device || !device.gatt) return;
+        const server = await device.gatt.connect();
+        if (cancelled || !server) return;
         // Try requestMtu
         try {
-          if (typeof (server as any).requestMtu === 'function') {
-            await (server as any).requestMtu(247);
+          if (typeof server.requestMtu === 'function') {
+            await server.requestMtu(247);
           }
         } catch { /* noop */ }
         // Find a writable characteristic
@@ -167,7 +166,6 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         setLastDisconnect(null);
       } catch {
         // Device not in range, permission revoked, or BT off — silent fail.
-        // User can manually reconnect via UI.
       }
     })();
     return () => { cancelled = true; };
