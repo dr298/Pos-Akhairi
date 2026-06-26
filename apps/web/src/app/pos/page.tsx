@@ -327,7 +327,8 @@ export default function PosPage() {
   }, []);
 
   return (
-    <div className="h-full grid grid-cols-1 grid-rows-[1fr_auto] lg:grid-cols-[1fr_360px] lg:grid-rows-none xl:grid-cols-[1fr_400px] min-h-0">
+    <>
+    <div className="flex-1 min-h-0 grid grid-cols-1 grid-rows-[1fr_auto] lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] overflow-hidden">
       <div className="p-3 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -382,6 +383,7 @@ export default function PosPage() {
           busy={paying}
         />
       </div>
+    </div>
       <PaymentModal
         open={paymentOpen}
         onOpenChange={(v) => !paying && setPaymentOpen(v)}
@@ -405,6 +407,6 @@ export default function PosPage() {
         pollStatus={pollStatus}
         elapsedSeconds={elapsed}
       />
-    </div>
+    </>
   );
 }
