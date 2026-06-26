@@ -46,7 +46,7 @@ export default function HistoryPage() {
   }, [refresh]);
 
   return (
-    <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
+    <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Riwayat Pesanan</h1>
         <Button size="sm" variant="outline" onClick={refresh}>

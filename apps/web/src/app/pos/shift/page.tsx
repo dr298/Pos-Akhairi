@@ -109,7 +109,7 @@ export default function ShiftPage() {
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 max-w-2xl mx-auto w-full space-y-4">
+    <div className="flex-1 p-4 sm:p-6 max-w-2xl mx-auto w-full overflow-y-auto space-y-4">
       <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Manajemen Shift</h1>
 
       {!shift ? (

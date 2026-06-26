@@ -302,7 +302,7 @@ function ReservationsPageContent() {
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full space-y-4">
+    <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full overflow-y-auto space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Reservasi Meja</h1>
