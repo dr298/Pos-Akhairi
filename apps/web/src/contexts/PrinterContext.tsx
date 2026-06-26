@@ -32,6 +32,8 @@ import {
 import {
   connectPrinter,
   isWebBluetoothSupported,
+  KNOWN_PRINTER_SERVICE_UUIDS,
+  KNOWN_WRITE_CHARACTERISTIC_UUIDS,
   type ConnectedPrinter,
 } from '@/lib/bluetooth-printer';
 import { api } from '@/lib/api';
@@ -74,6 +76,7 @@ interface PrinterActions {
 type PrinterContextValue = PrinterState & PrinterActions;
 
 const STORAGE_KEY_DEVICE = 'pos.printer.lastDeviceName';
+const STORAGE_KEY_DEVICE_ID = 'pos.printer.lastDeviceId';
 const STORAGE_KEY_PREFIX = 'pos.printer.namePrefix';
 
 const PrinterContext = createContext<PrinterContextValue | null>(null);
@@ -96,6 +99,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
   // to mess with refs here, but we keep a ref for the writeBytes helper.
   const connectionRef = useRef<ConnectedPrinter | null>(null);
   connectionRef.current = connection;
+  const handleDisconnectRef = useRef<() => void>(() => {});
 
   // Hydrate from localStorage on mount.
   useEffect(() => {
@@ -108,6 +112,66 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
       // localStorage may be disabled (private browsing, sandboxed iframe)
     }
   }, []);
+
+  // Auto-reconnect on mount using stored device ID. Chrome reconnects
+  // silently (no picker) if the user previously granted permission and
+  // the device is in range. Fails silently if device unavailable.
+  useEffect(() => {
+    if (!supported || connection) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const storedId = window.localStorage.getItem(STORAGE_KEY_DEVICE_ID);
+        if (!storedId) return;
+        const bt: Bluetooth = navigator.bluetooth as Bluetooth;
+        // Re-request the specific device — Chrome skips the picker
+        // if permission was previously granted.
+        const device = await bt.requestDevice({
+          filters: [{ deviceId: storedId }],
+          optionalServices: KNOWN_PRINTER_SERVICE_UUIDS as string[],
+        } as any);
+        if (cancelled) return;
+        const server = await device.gatt?.connect();
+        if (!server || cancelled) return;
+        // Try requestMtu
+        try {
+          if (typeof (server as any).requestMtu === 'function') {
+            await (server as any).requestMtu(247);
+          }
+        } catch { /* noop */ }
+        // Find a writable characteristic
+        let characteristic: BluetoothCharacteristic | null = null;
+        for (const svcUuid of KNOWN_PRINTER_SERVICE_UUIDS) {
+          try {
+            const svc = await server.getPrimaryService(svcUuid);
+            for (const charUuid of KNOWN_WRITE_CHARACTERISTIC_UUIDS) {
+              try {
+                const ch = await svc.getCharacteristic(charUuid);
+                if (ch.properties.writeWithoutResponse || ch.properties.write) {
+                  characteristic = ch;
+                  break;
+                }
+              } catch { /* next */ }
+            }
+            if (characteristic) break;
+          } catch { /* next service */ }
+        }
+        if (!characteristic || cancelled) {
+          try { server.disconnect(); } catch { /* noop */ }
+          return;
+        }
+        const conn: ConnectedPrinter = { device, characteristic, disconnect: () => server.disconnect() };
+        device.addEventListener('gattserverdisconnected', handleDisconnectRef.current);
+        setConnection(conn);
+        setLastDeviceName(device.name || '(tanpa nama)');
+        setLastDisconnect(null);
+      } catch {
+        // Device not in range, permission revoked, or BT off — silent fail.
+        // User can manually reconnect via UI.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [supported]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pull authoritative name prefix from /api/settings on mount. The
   // localStorage copy is a cache so the picker filter is applied
@@ -151,6 +215,9 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
     setError('Printer terputus dari Bluetooth (baterai / jarak / dimatikan)');
   }, []);
 
+  // Keep ref current so the auto-reconnect effect can use it.
+  handleDisconnectRef.current = handleDisconnectEvent;
+
   // Default connect (filtered by service+namePrefix). The picker may
   // show 0 devices if the printer advertises a non-standard GATT
   // service — call `connect({ unfiltered: true })` from the UI to fall
@@ -176,6 +243,10 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
         window.localStorage.setItem(
           STORAGE_KEY_DEVICE,
           conn.device.name || '(tanpa nama)',
+        );
+        window.localStorage.setItem(
+          STORAGE_KEY_DEVICE_ID,
+          conn.device.id,
         );
       } catch {
         // ignore
@@ -209,6 +280,7 @@ export function PrinterProvider({ children }: { children: ReactNode }) {
   const forgetDevice = useCallback(() => {
     try {
       window.localStorage.removeItem(STORAGE_KEY_DEVICE);
+      window.localStorage.removeItem(STORAGE_KEY_DEVICE_ID);
     } catch {
       // ignore
     }
