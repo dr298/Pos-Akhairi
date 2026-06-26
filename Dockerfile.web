@@ -20,6 +20,8 @@ ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ARG NEXT_PUBLIC_PRINTER_ENABLED
 ENV NEXT_PUBLIC_PRINTER_ENABLED=${NEXT_PUBLIC_PRINTER_ENABLED}
+ARG API_PROXY_TARGET
+ENV API_PROXY_TARGET=${API_PROXY_TARGET}
 # Hoisted node_modules from /repo contains @next, react, etc.
 COPY --from=deps /repo/node_modules /repo/node_modules
 COPY --from=deps /repo/package.json /repo/package.json
