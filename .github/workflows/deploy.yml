@@ -22,7 +22,7 @@ on:
   workflow_dispatch:  # Manual trigger button
 
 concurrency:
-  group: deploy-pos
+  group: deploy-prod
   cancel-in-progress: false  # Don't kill a half-built deploy
 
 jobs:
