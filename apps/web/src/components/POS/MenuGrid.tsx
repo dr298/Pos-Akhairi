@@ -113,7 +113,7 @@ export function MenuGrid({ onAdd }: Props) {
           className="flex h-10 w-full max-w-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500/60"
         />
       </div>
-      <Tabs value={activeCat} onValueChange={setActiveCat} className="flex flex-col h-full">
+      <Tabs value={activeCat} onValueChange={setActiveCat} className="flex-1 min-h-0 flex flex-col">
         <TabsList className="w-fit max-w-full">
           {categories.map((c) => (
             <TabsTrigger key={c.id} value={c.id}>
@@ -130,7 +130,7 @@ export function MenuGrid({ onAdd }: Props) {
               ? filteredActive
               : itemsByCat.get(c.id) || [];
           return (
-            <TabsContent key={c.id} value={c.id} className="flex-1 overflow-y-auto pt-3">
+            <TabsContent key={c.id} value={c.id} className="flex-1 min-h-0 overflow-y-auto pt-3">
               {list.length === 0 ? (
                 <div className="text-sm text-neutral-500 py-8 text-center">
                   {search ? 'Tidak ada hasil.' : 'Kategori kosong.'}
