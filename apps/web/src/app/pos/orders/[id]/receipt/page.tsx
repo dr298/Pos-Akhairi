@@ -122,7 +122,7 @@ export default function OrderReceiptPage() {
 
   if (!order) {
     return (
-      <div className="flex-1 p-4 sm:p-6 max-w-3xl mx-auto w-full">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 max-w-3xl mx-auto w-full">
         <Card>
           <CardContent>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Pesanan tidak ditemukan.</p>
@@ -209,7 +209,7 @@ export default function OrderReceiptPage() {
               <input
                 value={waTarget}
                 onChange={(e) => setWaTarget(e.target.value)}
-                placeholder="+6281234567890"
+                placeholder="+628****7890"
                 className="flex-1 h-9 rounded-md bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 px-2 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
               <Button

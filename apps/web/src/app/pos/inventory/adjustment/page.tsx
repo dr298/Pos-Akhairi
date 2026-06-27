@@ -168,7 +168,7 @@ export default function InventoryAdjustmentPage() {
   }, [rows]);
 
   return (
-    <div className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
       <div>
         <h1 className="text-xl sm:text-2xl font-semibold">Stock Opname</h1>
         <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">

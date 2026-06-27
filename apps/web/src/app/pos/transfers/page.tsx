@@ -132,7 +132,7 @@ export default function TransfersPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6 max-w-4xl mx-auto">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Transfer Kas</h1>
         <p className="text-sm text-neutral-500">

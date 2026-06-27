@@ -173,7 +173,7 @@ export default function MenuManagementPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 max-w-7xl mx-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Manajemen Menu</h1>

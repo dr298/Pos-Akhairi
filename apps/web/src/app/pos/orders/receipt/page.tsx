@@ -97,7 +97,7 @@ export default function ReceiptLogPage() {
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Receipt Log</h1>

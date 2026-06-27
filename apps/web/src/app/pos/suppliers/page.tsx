@@ -60,7 +60,7 @@ export default function SuppliersPage() {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-3 max-w-screen-2xl mx-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 max-w-screen-2xl mx-auto">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold">Supplier</h1>

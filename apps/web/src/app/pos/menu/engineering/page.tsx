@@ -99,7 +99,7 @@ function startOfMonthISO(): string {
 export default function MenuEngineeringPage() {
   return (
     <Suspense fallback={
-      <div className="flex-1 p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat…</div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-6 text-neutral-500 dark:text-neutral-400 text-sm">Memuat…</div>
     }>
       <MenuEngineeringPageContent />
     </Suspense>

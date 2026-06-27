@@ -153,7 +153,7 @@ export default function SuccessPage() {
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 flex items-start sm:items-center justify-center print:p-0 print:justify-start print:block">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex items-start sm:items-center justify-center print:p-0 print:justify-start print:block">
       <Card className="w-full max-w-md print:hidden">
         <CardHeader>
           <div className="flex items-center justify-between">

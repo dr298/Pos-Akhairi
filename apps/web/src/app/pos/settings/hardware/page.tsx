@@ -177,7 +177,7 @@ export default function HardwareSettingsPage() {
   if (!user) return null;
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto">
       <div>
         <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Hardware</h1>
         <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">

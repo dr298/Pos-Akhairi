@@ -222,7 +222,7 @@ export default function CombosPage() {
   const savings = Math.max(0, comboItemsTotal - comboPriceCents);
 
   return (
-    <div className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 max-w-6xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Combo / Paket</h1>
         <Button onClick={openCreate}>+ Combo Baru</Button>

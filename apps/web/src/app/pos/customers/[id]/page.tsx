@@ -99,7 +99,7 @@ export default function CustomerDetailPage() {
 
   if (!customer) {
     return (
-      <div className="flex-1 p-4 sm:p-6 max-w-3xl mx-auto w-full">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 max-w-3xl mx-auto w-full">
         <Card>
           <CardContent>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Pelanggan tidak ditemukan.</p>
