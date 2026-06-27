@@ -144,7 +144,7 @@ export default function PnLPage() {
                   Net margin {data.netMarginPct}% · {data.paidOrderCount} paid order
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right min-w-0">
                 <Badge tone={data.grossProfitCents >= 0 ? 'success' : 'danger'}>
                   Gross {formatIDR(data.grossProfitCents)} · {data.grossMarginPct}%
                 </Badge>
@@ -153,7 +153,7 @@ export default function PnLPage() {
           </Card>
 
           {/* Revenue / COGS / OpEx columns */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <Card>
               <CardHeader>
                 <CardTitle>Revenue</CardTitle>
