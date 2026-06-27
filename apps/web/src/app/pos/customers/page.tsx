@@ -146,17 +146,17 @@ export default function CustomersPage() {
 
   return (
     <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full overflow-y-auto space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Pelanggan / Member</h1>
           <p className="text-xs text-neutral-500">
             Kelola data pelanggan dan program loyalitas. Pencarian berdasarkan nama, nomor HP, atau email.
           </p>
         </div>
-        <Button onClick={openCreate}>+ Pelanggan Baru</Button>
+        <Button onClick={openCreate} className="text-xs sm:text-sm whitespace-nowrap">+ Pelanggan Baru</Button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Input
           placeholder="Cari nama / nomor HP / email…"
           value={search}
