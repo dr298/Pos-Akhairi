@@ -274,7 +274,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen flex bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 print:bg-white">
+    <div className="h-screen overflow-hidden flex bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 print:bg-white">
       {/* Sprint 20 — persistent left sidebar (md+). On mobile this is
           hidden; the drawer overlay (further down) is the mobile nav. */}
       <aside
@@ -527,7 +527,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <main className="flex-1 min-h-0 flex flex-col">{children}</main>
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">{children}</main>
       </div>{/* end right-column wrapper (header + main) */}
     </div>
   );

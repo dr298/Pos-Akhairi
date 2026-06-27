@@ -1,0 +1,4 @@
+-- Reset menu_items.tax_rate_bp default from 1100 (11%) to 0 (follow global DEFAULT_PPN_BP).
+-- Data already reset via: UPDATE menu_items SET tax_rate_bp = 0 WHERE tax_rate_bp > 0;
+-- Schema change: @default(1100) -> @default(0) in schema.prisma.
+-- No ALTER needed — Prisma @default only affects new inserts, not the column DDL.

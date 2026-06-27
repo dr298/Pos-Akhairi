@@ -75,7 +75,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
   }
 
   return (
-    <div className="flex h-full flex-col bg-neutral-50 dark:bg-neutral-950 border-l border-neutral-200 dark:border-neutral-800">
+    <div className="flex-1 min-h-0 flex flex-col bg-neutral-50 dark:bg-neutral-950 border-l border-neutral-200 dark:border-neutral-800">
       <div className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
         <div className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
           Keranjang {cart.itemCount > 0 && <span className="text-neutral-500 dark:text-neutral-400">({cart.itemCount})</span>}
@@ -156,7 +156,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
         )}
       </div>
 
-      <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
+      <div className="shrink-0 border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3 overflow-y-auto">
         <div>
           <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-1.5">Tipe Pesanan</div>
           <div className="grid grid-cols-3 gap-1">
