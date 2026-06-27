@@ -232,10 +232,11 @@ function Row({
   tone?: 'pos' | 'neg';
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className={muted ? 'text-xs text-neutral-500' : 'text-sm'}>{label}</span>
+    <div className="flex items-center justify-between gap-2 min-w-0">
+      <span className={`min-w-0 truncate ${muted ? 'text-xs text-neutral-500' : 'text-sm'}`}>{label}</span>
       <span
         className={
+          'whitespace-nowrap shrink-0 ' +
           (bold ? 'font-semibold ' : '') +
           (negative ? 'text-red-500' : tone === 'pos' ? 'text-emerald-500' : tone === 'neg' ? 'text-red-500' : '')
         }
