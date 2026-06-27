@@ -307,7 +307,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
           className="sticky top-0 z-20 border-b border-neutral-200 dark:border-white/5 bg-neutral-50 dark:bg-neutral-950/80 backdrop-blur-md print:hidden"
           style={{ fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
         >
-          <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-5 h-14">
+          <div className="flex items-center justify-between gap-2 sm:gap-3 px-2 sm:px-5 h-14 flex-wrap">
             {/* Sprint 20 — on desktop, the logo lives in the left sidebar,
                 not here. On mobile we still need a header to house the
                 hamburger button and the search trigger. */}
@@ -371,7 +371,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Right: actions */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0 flex-wrap">
             <button
               type="button"
               onClick={toggle}
@@ -385,7 +385,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
                 <Icon name="moon" className="h-4 w-4" />
               )}
             </button>
-            <LanguageSwitcher />
+            <span className="hidden sm:inline-flex"><LanguageSwitcher /></span>
             <div className="hidden lg:flex flex-col items-end leading-tight">
               <span className="text-xs tabular-nums text-neutral-800 dark:text-neutral-200 font-medium">
                 {now ? formatTime(now) : '--:--:--'}

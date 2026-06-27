@@ -143,7 +143,7 @@ export function PrinterStatusBadge() {
         <span className={`h-2 w-2 rounded-full ${dotColor}`} aria-hidden />
         <span className="font-mono">{dot}</span>
         <span className="hidden md:inline">Printer:</span>
-        <span className="max-w-[120px] truncate">{label}</span>
+        <span className="hidden sm:inline max-w-[120px] truncate">{label}</span>
       </button>
 
       {open && (
