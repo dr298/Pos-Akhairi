@@ -310,7 +310,7 @@ function ReservationsPageContent() {
             Catat booking tamu untuk tanggal dan jam tertentu. Klik tanggal untuk lihat detail.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-md p-0.5">
             <button
               type="button"
@@ -378,7 +378,8 @@ function ReservationsPageContent() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="overflow-x-auto -mx-1 px-1">
+          <div className="grid grid-cols-7 gap-1.5 min-w-[360px]">
             {weekDays.map((d) => {
               const label = formatDayLabel(d);
               const isSelected = d === selectedDate;
@@ -420,6 +421,7 @@ function ReservationsPageContent() {
                 </button>
               );
             })}
+          </div>
           </div>
         </CardContent>
       </Card>
