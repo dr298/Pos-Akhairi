@@ -26,6 +26,7 @@ jobs:
       - name: Pull latest code
         working-directory: /home/dr298/projects/pos-akhairi-uat
         run: |
+          git config --global --add safe.directory /home/dr298/projects/pos-akhairi-uat
           git fetch origin
           git checkout uat
           git reset --hard origin/uat
