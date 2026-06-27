@@ -1,9 +1,5 @@
 name: Deploy UAT
 
-# UAT deploy — self-hosted runner on akhairi server.
-# Triggers on push to `uat` branch.
-# Runner checkout ke /home/dr298/projects/pos-akhairi-uat (working-directory).
-
 on:
   push:
     branches: [uat]
@@ -20,19 +16,20 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          path: /home/dr298/projects/pos-akhairi-uat
-
       - name: Show runner info
+        working-directory: /home/dr298/projects/pos-akhairi-uat
         run: |
           echo "Runner: $(hostname)"
           echo "User: $(whoami)"
           echo "Docker: $(docker --version)"
-          echo "Compose: $(docker compose version)"
-          echo "Git: $(git --version)"
+
+      - name: Pull latest code
+        working-directory: /home/dr298/projects/pos-akhairi-uat
+        run: |
+          git fetch origin
+          git checkout uat
+          git reset --hard origin/uat
+          echo "HEAD: $(git log --oneline -1)"
 
       - name: Build web image
         working-directory: /home/dr298/projects/pos-akhairi-uat
@@ -46,7 +43,7 @@ jobs:
         run: |
           docker build -f Dockerfile.api -t pos-akhairi-uat-api:latest .
 
-      - name: Apply prisma migrations (idempotent)
+      - name: Apply prisma migrations
         working-directory: /home/dr298/projects/pos-akhairi-uat
         run: |
           docker compose -f docker-compose.yml run --rm api \
@@ -86,7 +83,7 @@ jobs:
       - name: Notify Telegram on failure
         if: failure()
         run: |
-          MESSAGE="❌ pos-uat.akhairi.com deploy FAILED
+          MESSAGE="pos-uat.akhairi.com deploy FAILED
           commit: ${GITHUB_SHA:0:8}
           branch: ${GITHUB_REF_NAME}
           runner: $(hostname)
