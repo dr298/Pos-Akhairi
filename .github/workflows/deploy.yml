@@ -37,7 +37,8 @@ jobs:
         run: |
           docker build -f Dockerfile.web -t pos-akhairi-uat-web:latest \
             --build-arg NEXT_PUBLIC_API_URL= \
-            --build-arg NEXT_PUBLIC_PRINTER_ENABLED=true .
+            --build-arg NEXT_PUBLIC_PRINTER_ENABLED=true \
+            --build-arg API_PROXY_TARGET=api:9797 .
 
       - name: Build api image
         working-directory: /home/dr298/projects/pos-akhairi-uat
