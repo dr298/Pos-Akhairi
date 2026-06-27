@@ -178,6 +178,7 @@ export default function ZReportPage() {
                 <CardTitle>Payment Methods</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-[10px] uppercase text-neutral-500">
                     <tr>
@@ -199,6 +200,7 @@ export default function ZReportPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
 
@@ -208,6 +210,7 @@ export default function ZReportPage() {
                 <CardTitle>Order Types</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-[10px] uppercase text-neutral-500">
                     <tr>
@@ -226,6 +229,7 @@ export default function ZReportPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
 
@@ -235,6 +239,7 @@ export default function ZReportPage() {
                 <CardTitle>Channels</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-[10px] uppercase text-neutral-500">
                     <tr>
@@ -253,6 +258,7 @@ export default function ZReportPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
 
@@ -262,6 +268,7 @@ export default function ZReportPage() {
                 <CardTitle>Category Breakdown</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-[10px] uppercase text-neutral-500">
                     <tr>
@@ -283,6 +290,7 @@ export default function ZReportPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
 
@@ -317,6 +325,7 @@ export default function ZReportPage() {
                 <CardTitle>Top 20 Items</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-[10px] uppercase text-neutral-500">
                     <tr>
@@ -340,6 +349,7 @@ export default function ZReportPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
 
@@ -349,6 +359,7 @@ export default function ZReportPage() {
                 <CardTitle>Shift Reconciliation</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-[10px] uppercase text-neutral-500">
                     <tr>
@@ -376,6 +387,7 @@ export default function ZReportPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
 
@@ -385,6 +397,7 @@ export default function ZReportPage() {
                 <CardTitle>Void & Refund Log</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-[10px] uppercase text-neutral-500">
                     <tr>
@@ -406,6 +419,7 @@ export default function ZReportPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
           </div>

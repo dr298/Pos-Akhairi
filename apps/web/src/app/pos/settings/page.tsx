@@ -321,6 +321,7 @@ export default function PosSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-zinc-500 border-b border-zinc-200 dark:border-zinc-800">
@@ -341,6 +342,7 @@ export default function PosSettingsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
     </div>

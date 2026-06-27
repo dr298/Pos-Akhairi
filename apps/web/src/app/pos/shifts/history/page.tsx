@@ -452,6 +452,7 @@ export default function ShiftHistoryPage() {
                     </div>
                   ) : (
                     <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden">
+                      <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="text-left text-[10px] uppercase tracking-wide text-neutral-500 border-b border-neutral-200 dark:border-neutral-800">
@@ -482,6 +483,7 @@ export default function ShiftHistoryPage() {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   )}
                 </div>
