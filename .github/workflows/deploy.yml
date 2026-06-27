@@ -24,6 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          path: /home/dr298/projects/pos-akhairi-uat
 
       - name: Show runner info
         run: |
