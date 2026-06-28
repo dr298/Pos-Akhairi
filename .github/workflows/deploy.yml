@@ -20,6 +20,7 @@ on:
   pull_request:
     types: [closed]
     branches: [main]
+  workflow_dispatch:
   workflow_dispatch:  # Manual trigger button
 
 concurrency:
