@@ -34,6 +34,15 @@ export default function PosSettingsPage() {
   // Sprint 19 — printer paper width. Default 80mm.
   const [paperWidthMm, setPaperWidthMm] = useState<58 | 80>(80);
   const [savingPaper, setSavingPaper] = useState(false);
+  // Payment Providers — Xendit & Midtrans keys
+  const [xenditSecretKey, setXenditSecretKey] = useState<string>('');
+  const [xenditWebhookSecret, setXenditWebhookSecret] = useState<string>('');
+  const [xenditPublicKey, setXenditPublicKey] = useState<string>('');
+  const [midtransServerKey, setMidtransServerKey] = useState<string>('');
+  const [midtransClientKey, setMidtransClientKey] = useState<string>('');
+  const [midtransEnv, setMidtransEnv] = useState<'sandbox' | 'production'>('sandbox');
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
 
   // Route guard: OWNER only (settings can change tax behaviour for the
   // whole resto; we don't want any cashier to flip this).
@@ -72,6 +81,21 @@ export default function PosSettingsPage() {
         const pw = res.data.settings.find((s) => s.key === 'PRINTER_PAPER_WIDTH');
         if (pw && (pw.value === '58' || pw.value === '80')) {
           setPaperWidthMm(pw.value === '58' ? 58 : 80);
+        }
+        // Payment providers — hydrate keys
+        const xsk = res.data.settings.find((s) => s.key === 'XENDIT_SECRET_KEY');
+        if (xsk) setXenditSecretKey(xsk.value);
+        const xwh = res.data.settings.find((s) => s.key === 'XENDIT_WEBHOOK_SECRET');
+        if (xwh) setXenditWebhookSecret(xwh.value);
+        const xpk = res.data.settings.find((s) => s.key === 'XENDIT_PUBLIC_KEY');
+        if (xpk) setXenditPublicKey(xpk.value);
+        const msk = res.data.settings.find((s) => s.key === 'MIDTRANS_SERVER_KEY');
+        if (msk) setMidtransServerKey(msk.value);
+        const mck = res.data.settings.find((s) => s.key === 'MIDTRANS_CLIENT_KEY');
+        if (mck) setMidtransClientKey(mck.value);
+        const menv = res.data.settings.find((s) => s.key === 'MIDTRANS_ENV');
+        if (menv && (menv.value === 'sandbox' || menv.value === 'production')) {
+          setMidtransEnv(menv.value);
         }
       } catch (e) {
         toast.error('Gagal memuat settings');
@@ -124,6 +148,26 @@ export default function PosSettingsPage() {
       toast.error(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const savePayment = async () => {
+    setSavingPayment(true);
+    try {
+      await api.upsertSetting('XENDIT_SECRET_KEY', xenditSecretKey || '', null);
+      await api.upsertSetting('XENDIT_WEBHOOK_SECRET', xenditWebhookSecret || '', null);
+      await api.upsertSetting('XENDIT_PUBLIC_KEY', xenditPublicKey || '', null);
+      await api.upsertSetting('MIDTRANS_SERVER_KEY', midtransServerKey || '', null);
+      await api.upsertSetting('MIDTRANS_CLIENT_KEY', midtransClientKey || '', null);
+      await api.upsertSetting('MIDTRANS_ENV', midtransEnv, null);
+      toast.success('Payment config disimpan');
+      const res = await api.listSettings();
+      setSettings(res.data.settings);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Gagal menyimpan payment config';
+      toast.error(msg);
+    } finally {
+      setSavingPayment(false);
     }
   };
 
@@ -309,6 +353,160 @@ export default function PosSettingsPage() {
               </Badge>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Providers</CardTitle>
+          <CardDescription>
+            Konfigurasi API key untuk payment gateway. Nilai di sini meng-override env var.
+            Kosongkan untuk gunakan default dari environment.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowKeys(!showKeys)}
+              type="button"
+            >
+              {showKeys ? 'Sembunyikan Key' : 'Tampilkan Key'}
+            </Button>
+          </div>
+
+          {/* Xendit */}
+          <div>
+            <h4 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-3">Xendit</h4>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+                  Secret Key
+                </label>
+                {showKeys ? (
+                  <Input
+                    type="text"
+                    value={xenditSecretKey}
+                    onChange={(e) => setXenditSecretKey(e.target.value)}
+                    placeholder="xnd_development_xxx..."
+                    maxLength={200}
+                  />
+                ) : (
+                  <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
+                    <Badge variant="outline">{xenditSecretKey ? '••••••••' : 'Belum diatur'}</Badge>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+                  Webhook Secret
+                </label>
+                {showKeys ? (
+                  <Input
+                    type="text"
+                    value={xenditWebhookSecret}
+                    onChange={(e) => setXenditWebhookSecret(e.target.value)}
+                    placeholder="your_webhook_token"
+                    maxLength={200}
+                  />
+                ) : (
+                  <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
+                    <Badge variant="outline">{xenditWebhookSecret ? '••••••••' : 'Belum diatur'}</Badge>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+                  Public Key
+                </label>
+                {showKeys ? (
+                  <Input
+                    type="text"
+                    value={xenditPublicKey}
+                    onChange={(e) => setXenditPublicKey(e.target.value)}
+                    placeholder="xnd_public_xxx..."
+                    maxLength={200}
+                  />
+                ) : (
+                  <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
+                    <Badge variant="outline">{xenditPublicKey ? '••••••••' : 'Belum diatur'}</Badge>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <hr className="border-zinc-200 dark:border-zinc-800" />
+
+          {/* Midtrans */}
+          <div>
+            <h4 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-3">Midtrans</h4>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+                  Server Key
+                </label>
+                {showKeys ? (
+                  <Input
+                    type="text"
+                    value={midtransServerKey}
+                    onChange={(e) => setMidtransServerKey(e.target.value)}
+                    placeholder="SB-Mid-server-xxx..."
+                    maxLength={200}
+                  />
+                ) : (
+                  <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
+                    <Badge variant="outline">{midtransServerKey ? '••••••••' : 'Belum diatur'}</Badge>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+                  Client Key
+                </label>
+                {showKeys ? (
+                  <Input
+                    type="text"
+                    value={midtransClientKey}
+                    onChange={(e) => setMidtransClientKey(e.target.value)}
+                    placeholder="SB-Mid-client-xxx..."
+                    maxLength={200}
+                  />
+                ) : (
+                  <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
+                    <Badge variant="outline">{midtransClientKey ? '••••••••' : 'Belum diatur'}</Badge>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 block mb-1">
+                  Environment
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={midtransEnv === 'sandbox' ? 'primary' : 'outline'}
+                    onClick={() => setMidtransEnv('sandbox')}
+                    type="button"
+                  >
+                    Sandbox
+                  </Button>
+                  <Button
+                    variant={midtransEnv === 'production' ? 'primary' : 'outline'}
+                    onClick={() => setMidtransEnv('production')}
+                    type="button"
+                  >
+                    Production
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={savePayment} disabled={savingPayment}>
+              {savingPayment ? 'Menyimpan…' : 'Simpan Payment Config'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

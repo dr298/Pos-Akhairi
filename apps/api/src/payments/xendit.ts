@@ -4,6 +4,7 @@ import type {
   PaymentResult,
   PaymentResultStatus,
 } from './types.js';
+import { getPaymentSetting } from '../services/settings.js';
 
 /**
  * Xendit Invoice provider.
@@ -26,13 +27,14 @@ import type {
 
 const BASE = 'https://api.xendit.co';
 
-function secretKey(): string {
-  return process.env.XENDIT_SECRET_KEY || '';
+async function secretKey(): Promise<string> {
+  return getPaymentSetting('XENDIT_SECRET_KEY');
 }
 
-function basicAuthHeader(): string {
+async function basicAuthHeader(): Promise<string> {
+  const key = await secretKey();
   // Xendit uses HTTP Basic with secret_key as username, empty password.
-  return 'Basic ' + Buffer.from(secretKey() + ':').toString('base64');
+  return 'Basic ' + Buffer.from(key + ':').toString('base64');
 }
 
 export type XenditInvoice = {
@@ -84,7 +86,7 @@ export const xenditProvider: PaymentProvider = {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        Authorization: basicAuthHeader(),
+        Authorization: await basicAuthHeader(),
       },
       body: JSON.stringify(body),
     });
@@ -106,7 +108,7 @@ export const xenditProvider: PaymentProvider = {
       method: 'GET',
       headers: {
         Accept: 'application/json',
-        Authorization: basicAuthHeader(),
+        Authorization: await basicAuthHeader(),
       },
     });
     if (!res.ok) {
@@ -126,7 +128,7 @@ export const xenditProvider: PaymentProvider = {
       method: 'POST',
       headers: {
         Accept: 'application/json',
-        Authorization: basicAuthHeader(),
+        Authorization: await basicAuthHeader(),
       },
     });
     if (!res.ok) {
@@ -144,7 +146,7 @@ export const xenditProvider: PaymentProvider = {
  */
 export async function verifyXenditWebhook(providedToken: string | null | undefined): Promise<boolean> {
   const crypto = await import('node:crypto');
-  const expected = process.env.XENDIT_WEBHOOK_SECRET || '';
+  const expected = await getPaymentSetting('XENDIT_WEBHOOK_SECRET');
   if (!expected || !providedToken) return false;
   const a = Buffer.from(providedToken);
   const b = Buffer.from(expected);

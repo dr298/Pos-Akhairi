@@ -142,6 +142,61 @@ export const KNOWN_SETTINGS = {
     },
     format: (s: string) => s,
   },
+  XENDIT_SECRET_KEY: {
+    description: 'Xendit secret API key. Takes precedence over XENDIT_SECRET_KEY env var.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') throw new Error('XENDIT_SECRET_KEY must be a string');
+      if (raw.length > 200) throw new Error('XENDIT_SECRET_KEY max 200 chars');
+      return raw;
+    },
+    format: (s: string) => s,
+  },
+  XENDIT_WEBHOOK_SECRET: {
+    description: 'Xendit webhook callback token for verification.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') throw new Error('XENDIT_WEBHOOK_SECRET must be a string');
+      if (raw.length > 200) throw new Error('XENDIT_WEBHOOK_SECRET max 200 chars');
+      return raw;
+    },
+    format: (s: string) => s,
+  },
+  XENDIT_PUBLIC_KEY: {
+    description: 'Xendit public key for client-side integration.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') throw new Error('XENDIT_PUBLIC_KEY must be a string');
+      if (raw.length > 200) throw new Error('XENDIT_PUBLIC_KEY max 200 chars');
+      return raw;
+    },
+    format: (s: string) => s,
+  },
+  MIDTRANS_SERVER_KEY: {
+    description: 'Midtrans server key for API auth.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') throw new Error('MIDTRANS_SERVER_KEY must be a string');
+      if (raw.length > 200) throw new Error('MIDTRANS_SERVER_KEY max 200 chars');
+      return raw;
+    },
+    format: (s: string) => s,
+  },
+  MIDTRANS_CLIENT_KEY: {
+    description: 'Midtrans client key for Snap.js.',
+    parse: (raw: string): string => {
+      if (typeof raw !== 'string') throw new Error('MIDTRANS_CLIENT_KEY must be a string');
+      if (raw.length > 200) throw new Error('MIDTRANS_CLIENT_KEY max 200 chars');
+      return raw;
+    },
+    format: (s: string) => s,
+  },
+  MIDTRANS_ENV: {
+    description: 'Midtrans environment mode.',
+    parse: (raw: string): string => {
+      if (raw !== 'sandbox' && raw !== 'production') {
+        throw new Error('MIDTRANS_ENV must be "sandbox" or "production"');
+      }
+      return raw;
+    },
+    format: (s: string) => s,
+  },
 } as const;
 
 export type KnownSettingKey = keyof typeof KNOWN_SETTINGS;
@@ -186,6 +241,12 @@ export async function getBusinessSnapshot() {
     // for the fallback copy. We just expose whatever the OWNER set.
     footer: footer ?? '',
   };
+}
+
+export async function getPaymentSetting(key: string, envVarName?: string): Promise<string> {
+  const dbVal = await getSetting(key);
+  if (dbVal !== null && dbVal.trim() !== '') return dbVal;
+  return process.env[envVarName || key] || '';
 }
 
 export async function listSettings() {
