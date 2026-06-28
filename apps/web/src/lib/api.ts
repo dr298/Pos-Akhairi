@@ -1,7 +1,7 @@
-// Typed API client for pos.akhairi.com backend.
+// Typed API client for pos-uat.akhairi.com backend.
 // API_URL is prepended to every request path. In production it should be a
 // relative path '' (empty) so the browser resolves the fetch as
-// `https://pos.akhairi.com/api/...` — this hits the Next.js rewrite which
+// `https://pos-uat.akhairi.com/api/...` — this hits the Next.js rewrite which
 // forwards server-side to the internal api:8787 container with cookies
 // flowing through the same origin. In dev, set NEXT_PUBLIC_API_URL to the
 // full backend origin (e.g. http://localhost:8787) and the call sites'

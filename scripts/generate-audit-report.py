@@ -283,7 +283,7 @@ def generate_html_report():
             <div class="meta">
                 <p>Oracle/SAP Quality Standard Compliance</p>
                 <p>Generated: """ + datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC") + """</p>
-                <p>Project: pos.akhairi.com | Stack: Node.js + Next.js + Postgres + Prisma</p>
+                <p>Project: pos-uat.akhairi.com | Stack: Node.js + Next.js + Postgres + Prisma</p>
             </div>
         </header>
         
