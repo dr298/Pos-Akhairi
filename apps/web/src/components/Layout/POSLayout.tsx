@@ -69,7 +69,7 @@ const NAV: NavGroup[] = [
     items: [
       // Sprint 21 — Product list (renamed from "Daftar Menu"). The
       // page at /pos/menu has a built-in "Buat" form for new items.
-      { href: '/pos/menu',                  label: 'Product',         icon: 'menu',     match: p => p === '/pos/menu',                                     show: r => isManager(r), shortcut: 'M' },
+      { href: '/pos/menu',                  label: 'Menu',           icon: 'menu',     match: p => p === '/pos/menu',                                     show: r => isManager(r), shortcut: 'M' },
       { href: '/pos/menu/engineering',      label: 'Engineering',     icon: 'cog',      match: p => p.startsWith('/pos/menu/engineering'),                 show: r => isManager(r) },
       { href: '/pos/menu/combos',           label: 'Combo',           icon: 'layers',   match: p => p.startsWith('/pos/menu/combos'),                      show: r => isManager(r) },
       { href: '/pos/inventory/adjustment',  label: 'Adjustment',      icon: 'box',      match: p => p.startsWith('/pos/inventory/adjustment'),             show: r => isManager(r) },

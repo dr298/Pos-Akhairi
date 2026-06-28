@@ -94,6 +94,18 @@ export interface Modifier {
   priceDeltaCents: number;
 }
 
+export interface InventoryItem {
+  id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  quantity: string;
+  reorderPoint: string;
+  costPerUnit: string;
+  isActive: boolean;
+  createdAt?: string;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -484,6 +496,9 @@ export const api = {
   getMenuItemRecipes: (id: string) =>
     request<{ data: any[] }>(`/api/menu/items/${id}/recipes`),
 
+  // Inventory items
+  getInventoryItems: () =>
+    request<{ data: InventoryItem[] }>('/api/inventory'),
   // Shifts
   getCurrentShift: () => request<{ data: Shift | null }>('/api/shifts/current'),
   openShift: (openingCash: number) =>
