@@ -74,8 +74,10 @@ export const xenditProvider: PaymentProvider = {
       amount: req.amount,
       payer_email: req.customerEmail || 'customer@example.com',
       description: `POS order ${req.orderId}`,
-      success_redirect_url: `${getWebOrigin()}/orders/${req.orderId}/finish`,
-      failure_redirect_url: `${getWebOrigin()}/orders/${req.orderId}/error`,
+      // success/failure redirect URLs intentionally omitted — Xendit shows
+      // its own hosted payment result page. POS-side polling detects PAID
+      // on the cashier's screen. Customer-facing redirect pages can be
+      // added later when needed (e.g. for online ordering).
     };
     const res = await fetch(`${BASE}/v2/invoices`, {
       method: 'POST',
