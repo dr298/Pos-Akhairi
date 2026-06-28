@@ -62,3 +62,4 @@ npm run dev
 - Owner: Harry (`dr298`)
 - Currency: IDR, PPN 11%, QRIS-ready
 - Custom email/password only — no SSO
+# deploy
