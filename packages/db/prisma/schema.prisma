@@ -1009,7 +1009,7 @@ model PurchaseOrderItem {
   // (e.g. 1.5 kg of beef) without forcing a schema migration later.
   // The API coerces to/from numbers on input.
   qtyOrdered      String   @map("qty_ordered")
-  qtyReceived     Int      @default(0) @map("qty_received")
+  qtyReceived     Decimal  @default(0) @map("qty_received") @db.Decimal(12, 4)
   unitCostCents   Int      @map("unit_cost_cents")
   notes           String?
 

@@ -486,7 +486,8 @@ purchaseOrderRoutes.post(
       if (!overrides.has(it.id)) continue;
       const q = overrides.get(it.id)!;
       const qtyOrdered = Number(it.qtyOrdered);
-      if (q <= it.qtyReceived) {
+      const currentReceived = Number(it.qtyReceived);
+      if (q <= currentReceived) {
         return fail(
           c,
           'ValidationError',
@@ -515,9 +516,10 @@ purchaseOrderRoutes.post(
       let allComplete = true;
       let anyReceived = false;
       for (const it of po.items) {
-        const q = overrides.get(it.id) ?? it.qtyReceived;
-        if (q === it.qtyReceived) continue; // unchanged
-        const inc = q - it.qtyReceived;
+        const currentReceived = Number(it.qtyReceived);
+        const q = overrides.get(it.id) ?? currentReceived;
+        if (q === currentReceived) continue; // unchanged
+        const inc = q - currentReceived;
         if (inc <= 0) continue;
         const inv = invMap.get(it.inventoryItemId);
         if (!inv) throw new Error(`Inventory item ${it.inventoryItemId} not found`);
@@ -565,7 +567,7 @@ purchaseOrderRoutes.post(
         where: { purchaseOrderId: po.id },
       });
       for (const it of refreshedItems) {
-        if (it.qtyReceived < Number(it.qtyOrdered)) {
+        if (Number(it.qtyReceived) < Number(it.qtyOrdered)) {
           allComplete = false;
         }
       }
