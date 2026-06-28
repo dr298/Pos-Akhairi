@@ -5,6 +5,7 @@
 //
 // Endpoints:
 //   GET    /api/inventory                       (any role)
+//   POST   /api/inventory                       (MANAGER+OWNER) — create item
 //   GET    /api/inventory/:id                   (any role)
 //   GET    /api/inventory/:id/batches           (any role) — FIFO order
 //   POST   /api/inventory/:id/adjust            (MANAGER+OWNER) — Sprint 21
@@ -35,6 +36,37 @@ inventoryRoutes.get('/', async (c) => {
     orderBy: { name: 'asc' },
   });
   return ok(c, { items });
+});
+
+// POST /api/inventory — create new inventory item (MANAGER+OWNER)
+const createSchema = z.object({
+  sku: z.string().min(1).max(50),
+  name: z.string().min(1).max(100),
+  unit: z.string().min(1).max(20),
+  reorderPoint: z.string().regex(/^\d+(\.\d{1,4})?$/).optional().default('0'),
+  costPerUnit: z.string().regex(/^\d+(\.\d{1,4})?$/).optional().default('0'),
+});
+
+inventoryRoutes.post('/', requireRole('MANAGER', 'OWNER'), async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) {
+    return fail(c, 'ValidationError', 'Invalid inventory item payload', 400, parsed.error.issues);
+  }
+  const { sku, name, unit, reorderPoint, costPerUnit } = parsed.data;
+  // Check duplicate SKU
+  const existing = await prisma.inventoryItem.findUnique({ where: { sku } });
+  if (existing) return fail(c, 'Conflict', 'SKU sudah digunakan', 409);
+  const item = await prisma.inventoryItem.create({
+    data: {
+      sku,
+      name,
+      unit,
+      reorderPoint: new Prisma.Decimal(reorderPoint),
+      costPerUnit: new Prisma.Decimal(costPerUnit),
+    },
+  });
+  return ok(c, { item }, 201);
 });
 
 inventoryRoutes.get('/:id', async (c) => {

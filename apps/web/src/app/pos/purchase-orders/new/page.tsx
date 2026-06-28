@@ -226,6 +226,15 @@ export default function NewPurchaseOrderPage() {
             {loadingInv && (
               <div className="text-neutral-500 dark:text-neutral-400 text-sm">Memuat inventory…</div>
             )}
+            {!loadingInv && inventory.length === 0 && (
+              <div className="bg-amber-900/20 border border-amber-700/40 rounded p-3 text-sm">
+                <p className="text-amber-300 font-medium">Belum ada item di Stok Bahan</p>
+                <p className="text-amber-400/80 mt-1 text-xs">
+                  Buat item dulu di <Link href="/pos/inventory" className="underline text-amber-300">Stok Bahan</Link>,
+                  lalu kembali ke sini untuk pilih item di PO.
+                </p>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-[10px] uppercase text-neutral-500">
@@ -271,6 +280,11 @@ export default function NewPurchaseOrderPage() {
                               </option>
                             ))}
                           </select>
+                          {inventory.length === 0 && !loadingInv && (
+                            <p className="text-[10px] text-amber-400 mt-1">
+                              Belum ada item. <Link href="/pos/inventory" className="underline">Tambah di Stok Bahan</Link> dulu.
+                            </p>
+                          )}
                           {inv && (
                             <div className="text-[10px] text-neutral-500 mt-1">
                               Stok saat ini: {inv.quantity} {inv.unit}
