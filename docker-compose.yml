@@ -66,6 +66,10 @@ services:
       context: .
       dockerfile: Dockerfile.web
       args:
+        - NEXT_PUBLIC_API_URL=
+        - NEXT_PUBLIC_PRINTER_ENABLED=true
+        - API_PROXY_TARGET=api:8787
+      args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_PRINTER_ENABLED: ${NEXT_PUBLIC_PRINTER_ENABLED:-false}
     container_name: pos-web
@@ -74,7 +78,7 @@ services:
       NODE_ENV: ${NODE_ENV}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NEXT_PUBLIC_PRINTER_ENABLED: ${NEXT_PUBLIC_PRINTER_ENABLED:-false}
-      API_PROXY_TARGET: ${API_PROXY_TARGET:-http://localhost:8787}
+      API_PROXY_TARGET: ${API_PROXY_TARGET:-api:8787}
     ports:
       - "${WEB_PORT:-3080}:3000"
     depends_on:
