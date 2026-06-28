@@ -1,6 +1,6 @@
 <?php
 /**
- * pos.akhairi.com — Full QA Evidence
+ * pos-uat.akhairi.com — Full QA Evidence
  * Generated from Playwright test results (full-qa-results.json + user-journeys.json)
  * URL: http://100.125.92.122:8089/
  *
@@ -61,7 +61,7 @@ $passPct = $total ? round(($passed / $total) * 100, 1) : 0;
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pos.akhairi.com — Full QA Evidence</title>
+<title>pos-uat.akhairi.com — Full QA Evidence</title>
 <style>
   :root {
     --bg: #0a0a0a; --fg: #e5e5e5; --muted: #888; --line: #1a1a1a; --line2: #222;
@@ -118,7 +118,7 @@ $passPct = $total ? round(($passed / $total) * 100, 1) : 0;
 </head>
 <body>
 <div class="refresh">Auto-refresh 30s</div>
-<h1>pos.akhairi.com — Full QA Evidence</h1>
+<h1>pos-uat.akhairi.com — Full QA Evidence</h1>
 <p class="meta">Generated <?= date('Y-m-d H:i:s T') ?> · Tests run: <?= h($results['timestamp'] ?? 'never') ?> · Base: <code><?= h($results['base'] ?? 'unknown') ?></code></p>
 
 <?php if (!$results): ?>
