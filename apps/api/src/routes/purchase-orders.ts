@@ -100,7 +100,7 @@ const receiveSchema = z.object({
     .array(
       z.object({
         poItemId: z.string().min(1).max(50),
-        qtyReceived: z.number().int().nonnegative(),
+        qtyReceived: z.number().nonnegative(),
       }),
     )
     .min(1),
@@ -486,11 +486,11 @@ purchaseOrderRoutes.post(
       if (!overrides.has(it.id)) continue;
       const q = overrides.get(it.id)!;
       const qtyOrdered = Number(it.qtyOrdered);
-      if (q < it.qtyReceived + 1) {
+      if (q <= it.qtyReceived) {
         return fail(
           c,
           'ValidationError',
-          `Item ${it.id}: qtyReceived must exceed current (${it.qtyReceived})`,
+          `Item ${it.id}: qtyReceived (${q}) must exceed current (${it.qtyReceived})`,
           400,
         );
       }

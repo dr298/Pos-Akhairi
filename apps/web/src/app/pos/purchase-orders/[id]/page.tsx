@@ -361,7 +361,7 @@ function POItemRow({
             type="number"
             min={received}
             max={qty}
-            step="1"
+            step="any"
             value={receiveValue}
             onChange={(e) => onReceiveChange(e.target.value)}
             className="w-24 h-8 rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2 text-right text-sm"
