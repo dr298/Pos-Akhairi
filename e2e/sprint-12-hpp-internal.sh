@@ -1,11 +1,11 @@
 #!/bin/sh
 # Sprint 12 E2E — runs entirely inside the pos-api container.
-# - Reaches API at http://127.0.0.1:8787
+# - Reaches API at http://127.0.0.1:9797
 # - Reaches DB via psql client to pos-postgres:5432
 
 set -eu
 
-API=http://127.0.0.1:8787
+API=http://127.0.0.1:9797
 PSQL="psql -h pos-postgres -U pos -d pos_akhairi -At"
 
 # Override the password env for psql

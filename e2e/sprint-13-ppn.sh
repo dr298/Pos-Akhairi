@@ -9,7 +9,7 @@
 #   T6: settings validation (out-of-range → 400)
 set -euo pipefail
 
-API=http://127.0.0.1:8787
+API=http://127.0.0.1:9797
 db() { docker exec pos-postgres psql -U pos -d pos_akhairi -At -c "$1"; }
 get() { wget -qO- --load-cookies "$CK" "$API$1"; }
 put() { wget -qO- --load-cookies "$CK" --header="Content-Type: application/json" --method=PUT --body-data="$2" "$API$1"; }

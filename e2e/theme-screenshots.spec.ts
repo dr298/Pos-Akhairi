@@ -1,7 +1,7 @@
 // Screenshot every page in both dark and light mode
 import { test } from '@playwright/test';
 
-const BASE = 'http://localhost:3080';
+const BASE = 'http://localhost:4080';
 const PAGES = ['/pos', '/pos/history', '/pos/shift', '/pos/menu', '/pos/discounts', '/pos/customers', '/pos/waiter', '/pos/z-report', '/pos/reservations'];
 
 test('screenshot all pages in both themes', async ({ page }) => {

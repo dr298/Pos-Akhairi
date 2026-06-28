@@ -7,13 +7,13 @@
 //      on the OrderItem, and records batchConsumptions
 //   4. Refund restores batch.qtyRemaining
 //
-// Runs entirely against the live API (http://localhost:8787) and DB via
+// Runs entirely against the live API (http://localhost:9797) and DB via
 // psql queries. No browser needed — eliminates flakiness.
 
 import { test, expect, request, type APIRequestContext } from '@playwright/test';
 import { execSync } from 'node:child_process';
 
-const BASE_API = process.env.E2E_API_URL || 'http://localhost:8787';
+const BASE_API = process.env.E2E_API_URL || 'http://localhost:9797';
 const EMAIL = process.env.E2E_EMAIL || 'owner@bkj.id';
 const PASS = process.env.E2E_PASSWORD || 'password123';
 

@@ -13,7 +13,7 @@
 #   T7: end-to-end: OWNER sets MTP-, GET returns it, can update to ""
 set -euo pipefail
 
-API=http://127.0.0.1:8787
+API=http://127.0.0.1:9797
 db() { docker exec pos-postgres psql -U pos -d pos_akhairi -At -c "$1"; }
 get() { curl -s -H "Cookie: pos_session=$COOKIE" "$API$1"; }
 put_status() {  # returns just the HTTP status code

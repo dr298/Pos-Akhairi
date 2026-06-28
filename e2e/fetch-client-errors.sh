@@ -9,7 +9,7 @@
 
 set -uo pipefail
 
-BASE="${BASE_URL:-https://pos.akhairi.com}"
+BASE="${BASE_URL:-https://pos-uat.akhairi.com}"
 LIMIT="${1:-20}"
 JAR=$(mktemp)
 trap 'rm -f "$JAR"' EXIT

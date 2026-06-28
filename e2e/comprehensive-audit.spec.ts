@@ -23,7 +23,7 @@ import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const BASE_URL = 'https://pos.akhairi.com';
+const BASE_URL = 'https://pos-uat.akhairi.com';
 const EVIDENCE_DIR = '/tmp/pos-audit-evidence';
 const REPORT_DATA: any[] = [];
 

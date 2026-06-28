@@ -2,7 +2,7 @@
 // To execute: cd /home/dr298/projects/pos-akhairi-com && npx playwright test e2e/smoke.spec.ts
 import { test, expect } from '@playwright/test';
 
-const BASE = process.env.E2E_BASE_URL || 'https://pos.akhairi.com';
+const BASE = process.env.E2E_BASE_URL || 'https://pos-uat.akhairi.com';
 const EMAIL = process.env.E2E_EMAIL || 'owner@bkj.id';
 const PASS = process.env.E2E_PASSWORD || 'password123';
 

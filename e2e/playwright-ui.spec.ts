@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = 'http://127.0.0.1:3080';
+const BASE_URL = 'http://127.0.0.1:4080';
 const CASHIER_EMAIL = 'cashier@bkj.id';
 const OWNER_EMAIL = 'owner@bkj.id';
 const PASSWORD = 'password123';

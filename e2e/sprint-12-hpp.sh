@@ -3,7 +3,7 @@
 # Runs from host. Requires: docker access + reachability to pos-api.
 set -euo pipefail
 
-API=http://127.0.0.1:8787
+API=http://127.0.0.1:9797
 db() { docker exec pos-postgres psql -U pos -d pos_akhairi -At -c "$1"; }
 
 CK=/tmp/cookies-s12.txt

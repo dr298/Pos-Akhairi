@@ -1,5 +1,5 @@
 #!/bin/bash
-API_URL="https://pos.akhairi.com"
+API_URL="https://pos-uat.akhairi.com"
 COOKIE_JAR="/tmp/cookies.txt"
 
 echo "--- Testing Order Payment ---"

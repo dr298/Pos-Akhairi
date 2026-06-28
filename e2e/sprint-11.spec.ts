@@ -1,7 +1,7 @@
 // Test: menu item card click animations
 import { test, expect } from '@playwright/test';
 
-const BASE = 'http://localhost:3080';
+const BASE = 'http://localhost:4080';
 
 async function login(page: any) {
   await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });

@@ -35,7 +35,7 @@
 
 set -uo pipefail
 
-BASE="${BASE_URL:-https://pos.akhairi.com}"
+BASE="${BASE_URL:-https://pos-uat.akhairi.com}"
 JAR=$(mktemp)
 trap 'rm -f "$JAR"' EXIT
 
@@ -364,19 +364,19 @@ fi
 
 # End-to-end round-trip test
 JAR=$(mktemp); trap "rm -f $JAR" EXIT
-curl -s -c "$JAR" -X POST https://pos.akhairi.com/api/auth/login \
+curl -s -c "$JAR" -X POST https://pos-uat.akhairi.com/api/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"owner@bkj.id","password":"password123"}' -o /dev/null
 
 TS=$(date +%s)
 MARKER="sprint-25-4-marker-$TS"
-curl -s -b "$JAR" -X POST 'https://pos.akhairi.com/api/errors/client-error' \
+curl -s -b "$JAR" -X POST 'https://pos-uat.akhairi.com/api/errors/client-error' \
   -H 'content-type: application/json' \
   -d "{\"message\":\"$MARKER\",\"source\":\"pos-tree-error-boundary\",\"route\":\"/pos\",\"componentStack\":\"\\n    at TestComponent (test.tsx:1)\\n    at POSLayout (layout.tsx:133)\"}" \
   -o /dev/null
 
 sleep 1
-RESP=$(curl -s -b "$JAR" "https://pos.akhairi.com/api/errors?limit=10")
+RESP=$(curl -s -b "$JAR" "https://pos-uat.akhairi.com/api/errors?limit=10")
 if echo "$RESP" | grep -q "$MARKER" && echo "$RESP" | grep -q "TestComponent" && echo "$RESP" | grep -q "POSLayout"; then
   ok "client error with componentStack round-trips through /api/errors (marker=$MARKER)"
 else

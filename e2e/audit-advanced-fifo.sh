@@ -7,7 +7,7 @@ set -eu
 OUT_FILE="/root/audit-api-advanced-results.txt"
 echo "====== audit-advanced-fifo.sh ======" >> $OUT_FILE
 
-API_URL="https://pos.akhairi.com"
+API_URL="https://pos-uat.akhairi.com"
 CK="/tmp/cookies-audit-fifo.txt"
 rm -f $CK
 

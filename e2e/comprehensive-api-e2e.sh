@@ -1,9 +1,9 @@
 #!/bin/bash
 # Comprehensive POS API E2E Test Suite
-# Tests all 80+ endpoints against https://pos.akhairi.com
+# Tests all 80+ endpoints against https://pos-uat.akhairi.com
 # Generated: 2026-06-24
 
-BASE="http://127.0.0.1:8787"
+BASE="http://127.0.0.1:9797"
 COOKIES="/tmp/pos-test-cookies.txt"
 PASS=0
 FAIL=0

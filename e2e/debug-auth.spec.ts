@@ -1,7 +1,7 @@
 // Debug: why does /api/auth/me return 401 on navigation?
 import { test, expect } from '@playwright/test';
 
-const BASE = 'https://pos.akhairi.com';
+const BASE = 'https://pos-uat.akhairi.com';
 
 test('debug: cookie + auth/me across navigation', async ({ browser }) => {
   const ctx = await browser.newContext();

@@ -1,7 +1,7 @@
 // Quick theme test: login, verify default dark, click toggle, verify light, click back, verify dark, reload and verify persistence
 import { test, expect } from '@playwright/test';
 
-const BASE = 'http://localhost:3080';
+const BASE = 'http://localhost:4080';
 
 test('theme toggle works', async ({ page }) => {
   await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });

@@ -21,7 +21,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-BASE="https://pos.akhairi.com"
+BASE="https://pos-uat.akhairi.com"
 COOKIE="/tmp/sprint-24-cookie.txt"
 rm -f "$COOKIE"
 

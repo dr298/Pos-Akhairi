@@ -1,7 +1,7 @@
 // Real browser E2E — wait for React hydration, then assert rendered DOM
 import { test, expect, request } from '@playwright/test';
 
-const BASE = process.env.E2E_BASE_URL || 'https://pos.akhairi.com';
+const BASE = process.env.E2E_BASE_URL || 'https://pos-uat.akhairi.com';
 const EMAIL = process.env.E2E_EMAIL || 'owner@bkj.id';
 const PASS = process.env.E2E_PASSWORD || 'password123';
 
