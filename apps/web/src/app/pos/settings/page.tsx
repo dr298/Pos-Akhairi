@@ -393,7 +393,7 @@ export default function PosSettingsPage() {
                   />
                 ) : (
                   <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
-                    <Badge variant="outline">{xenditSecretKey ? '••••••••' : 'Belum diatur'}</Badge>
+                    <Badge>{xenditSecretKey ? '••••••••' : 'Belum diatur'}</Badge>
                   </div>
                 )}
               </div>
@@ -411,7 +411,7 @@ export default function PosSettingsPage() {
                   />
                 ) : (
                   <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
-                    <Badge variant="outline">{xenditWebhookSecret ? '••••••••' : 'Belum diatur'}</Badge>
+                    <Badge>{xenditWebhookSecret ? '••••••••' : 'Belum diatur'}</Badge>
                   </div>
                 )}
               </div>
@@ -429,7 +429,7 @@ export default function PosSettingsPage() {
                   />
                 ) : (
                   <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
-                    <Badge variant="outline">{xenditPublicKey ? '••••••••' : 'Belum diatur'}</Badge>
+                    <Badge>{xenditPublicKey ? '••••••••' : 'Belum diatur'}</Badge>
                   </div>
                 )}
               </div>
@@ -456,7 +456,7 @@ export default function PosSettingsPage() {
                   />
                 ) : (
                   <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
-                    <Badge variant="outline">{midtransServerKey ? '••••••••' : 'Belum diatur'}</Badge>
+                    <Badge>{midtransServerKey ? '••••••••' : 'Belum diatur'}</Badge>
                   </div>
                 )}
               </div>
@@ -474,7 +474,7 @@ export default function PosSettingsPage() {
                   />
                 ) : (
                   <div className="flex items-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm text-zinc-400">
-                    <Badge variant="outline">{midtransClientKey ? '••••••••' : 'Belum diatur'}</Badge>
+                    <Badge>{midtransClientKey ? '••••••••' : 'Belum diatur'}</Badge>
                   </div>
                 )}
               </div>
