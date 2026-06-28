@@ -534,42 +534,26 @@ export default function MenuManagementPage() {
       {/* Create modal */}
       {creating && (
         <div className="fixed inset-0 bg-white dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
+          <Card className="w-full max-w-lg">
             <CardHeader>
-              <CardTitle>Menu Baru</CardTitle>
+              <CardTitle>Tambah Menu Baru</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Nama *</label>
-                <Input
-                  value={newItem.name}
-                  onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">SKU *</label>
-                <Input
-                  value={newItem.sku}
-                  onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Harga (Rp) *</label>
+                  <label className="text-xs text-slate-400 block mb-1">Nama *</label>
                   <Input
-                    type="number"
-                    step="100"
-                    value={newItem.priceCents}
-                    onChange={(e) => setNewItem({ ...newItem, priceCents: e.target.value })}
+                    placeholder="Contoh: Mie Basic"
+                    value={newItem.name}
+                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Modal (Rp)</label>
+                  <label className="text-xs text-slate-400 block mb-1">SKU *</label>
                   <Input
-                    type="number"
-                    step="100"
-                    value={newItem.costCents}
-                    onChange={(e) => setNewItem({ ...newItem, costCents: e.target.value })}
+                    placeholder="Contoh: MKB-001"
+                    value={newItem.sku}
+                    onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
                   />
                 </div>
               </div>
@@ -588,20 +572,43 @@ export default function MenuManagementPage() {
                   ))}
                 </select>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Harga (Rp) *</label>
+                  <Input
+                    type="number"
+                    step="100"
+                    placeholder="25000"
+                    value={newItem.priceCents}
+                    onChange={(e) => setNewItem({ ...newItem, priceCents: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Modal (Rp)</label>
+                  <Input
+                    type="number"
+                    step="100"
+                    placeholder="10000"
+                    value={newItem.costCents}
+                    onChange={(e) => setNewItem({ ...newItem, costCents: e.target.value })}
+                  />
+                </div>
+              </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Deskripsi</label>
                 <Textarea
+                  placeholder="Deskripsi menu (opsional)"
                   value={newItem.description}
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                   rows={2}
                 />
               </div>
-              <div className="flex gap-2 justify-end pt-2">
+              <div className="flex gap-2 justify-end pt-1 border-t border-slate-800">
                 <Button variant="outline" onClick={() => setCreating(false)} disabled={creatingItem}>
                   Batal
                 </Button>
                 <Button onClick={createItem} disabled={creatingItem}>
-                  {creatingItem ? 'Creating…' : 'Buat'}
+                  {creatingItem ? 'Menyimpan…' : 'Buat Menu'}
                 </Button>
               </div>
             </CardContent>

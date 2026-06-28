@@ -97,11 +97,10 @@ export default function InventoryStockPage() {
                 <thead>
                   <tr className="text-[10px] uppercase text-neutral-500 border-b border-neutral-200 dark:border-neutral-800">
                     <th className="text-left py-2 pr-3">SKU</th>
-                    <th className="text-left py-2 pr-3">Name</th>
-                    <th className="text-left py-2 pr-3">Unit</th>
-                    <th className="text-right py-2 pr-3">Stock</th>
+                    <th className="text-left py-2 pr-3">Nama</th>
+                    <th className="text-right py-2 pr-3">Stok</th>
                     <th className="text-right py-2 pr-3">Reorder Pt</th>
-                    <th className="text-right py-2 pr-3">Cost/Unit</th>
+                    <th className="text-right py-2 pr-3">Harga/Unit</th>
                     <th className="text-center py-2">Status</th>
                   </tr>
                 </thead>
@@ -125,15 +124,14 @@ export default function InventoryStockPage() {
                             </Badge>
                           )}
                         </td>
-                        <td className="py-2 pr-3">{it.unit}</td>
                         <td className="py-2 pr-3 text-right tabular-nums">
-                          {qty.toLocaleString('id-ID', { maximumFractionDigits: 4 })}
+                          {qty.toLocaleString('id-ID', { maximumFractionDigits: 4 })} {it.unit}
                         </td>
                         <td className="py-2 pr-3 text-right tabular-nums">
-                          {reorder.toLocaleString('id-ID', { maximumFractionDigits: 4 })}
+                          {reorder.toLocaleString('id-ID', { maximumFractionDigits: 4 })} {it.unit}
                         </td>
                         <td className="py-2 pr-3 text-right tabular-nums">
-                          {formatIDR(Number(it.costPerUnit))}
+                          {formatIDR(Number(it.costPerUnit))} /{it.unit}
                         </td>
                         <td className="py-2 text-center">
                           <Badge tone={active ? 'success' : 'muted'}>
