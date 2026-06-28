@@ -251,7 +251,8 @@ export default function PosPage() {
     setPaying(true);
     try {
       const order = await createOrder();
-      const provider: PaymentProviderName = method === 'VIRTUAL_ACCOUNT' ? 'XENDIT' : 'MIDTRANS';
+      // ponytail: hardcoded XENDIT — user uses Xendit-only. To re-enable multi-provider, add a provider picker to PaymentModal.
+      const provider: PaymentProviderName = 'XENDIT';
       const charge = await api.chargePayment({
         provider,
         orderId: order.id,
