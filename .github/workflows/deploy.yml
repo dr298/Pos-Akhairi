@@ -17,6 +17,8 @@ name: Deploy
 #     added, so it can run docker build / up commands.
 
 on:
+  push:
+    branches: [main]
   pull_request:
     types: [closed]
     branches: [main]
