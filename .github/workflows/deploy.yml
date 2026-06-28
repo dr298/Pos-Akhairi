@@ -1,33 +1,16 @@
 name: Deploy
 
-# Sprint 21 — CI/CD via self-hosted runner on akhairi server.
-#
-# Branch strategy:
-#   - dev branch: integration. Push here for testing.
-#   - main branch: production. PR dev→main triggers this deploy.
-#   - Workflow only fires on push to main (no dev deploys by default).
-#
-# Build runs on our own server (self-hosted runner), NOT GitHub's cloud.
-# This keeps Docker-in-Docker working without act, and avoids GitHub
-# minutes.
-#
-# Required secrets (set in repo Settings → Secrets → Actions):
-#   - None! All access is local on the runner (Docker socket, /home/dr298).
-#   - The runner authenticates as the 'runner' user with docker group
-#     added, so it can run docker build / up commands.
+# Production deploy — push to main triggers build + deploy.
+# Working directory: /home/dr298/projects/pos-akhairi-com (prod clone on same server).
 
 on:
   push:
     branches: [main]
-  pull_request:
-    types: [closed]
-    branches: [main]
   workflow_dispatch:
-  workflow_dispatch:  # Manual trigger button
 
 concurrency:
   group: deploy-prod
-  cancel-in-progress: false  # Don't kill a half-built deploy
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -36,36 +19,22 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - name: Pull latest code
+        working-directory: /home/dr298/projects/pos-akhairi-com
+        run: |
+          git config --global --add safe.directory /home/dr298/projects/pos-akhairi-com
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+          echo "HEAD: $(git log --oneline -1)"
 
       - name: Show runner info
+        working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
           echo "Runner: $(hostname)"
           echo "User: $(whoami)"
           echo "Docker: $(docker --version)"
           echo "Compose: $(docker compose version)"
-          echo "Git: $(git --version)"
-
-      - name: Verify source branch (must be from uat)
-        if: github.event_name == 'pull_request'
-        run: |
-          HEAD_REF="${{ github.event.pull_request.head.ref }}"
-          MERGED="${{ github.event.pull_request.merged }}"
-          echo "PR head branch: $HEAD_REF"
-          echo "PR merged: $MERGED"
-          if [ "$MERGED" != "true" ]; then
-            echo "ERROR: PR not merged yet, skipping deploy"
-            exit 1
-          fi
-          if [ "$HEAD_REF" != "uat" ]; then
-            echo "❌ BLOCKED: PR to main must come from 'uat' branch, got '$HEAD_REF'"
-            echo "   Allowed flow: dev → uat → main"
-            exit 1
-          fi
-          echo "✓ Source branch verified: uat → main"
 
       - name: Build web image
         working-directory: /home/dr298/projects/pos-akhairi-com
@@ -79,20 +48,16 @@ jobs:
         run: |
           docker build -f Dockerfile.api -t pos-akhairi-com-api:latest .
 
-      - name: Apply prisma migrations (idempotent)
+      - name: Apply prisma migrations
         working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
-          # Run inside api container to apply schema changes.
-          # `migrate deploy` is idempotent and safe to re-run.
-          docker compose -f docker-compose.yml run --rm api \
+          docker compose run --rm api \
             npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma
 
       - name: Restart containers
         working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
-          # Force recreate picks up the new images we just built.
-          # Tunnel config (config-pos.yml) uses :3080 (Sprint 19 fix).
-          docker compose -f docker-compose.yml up -d --force-recreate
+          docker compose up -d --force-recreate
 
       - name: Wait for health
         working-directory: /home/dr298/projects/pos-akhairi-com
