@@ -1,7 +1,7 @@
 // Full prod E2E: visual CSS check + zero-error assertion
 import { test, expect } from '@playwright/test';
 
-const BASE = 'https://pos.akhairi.com';
+const BASE = 'https://pos-uat.akhairi.com';
 
 test('S1: login form — no console errors, no bad responses, CSS applied', async ({ browser }) => {
   const ctx = await browser.newContext();

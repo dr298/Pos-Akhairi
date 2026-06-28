@@ -17,8 +17,8 @@
 # 14. NAV check: every link in POSLayout returns 200
 
 set -euo pipefail
-BASE="http://127.0.0.1:8787"
-WEB="http://127.0.0.1:3080"
+BASE="http://127.0.0.1:9797"
+WEB="http://127.0.0.1:4080"
 COOKIE="/tmp/sprint21_cookie.txt"
 rm -f "$COOKIE"
 

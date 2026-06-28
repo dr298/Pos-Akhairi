@@ -12,7 +12,7 @@ import { test, expect, request, type Page, type ConsoleMessage, type Request, ty
 import * as fs from 'fs';
 import * as path from 'path';
 
-const BASE = 'https://pos.akhairi.com';
+const BASE = 'https://pos-uat.akhairi.com';
 const RESULTS_DIR = path.join(__dirname, 'results');
 const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
 fs.mkdirSync(RESULTS_DIR, { recursive: true });

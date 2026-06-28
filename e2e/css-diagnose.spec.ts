@@ -1,7 +1,7 @@
 // Diagnose CSS issue
 import { test, expect } from '@playwright/test';
 
-const BASE = 'https://pos.akhairi.com';
+const BASE = 'https://pos-uat.akhairi.com';
 
 test('CSS: check all stylesheet links load and apply', async ({ browser }) => {
   const ctx = await browser.newContext();

@@ -4,7 +4,7 @@
 
 import { test, expect } from '@playwright/test';
 
-const BASE = 'https://pos.akhairi.com';
+const BASE = 'https://pos-uat.akhairi.com';
 const CASHIER = { email: 'cashier@bkj.id', password: 'password123' };
 
 test('cashier login → /pos must not throw React #310', async ({ page }) => {

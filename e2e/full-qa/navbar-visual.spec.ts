@@ -4,7 +4,7 @@
  */
 import { test, expect, Page } from '@playwright/test';
 
-const BASE = process.env.E2E_BASE_URL || 'https://pos.akhairi.com';
+const BASE = process.env.E2E_BASE_URL || 'https://pos-uat.akhairi.com';
 const SIZES = [
   { name: 'desktop', w: 1440, h: 900 },
   { name: 'tablet',  w: 768,  h: 1024 },

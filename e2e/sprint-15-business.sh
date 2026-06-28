@@ -13,7 +13,7 @@
 #       + footer (uses settings, not hardcoded "BAKMIE KOTA JUANG")
 set -euo pipefail
 
-API=http://127.0.0.1:8787
+API=http://127.0.0.1:9797
 pass() { echo "  ✓ $1"; }
 fail() { echo "  ✗ $1"; exit 1; }
 

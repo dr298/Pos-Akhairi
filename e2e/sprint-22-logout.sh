@@ -15,7 +15,7 @@
 # the session, subsequent requests are 401.
 
 set -u
-BASE="https://pos.akhairi.com"
+BASE="https://pos-uat.akhairi.com"
 COOKIES=/tmp/pos-logout-test.txt
 rm -f $COOKIES
 
