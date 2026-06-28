@@ -66,3 +66,4 @@ npm run dev
 # retrigger deploy
 # retrigger
 # retrigger 2
+# retrigger after perms fix
