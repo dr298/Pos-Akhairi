@@ -480,18 +480,25 @@ purchaseOrderRoutes.post(
       return fail(c, 'InvalidState', `Cannot receive PO in status ${po.status}`, 409);
     }
 
-    // Validate that every override targets a real PO item and is within
-    // (qtyReceived, qtyOrdered]. Skip items not in the override list.
+    // Load inventory items early so we can use names in error messages.
+    const invIds = po.items.map((i) => i.inventoryItemId);
+    const invItems = await prisma.inventoryItem.findMany({
+      where: { id: { in: invIds } },
+    });
+    const invMap = new Map(invItems.map((i) => [i.id, i]));
+
+    // Validate overrides: must target a real PO item, within (qtyReceived, qtyOrdered].
     for (const it of po.items) {
       if (!overrides.has(it.id)) continue;
       const q = overrides.get(it.id)!;
       const qtyOrdered = Number(it.qtyOrdered);
       const currentReceived = Number(it.qtyReceived);
+      const invName = invMap.get(it.inventoryItemId)?.name ?? it.inventoryItemId;
       if (q <= currentReceived) {
         return fail(
           c,
           'ValidationError',
-          `Item ${it.id}: qtyReceived (${q}) must exceed current (${it.qtyReceived})`,
+          `"${invName}": qty diterima (${q}) harus lebih dari jumlah saat ini (${currentReceived})`,
           400,
         );
       }
@@ -499,18 +506,11 @@ purchaseOrderRoutes.post(
         return fail(
           c,
           'ValidationError',
-          `Item ${it.id}: qtyReceived (${q}) exceeds qtyOrdered (${qtyOrdered})`,
+          `"${invName}": qty diterima (${q}) melebihi qty dipesan (${qtyOrdered})`,
           400,
         );
       }
     }
-
-    // Load inventory items in bulk
-    const invIds = po.items.map((i) => i.inventoryItemId);
-    const invItems = await prisma.inventoryItem.findMany({
-      where: { id: { in: invIds } },
-    });
-    const invMap = new Map(invItems.map((i) => [i.id, i]));
 
     const result = await prisma.$transaction(async (tx) => {
       let allComplete = true;
