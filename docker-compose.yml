@@ -66,12 +66,9 @@ services:
       context: .
       dockerfile: Dockerfile.web
       args:
-        - NEXT_PUBLIC_API_URL=
-        - NEXT_PUBLIC_PRINTER_ENABLED=true
-        - API_PROXY_TARGET=api:8787
-      args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_PRINTER_ENABLED: ${NEXT_PUBLIC_PRINTER_ENABLED:-false}
+        API_PROXY_TARGET: ${API_PROXY_TARGET:-api:8787}
     container_name: pos-web
     restart: unless-stopped
     environment:
