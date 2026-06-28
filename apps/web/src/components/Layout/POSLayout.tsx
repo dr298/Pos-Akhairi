@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -143,6 +143,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
   // Sprint 20 — sidebar collapse state. Persisted to localStorage so
   // the cashier's preference survives refreshes. Default: expanded.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -235,6 +236,20 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
       /* best-effort persistence */
     }
   }, [sidebarCollapsed]);
+
+  // Fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
   if (loading || !user) {
     return (
@@ -384,6 +399,15 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
               ) : (
                 <Icon name="moon" className="h-4 w-4" />
               )}
+            </button>
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="h-9 w-9 inline-flex items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-white/5 transition-colors"
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+            >
+              <Icon name={isFullscreen ? 'minimize' : 'maximize'} className="h-4 w-4" />
             </button>
             <span className="hidden sm:inline-flex"><LanguageSwitcher /></span>
             <div className="hidden lg:flex flex-col items-end leading-tight">

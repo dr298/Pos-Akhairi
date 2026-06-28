@@ -131,6 +131,7 @@ orderRoutes.post('/', async (c) => {
   const menuItems = menuIds.length
     ? await prisma.menuItem.findMany({
         where: { id: { in: menuIds }, isActive: true },
+        include: { category: true },
       })
     : [];
   const menuMap = new Map(menuItems.map((m) => [m.id, m]));
@@ -185,7 +186,7 @@ orderRoutes.post('/', async (c) => {
     }
     lineItems.push({
       menuItemId: m.id,
-      nameSnapshot: m.name,
+      nameSnapshot: m.category ? `${m.category.name} — ${m.name}` : m.name,
       priceCents: m.priceCents,
       quantity: it.quantity,
       notes: it.notes,

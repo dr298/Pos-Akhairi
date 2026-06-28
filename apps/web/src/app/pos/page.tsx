@@ -114,13 +114,13 @@ export default function PosPage() {
         return;
       }
       if (!item.isActive || !item.isAvailable) {
-        toast.warning(`${item.name} sedang tidak tersedia`);
+        toast.warning(`${item.displayName || item.name} sedang tidak tersedia`);
         setLastScan(event.barcode);
         return;
       }
       cart.addItem(item);
       setLastScan(event.barcode);
-      toast.success(`${item.name} ditambahkan (${formatIDR(item.priceCents)})`);
+      toast.success(`${item.displayName || item.name} ditambahkan (${formatIDR(item.priceCents)})`);
     },
     [cart],
   );

@@ -134,7 +134,7 @@ export default function OrderDetailPage() {
   }
 
   return (
-    <div className="flex-1 p-4 sm:p-6 max-w-3xl mx-auto w-full space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 max-w-3xl mx-auto w-full space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{order.orderNumber}</h1>
@@ -284,6 +284,11 @@ export default function OrderDetailPage() {
               <Button variant="danger" onClick={() => setRefundOpen(true)}>
                 Refund Pesanan
               </Button>
+            )}
+            {order.status === 'PAID' && (
+              <Link href={`/pos/success/${order.id}`}>
+                <Button variant="outline">Cetak Struk</Button>
+              </Link>
             )}
             {order.status !== 'OPEN' && order.status !== 'PAID' && (
               <p className="text-sm text-neutral-500">Tidak ada aksi untuk status {order.status}.</p>

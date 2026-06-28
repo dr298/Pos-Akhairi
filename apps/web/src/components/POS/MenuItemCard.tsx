@@ -79,7 +79,7 @@ export function MenuItemCard({ item, onClick }: Props) {
         />
       ))}
       <div className="relative flex-1">
-        <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100 line-clamp-2">{item.name}</div>
+        <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100 line-clamp-2">{item.displayName || item.name}</div>
         {item.sku && (
           <div className="text-[10px] text-neutral-500 mt-0.5 uppercase">{item.sku}</div>
         )}

@@ -125,6 +125,7 @@ export interface MenuItem {
     cents: number;
   }>;
   hppShortfall?: boolean;
+  displayName?: string;
   recipes?: Array<{
     id: string;
     inventoryItemId: string;

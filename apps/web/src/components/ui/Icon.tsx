@@ -7,7 +7,7 @@ export type IconName =
   | 'menu' | 'cog' | 'layers' | 'box' | 'clipboard' | 'tag' | 'percent'
   | 'users' | 'doc' | 'arrow' | 'download' | 'channel' | 'branch' | 'kiosk'
   | 'receipt' | 'printer' | 'tv' | 'chevron-down' | 'search' | 'x' | 'logout' | 'check'
-  | 'sun' | 'moon' | 'panel-left-open' | 'panel-left-close';
+  | 'sun' | 'moon' | 'panel-left-open' | 'panel-left-close' | 'maximize' | 'minimize';
 
 const PATHS: Record<IconName, React.ReactNode> = {
   cart: <><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></>,
@@ -45,6 +45,8 @@ const PATHS: Record<IconName, React.ReactNode> = {
   // icon to expand it). Close = sidebar expanded (show icon to collapse).
   'panel-left-open': <><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="14 9 17 12 14 15"/></>,
   'panel-left-close': <><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><polyline points="17 9 14 12 17 15"/></>,
+  'maximize': <><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></>,
+  'minimize': <><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></>,
 };
 
 export function Icon({ name, className, strokeWidth = 1.75 }: { name: IconName; className?: string; strokeWidth?: number }) {

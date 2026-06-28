@@ -63,4 +63,4 @@ npm run dev
 - Currency: IDR, PPN 11%, QRIS-ready
 - Custom email/password only — no SSO
 
-# redeploy
+# retrigger deploy
