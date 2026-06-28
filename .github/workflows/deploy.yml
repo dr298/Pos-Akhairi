@@ -1,67 +1,102 @@
-name: Deploy UAT
+name: Deploy
+
+# Sprint 21 — CI/CD via self-hosted runner on akhairi server.
+#
+# Branch strategy:
+#   - dev branch: integration. Push here for testing.
+#   - main branch: production. PR dev→main triggers this deploy.
+#   - Workflow only fires on push to main (no dev deploys by default).
+#
+# Build runs on our own server (self-hosted runner), NOT GitHub's cloud.
+# This keeps Docker-in-Docker working without act, and avoids GitHub
+# minutes.
+#
+# Required secrets (set in repo Settings → Secrets → Actions):
+#   - None! All access is local on the runner (Docker socket, /home/dr298).
+#   - The runner authenticates as the 'runner' user with docker group
+#     added, so it can run docker build / up commands.
 
 on:
-  push:
-    branches: [uat]
-  workflow_dispatch:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:  # Manual trigger button
 
 concurrency:
-  group: deploy-uat
-  cancel-in-progress: false
+  group: deploy-prod
+  cancel-in-progress: false  # Don't kill a half-built deploy
 
 jobs:
   build-and-deploy:
-    name: Build & Deploy UAT
+    name: Build & Deploy
     runs-on: [self-hosted, akhairi-pos]
     timeout-minutes: 30
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Show runner info
-        working-directory: /home/dr298/projects/pos-akhairi-uat
         run: |
           echo "Runner: $(hostname)"
           echo "User: $(whoami)"
           echo "Docker: $(docker --version)"
+          echo "Compose: $(docker compose version)"
+          echo "Git: $(git --version)"
 
-      - name: Pull latest code
-        working-directory: /home/dr298/projects/pos-akhairi-uat
+      - name: Verify source branch (must be from uat)
+        if: github.event_name == 'pull_request'
         run: |
-          git config --global --add safe.directory /home/dr298/projects/pos-akhairi-uat
-          git fetch origin
-          git checkout uat
-          git reset --hard origin/uat
-          echo "HEAD: $(git log --oneline -1)"
+          HEAD_REF="${{ github.event.pull_request.head.ref }}"
+          MERGED="${{ github.event.pull_request.merged }}"
+          echo "PR head branch: $HEAD_REF"
+          echo "PR merged: $MERGED"
+          if [ "$MERGED" != "true" ]; then
+            echo "ERROR: PR not merged yet, skipping deploy"
+            exit 1
+          fi
+          if [ "$HEAD_REF" != "uat" ]; then
+            echo "❌ BLOCKED: PR to main must come from 'uat' branch, got '$HEAD_REF'"
+            echo "   Allowed flow: dev → uat → main"
+            exit 1
+          fi
+          echo "✓ Source branch verified: uat → main"
 
       - name: Build web image
-        working-directory: /home/dr298/projects/pos-akhairi-uat
+        working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
-          docker build -f Dockerfile.web -t pos-akhairi-uat-web:latest \
+          docker build -f Dockerfile.web -t pos-akhairi-com-web:latest \
             --build-arg NEXT_PUBLIC_API_URL= \
-            --build-arg NEXT_PUBLIC_PRINTER_ENABLED=true \
-            --build-arg API_PROXY_TARGET=api:9797 .
+            --build-arg NEXT_PUBLIC_PRINTER_ENABLED=true .
 
       - name: Build api image
-        working-directory: /home/dr298/projects/pos-akhairi-uat
+        working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
-          docker build -f Dockerfile.api -t pos-akhairi-uat-api:latest .
+          docker build -f Dockerfile.api -t pos-akhairi-com-api:latest .
 
-      - name: Apply prisma migrations
-        working-directory: /home/dr298/projects/pos-akhairi-uat
+      - name: Apply prisma migrations (idempotent)
+        working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
+          # Run inside api container to apply schema changes.
+          # `migrate deploy` is idempotent and safe to re-run.
           docker compose -f docker-compose.yml run --rm api \
             npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma
 
       - name: Restart containers
-        working-directory: /home/dr298/projects/pos-akhairi-uat
+        working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
+          # Force recreate picks up the new images we just built.
+          # Tunnel config (config-pos.yml) uses :3080 (Sprint 19 fix).
           docker compose -f docker-compose.yml up -d --force-recreate
 
       - name: Wait for health
-        working-directory: /home/dr298/projects/pos-akhairi-uat
+        working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
           for i in 1 2 3 4 5 6 7 8 9 10; do
-            WEB=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4080/ || echo 000)
-            API=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9797/api/health || echo 000)
+            WEB=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3080/ || echo 000)
+            API=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/health || echo 000)
             if [ "$WEB" = "200" ] && [ "$API" = "200" ]; then
               echo "Healthy: web=$WEB api=$API"
               exit 0
@@ -74,18 +109,14 @@ jobs:
           exit 1
 
       - name: Run smoke E2E
-        working-directory: /home/dr298/projects/pos-akhairi-uat
+        working-directory: /home/dr298/projects/pos-akhairi-com
         run: |
-          if [ -f e2e/full-ui-e2e.sh ]; then
-            bash e2e/full-ui-e2e.sh 2>&1 | tail -15
-          else
-            echo "No e2e/full-ui-e2e.sh found — skipping E2E"
-          fi
+          bash e2e/full-ui-e2e.sh 2>&1 | tail -15
 
       - name: Notify Telegram on failure
         if: failure()
         run: |
-          MESSAGE="pos-uat.akhairi.com deploy FAILED
+          MESSAGE="❌ pos.akhairi.com deploy FAILED
           commit: ${GITHUB_SHA:0:8}
           branch: ${GITHUB_REF_NAME}
           runner: $(hostname)
