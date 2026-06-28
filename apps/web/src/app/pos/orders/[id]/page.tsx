@@ -285,6 +285,11 @@ export default function OrderDetailPage() {
                 Refund Pesanan
               </Button>
             )}
+            {order.status === 'PAID' && (
+              <Link href={`/pos/success/${order.id}`}>
+                <Button variant="outline">Cetak Struk</Button>
+              </Link>
+            )}
             {order.status !== 'OPEN' && order.status !== 'PAID' && (
               <p className="text-sm text-neutral-500">Tidak ada aksi untuk status {order.status}.</p>
             )}

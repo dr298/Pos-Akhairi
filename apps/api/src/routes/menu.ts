@@ -175,6 +175,7 @@ menuRoutes.get('/items', async (c) => {
       }
       return {
         ...it,
+        displayName: it.category ? `${it.category.name} — ${it.name}` : it.name,
         hppSource,
         computedHppCents,
         hppBreakdown,

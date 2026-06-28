@@ -67,6 +67,7 @@ export function MenuGrid({ onAdd }: Props) {
       const q = search.toLowerCase();
       return (itemsByCat.get(activeCat) || []).filter(
         (it) =>
+          (it.displayName || it.name).toLowerCase().includes(q) ||
           it.name.toLowerCase().includes(q) ||
           (it.sku || '').toLowerCase().includes(q),
       );
@@ -91,7 +92,7 @@ export function MenuGrid({ onAdd }: Props) {
       mods.map((m) => ({ modifierId: m.id, nameSnapshot: m.name, priceDeltaCents: m.priceDeltaCents })),
       notes,
     );
-    toast.success(`${item.name} ditambahkan`);
+    toast.success(`${item.displayName || item.name} ditambahkan`);
   }
 
   if (loading) {
