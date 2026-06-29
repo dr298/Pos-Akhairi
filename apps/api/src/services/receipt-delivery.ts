@@ -175,10 +175,12 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
   const payment = order.payments[0];
   let amountGiven: number | null = null;
   let changeCents: number | null = null;
+  let bankAccount: { bankName: string; accountName: string; accountNo: string } | null = null;
   if (payment) {
-    const raw = payment.providerRaw as { amountGiven?: number; changeCents?: number } | null;
+    const raw = payment.providerRaw as { amountGiven?: number; changeCents?: number; bankAccount?: { bankName: string; accountName: string; accountNo: string } } | null;
     if (raw && typeof raw.amountGiven === 'number') amountGiven = raw.amountGiven;
     if (raw && typeof raw.changeCents === 'number') changeCents = raw.changeCents;
+    if (raw && raw.bankAccount) bankAccount = raw.bankAccount;
   }
 
   const items = order.items.map((it) => ({
@@ -238,13 +240,19 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
     const methodLabel =
       payment.method === 'CASH'
         ? 'Tunai'
-        : payment.method === 'QRIS'
-          ? 'QRIS'
-          : payment.method === 'EWALLET'
-            ? 'E-Wallet'
-            : payment.method;
+        : payment.method === 'MANUAL_TRANSFER'
+          ? 'Transfer Manual'
+          : payment.method === 'QRIS'
+            ? 'QRIS'
+            : payment.method === 'EWALLET'
+              ? 'E-Wallet'
+              : payment.method;
     paymentLines.push('');
     paymentLines.push(`${pad(`Bayar (${methodLabel}):`, totalLabelCol)} ${pad(formatRupiah(payment.amountCents), totalValueCol, 'right')}`);
+    if (bankAccount) {
+      paymentLines.push(`Rek: ${bankAccount.bankName} No. ${bankAccount.accountNo}`);
+      paymentLines.push(bankAccount.accountName);
+    }
     if (amountGiven != null) {
       paymentLines.push(`${pad('Diterima:', totalLabelCol)} ${pad(formatRupiah(amountGiven), totalValueCol, 'right')}`);
     }
@@ -288,10 +296,10 @@ export async function renderReceipt(orderId: string): Promise<RenderedReceipt> {
     <tr><td>Diskon</td><td style="text-align:right">${formatRupiah(order.discountCents)}</td></tr>
     <tr><td><b>TOTAL</b></td><td style="text-align:right"><b>${formatRupiah(order.totalCents)}</b></td></tr>
   </table>
-  ${
-    payment
+  ${payment
       ? `<hr style="border:0;border-top:1px dashed #525252"/>
-  <p style="margin:4px 0;">Bayar (${escapeHtml(String(payment.method))}): <b>${formatRupiah(payment.amountCents)}</b></p>
+  <p style="margin:4px 0;">Bayar (${escapeHtml(payment.method === 'MANUAL_TRANSFER' ? 'Transfer Manual' : String(payment.method))}): <b>${formatRupiah(payment.amountCents)}</b></p>
+  ${bankAccount ? `<p style="margin:4px 0;">Rek: ${escapeHtml(bankAccount.bankName)} No. ${escapeHtml(bankAccount.accountNo)}<br/>${escapeHtml(bankAccount.accountName)}</p>` : ''}
   ${amountGiven != null ? `<p style="margin:4px 0;">Diterima: <b>${formatRupiah(amountGiven)}</b></p>` : ''}
   ${changeCents != null ? `<p style="margin:4px 0;">Kembali: <b style="color:#10b981;">${formatRupiah(changeCents)}</b></p>` : ''}`
       : ''

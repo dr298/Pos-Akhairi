@@ -561,10 +561,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  payCash: (orderId: string, amountGiven: number, method?: 'CASH' | 'MANUAL_TRANSFER') =>
+  payCash: (orderId: string, amountGiven: number, method?: 'CASH' | 'MANUAL_TRANSFER', bankAccount?: { id: string; bankName: string; accountName: string; accountNo: string }) =>
     request<{ data: { order: Order; payment: OrderPayment; changeCents: number; amountGiven: number; lowStockAlerts?: Array<{ itemId: string; name: string; currentStock: number; minStock: number }> } }>(
       `/api/orders/${orderId}/pay-cash`,
-      { method: 'POST', body: JSON.stringify({ amountGiven, method: method || 'CASH' }) },
+      { method: 'POST', body: JSON.stringify({ amountGiven, method: method || 'CASH', bankAccount }) },
     ),
   getOrders: () => request<{ data: Order[] }>('/api/orders'),
   getOrder: (id: string) => request<{ data: Order }>(`/api/orders/${id}`),

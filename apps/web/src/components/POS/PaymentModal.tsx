@@ -28,7 +28,7 @@ interface Props {
   /** Cash-only path: caller creates the order and calls pay-cash. */
   onConfirmCash: (amountGivenCents: number) => Promise<PaymentResult | null>;
   /** Non-cash path: caller creates the order and calls chargePayment. */
-  onConfirmNonCash: (method: PaymentMethodKind) => Promise<PaymentResult | null>;
+  onConfirmNonCash: (method: PaymentMethodKind, bankAccount?: { id: string; bankName: string; accountName: string; accountNo: string }) => Promise<PaymentResult | null>;
   busy?: boolean;
 }
 
@@ -122,7 +122,8 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
       if (!selectedBankAccount) return;
       setSubmitting(true);
       try {
-        await onConfirmNonCash('MANUAL_TRANSFER');
+        const acc = bankAccounts.find((a) => a.id === selectedBankAccount);
+        await onConfirmNonCash('MANUAL_TRANSFER', acc);
       } finally {
         setSubmitting(false);
       }

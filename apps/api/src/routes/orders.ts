@@ -411,6 +411,12 @@ orderRoutes.post('/', async (c) => {
 const payCashSchema = z.object({
   amountGiven: z.number().int().positive(),
   method: z.enum(['CASH', 'MANUAL_TRANSFER']).optional().default('CASH'),
+  bankAccount: z.object({
+    id: z.string(),
+    bankName: z.string(),
+    accountName: z.string(),
+    accountNo: z.string(),
+  }).optional(),
 });
 
 orderRoutes.post('/:id/pay-cash', async (c) => {
@@ -421,7 +427,7 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
   }
-  const { amountGiven, method: payMethod } = parsed.data;
+  const { amountGiven, method: payMethod, bankAccount } = parsed.data;
 
   const order = await prisma.order.findUnique({ where: { id }, include: { payments: true } });
   if (!order) return fail(c, 'NotFound', 'Order not found', 404);
@@ -454,6 +460,7 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
         amountGiven,
         changeCents,
         cashierId: user.id,
+        ...(bankAccount && { bankAccount }),
       },
     });
     // Sprint 7.5 — payment metric. finalizer returns { order, payment,
