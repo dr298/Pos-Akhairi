@@ -1,4 +1,4 @@
-export type PaymentMethodKind = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET';
+export type PaymentMethodKind = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET' | 'MANUAL_TRANSFER';
 
 export type PaymentRequest = {
   orderId: string;

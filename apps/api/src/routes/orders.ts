@@ -410,6 +410,7 @@ orderRoutes.post('/', async (c) => {
 // S1.5 — pay-cash (refactored S2.2 to use finalizeOrderPayment for inventory deduction)
 const payCashSchema = z.object({
   amountGiven: z.number().int().positive(),
+  method: z.enum(['CASH', 'MANUAL_TRANSFER']).optional().default('CASH'),
 });
 
 orderRoutes.post('/:id/pay-cash', async (c) => {
@@ -420,7 +421,7 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
   }
-  const { amountGiven } = parsed.data;
+  const { amountGiven, method: payMethod } = parsed.data;
 
   const order = await prisma.order.findUnique({ where: { id }, include: { payments: true } });
   if (!order) return fail(c, 'NotFound', 'Order not found', 404);
@@ -443,13 +444,13 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
       orderId: order.id,
       userId: user.id,
       payment: {
-        provider: 'CASH',
-        method: 'CASH',
+        provider: payMethod === 'MANUAL_TRANSFER' ? 'BANK_TRANSFER' : 'CASH',
+        method: payMethod,
         externalId,
         amountCents: order.totalCents,
       },
       providerRaw: {
-        method: 'CASH',
+        method: payMethod,
         amountGiven,
         changeCents,
         cashierId: user.id,

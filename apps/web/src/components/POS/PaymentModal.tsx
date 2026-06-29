@@ -35,6 +35,7 @@ interface Props {
 const QUICK_AMOUNTS_IDR = [20000, 50000, 100000, 200000, 500000];
 
 const METHOD_LABEL: Record<PaymentMethodKind, string> = {
+  MANUAL_TRANSFER: 'Transfer',
   CASH: 'Tunai',
   QRIS: 'QRIS',
   VIRTUAL_ACCOUNT: 'Virtual Account',
@@ -46,7 +47,9 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
   const [providers, setProviders] = useState<PaymentProviderInfo[]>([]);
   const [input, setInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [pollError, setPollError] = useState<string | null>(null);
+    const [pollError, setPollError] = useState<string | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<Array<{id: string; bankName: string; accountName: string; accountNo: string}>>([]);
+  const [selectedBankAccount, setSelectedBankAccount] = useState('');
 
   // The non-cash flow has a separate "awaiting payment" sub-state, owned by
   // the parent. We expose the same modal throughout and only close once the
@@ -71,9 +74,19 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
         if (!cancelled) {
           setProviders([
             { name: 'CASH', methods: ['CASH'] },
+            { name: 'MANUAL_TRANSFER', methods: ['MANUAL_TRANSFER'] },
             { name: 'MIDTRANS', methods: ['QRIS', 'VIRTUAL_ACCOUNT', 'EWALLET'] },
           ]);
         }
+      }
+    })();
+    // Load bank accounts for MANUAL_TRANSFER
+    (async () => {
+      try {
+        const res = await api.listActiveBankAccounts();
+        if (!cancelled) setBankAccounts(res.data.accounts);
+      } catch {
+        // Ignore
       }
     })();
     return () => {
@@ -105,6 +118,14 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
       } finally {
         setSubmitting(false);
       }
+    } else if (tab === 'MANUAL_TRANSFER') {
+      if (!selectedBankAccount) return;
+      setSubmitting(true);
+      try {
+        await onConfirmNonCash('MANUAL_TRANSFER');
+      } finally {
+        setSubmitting(false);
+      }
     } else {
       setSubmitting(true);
       try {
@@ -131,7 +152,7 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
         </DialogHeader>
         <DialogBody>
           <Tabs value={tab} onValueChange={(v) => !isSubmitting && setTab(v as PaymentMethodKind)}>
-            <TabsList className="w-full grid grid-cols-4">
+            <TabsList className="w-full grid grid-cols-5">
               {availableMethods.map((m) => (
                 <TabsTrigger key={m} value={m} className="text-xs px-2">
                   {METHOD_LABEL[m] || m}
@@ -215,6 +236,34 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
                 </p>
               </div>
             </TabsContent>
+
+            <TabsContent value="MANUAL_TRANSFER" className="space-y-3">
+              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
+                <p className="text-neutral-700 dark:text-neutral-300">
+                  Transfer Manual — pilih rekening tujuan transfer di bawah.
+                  Customer melakukan transfer ke rekening yang dipilih, lalu konfirmasi ke kasir.
+                </p>
+                <p className="text-neutral-500 text-xs">
+                  Setelah konfirmasi, order akan ditandai sebagai PAID.
+                </p>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase text-neutral-500 mb-1 block">Rekening Tujuan</label>
+                <select
+                  id="bank-account-select"
+                  className="w-full border rounded px-2 py-2 text-sm dark:bg-neutral-800 dark:border-neutral-700"
+                  value={selectedBankAccount}
+                  onChange={(e) => setSelectedBankAccount(e.target.value)}
+                >
+                  <option value="" disabled>Pilih rekening...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.bankName} — {acc.accountNo} ({acc.accountName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </TabsContent>
           </Tabs>
 
           {pollError && (
@@ -229,7 +278,7 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isSubmitting || (tab === 'CASH' && !sufficient)}
+            disabled={isSubmitting || (tab === 'CASH' && !sufficient) || (tab === 'MANUAL_TRANSFER' && !selectedBankAccount)}
           >
             {isSubmitting ? 'Memproses…' : tab === 'CASH' ? 'Konfirmasi Tunai' : 'Buat Pembayaran'}
           </Button>

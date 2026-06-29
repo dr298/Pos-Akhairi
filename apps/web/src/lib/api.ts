@@ -397,8 +397,8 @@ export interface CustomerDetail extends Customer {
   loyaltyTransactions: LoyaltyTransaction[];
 }
 
-export type PaymentProviderName = 'CASH' | 'MIDTRANS' | 'XENDIT';
-export type PaymentMethodKind = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET';
+export type PaymentProviderName = 'CASH' | 'MIDTRANS' | 'XENDIT' | 'MANUAL_TRANSFER';
+export type PaymentMethodKind = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET' | 'MANUAL_TRANSFER';
 
 export interface PaymentProviderInfo {
   name: PaymentProviderName;
@@ -445,6 +445,17 @@ export interface RefundRequest {
 }
 
 // ─── Endpoints ───────────────────────────────────────────────────────────────
+// Bank Account master data
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNo: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export const api = {
   // Auth
@@ -550,10 +561,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  payCash: (orderId: string, amountGiven: number) =>
+  payCash: (orderId: string, amountGiven: number, method?: 'CASH' | 'MANUAL_TRANSFER') =>
     request<{ data: { order: Order; payment: OrderPayment; changeCents: number; amountGiven: number; lowStockAlerts?: Array<{ itemId: string; name: string; currentStock: number; minStock: number }> } }>(
       `/api/orders/${orderId}/pay-cash`,
-      { method: 'POST', body: JSON.stringify({ amountGiven }) },
+      { method: 'POST', body: JSON.stringify({ amountGiven, method: method || 'CASH' }) },
     ),
   getOrders: () => request<{ data: Order[] }>('/api/orders'),
   getOrder: (id: string) => request<{ data: Order }>(`/api/orders/${id}`),
@@ -1337,6 +1348,24 @@ export const api = {
     request<{ data: CashTransfer }>('/api/transfers', {
       method: 'POST',
       body: JSON.stringify(body),
+    }),
+
+  // Bank Accounts
+  listBankAccounts: () => request<{ data: { accounts: BankAccount[] } }>('/api/bank-accounts'),
+  listActiveBankAccounts: () => request<{ data: { accounts: BankAccount[] } }>('/api/bank-accounts/active'),
+  createBankAccount: (data: { bankName: string; accountName: string; accountNo: string; isActive?: boolean; sortOrder?: number }) =>
+    request<{ data: { account: BankAccount } }>('/api/bank-accounts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateBankAccount: (id: string, data: Partial<{ bankName: string; accountName: string; accountNo: string; isActive: boolean; sortOrder: number }>) =>
+    request<{ data: { account: BankAccount } }>(`/api/bank-accounts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteBankAccount: (id: string) =>
+    request<{ data: { deleted: boolean } }>(`/api/bank-accounts/${id}`, {
+      method: 'DELETE',
     }),
 };
 

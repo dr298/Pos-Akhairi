@@ -42,6 +42,7 @@ enum PaymentMethod {
   DEBIT
   CREDIT
   EWALLET
+  MANUAL_TRANSFER
   PENDING
 }
 
@@ -1104,4 +1105,20 @@ model Setting {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("settings")
+}
+
+// Sprint — bank accounts for Manual Transfer payment method.
+// Master data managed from /pos/settings. Owner can add/edit/delete.
+model BankAccount {
+  id          String   @id @default(cuid())
+  bankName    String   @map("bank_name")    // e.g. "BCA", "Mandiri"
+  accountName String   @map("account_name") // e.g. "PT Bakmie Khas Jaksel"
+  accountNo   String   @map("account_no")   // e.g. "1234567890"
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("bank_accounts")
 }

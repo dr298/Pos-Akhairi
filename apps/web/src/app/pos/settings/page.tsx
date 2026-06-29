@@ -510,7 +510,21 @@ export default function PosSettingsPage() {
         </CardContent>
       </Card>
 
+      
       <Card>
+        <CardHeader>
+          <CardTitle>Rekening Bank</CardTitle>
+          <CardDescription>
+            Master data rekening untuk metode pembayaran Manual Transfer.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <a href="/pos/settings/bank-accounts" className="text-blue-600 hover:underline text-sm">
+            Kelola Rekening Bank →
+          </a>
+        </CardContent>
+      </Card>
+<Card>
         <CardHeader>
           <CardTitle>Pengaturan lain</CardTitle>
           <CardDescription>

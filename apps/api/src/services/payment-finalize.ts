@@ -10,8 +10,8 @@ import {
   enqueueRecalcForInventoryItem,
 } from './hpp-recalculator.js';
 
-export type FinalizeProvider = 'CASH' | 'MIDTRANS' | 'XENDIT';
-export type FinalizeMethod = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET';
+export type FinalizeProvider = 'CASH' | 'MIDTRANS' | 'XENDIT' | 'BANK_TRANSFER';
+export type FinalizeMethod = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET' | 'MANUAL_TRANSFER';
 
 export interface FinalizeInput {
   orderId: string;
@@ -170,6 +170,7 @@ export async function finalizeOrderPayment(input: FinalizeInput): Promise<Finali
       QRIS: 'QRIS',
       VIRTUAL_ACCOUNT: 'EWALLET',
       EWALLET: 'EWALLET',
+      MANUAL_TRANSFER: 'MANUAL_TRANSFER',
     };
     const created = await tx.payment.create({
       data: {

@@ -251,6 +251,18 @@ export default function PosPage() {
     setPaying(true);
     try {
       const order = await createOrder();
+      
+      // MANUAL_TRANSFER: mark as PAID directly without provider
+      if (method === 'MANUAL_TRANSFER') {
+        await api.payCash(order.id, order.totalCents, 'MANUAL_TRANSFER');
+        toast.success('Pembayaran manual transfer dikonfirmasi');
+        router.push(
+          `/pos/success/${order.id}?orderNumber=${encodeURIComponent(order.orderNumber)}&total=${order.totalCents}&given=${order.totalCents}&change=0&method=MANUAL_TRANSFER`
+        );
+        cart.clear();
+        return null;
+      }
+      
       // ponytail: hardcoded XENDIT — user uses Xendit-only. To re-enable multi-provider, add a provider picker to PaymentModal.
       const provider: PaymentProviderName = 'XENDIT';
       const charge = await api.chargePayment({

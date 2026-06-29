@@ -87,6 +87,7 @@ const NAV: NavGroup[] = [
       { href: '/pos/accounting/pnl',        label: 'P&L',             icon: 'arrow',   match: p => p.startsWith('/pos/accounting/pnl'), show: r => isManager(r) },
       { href: '/pos/transfers',             label: 'Cash Transfer',   icon: 'arrow',   match: p => p.startsWith('/pos/transfers'),        show: r => isManager(r) },
       { href: '/pos/accounting-export',     label: 'Export',          icon: 'download',match: p => p.startsWith('/pos/accounting-export'), show: r => isManager(r) },
+      { href: '/pos/sales-report',          label: 'Sales Report',    icon: 'doc',     match: p => p.startsWith('/pos/sales-report'),      show: r => isManager(r) },
     ],
   },
   {
@@ -111,6 +112,7 @@ const NAV: NavGroup[] = [
       { href: '/display',                  label: 'Customer Display', icon: 'tv',   match: p => p.startsWith('/display'), show: () => true,        shortcut: 'D' },
       { href: '/pos/settings/hardware',    label: 'Hardware',      icon: 'cog',     match: p => p.startsWith('/pos/settings/hardware'), show: r => isManager(r) },
       { href: '/pos/settings',             label: 'Settings',      icon: 'cog',     match: p => p === '/pos/settings',                  show: r => r === 'OWNER' },
+      { href: '/pos/settings/bank-accounts',label: 'Rekening Bank',icon: 'doc',     match: p => p.startsWith('/pos/settings/bank-accounts'), show: r => r === 'OWNER' },
     ],
   },
 ];
