@@ -92,10 +92,10 @@ export function ModifierModal({ item, open, onOpenChange, onConfirm }: Props) {
                           key={m.id}
                           onClick={() => toggle(m)}
                           className={
-                            'flex items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition-all duration-200 ' +
+                            'flex items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition-all duration-200 border ' +
                             (active
-                              ? 'bg-red-600 text-white shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)]'
-                              : 'bg-[var(--neo-bg)] text-[var(--foreground)] shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)] hover:shadow-[4px_4px_8px_var(--neo-shadow-dark),-4px_-4px_8px_var(--neo-shadow-light)] active:shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]')
+                              ? 'bg-primary/10 border-primary text-primary'
+                              : 'bg-card border-border hover:border-primary active:bg-muted')
                           }
                         >
                           <span>{m.name}</span>

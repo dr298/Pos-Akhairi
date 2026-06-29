@@ -53,17 +53,13 @@ export function MenuItemCard({ item, onClick }: Props) {
       disabled={disabled}
       className={cn(
         'group relative flex flex-col text-left rounded-xl overflow-hidden',
-        'bg-[var(--neo-bg)]',
-        // Neomorphic raised shadow
-        'shadow-[4px_4px_8px_var(--neo-shadow-dark),-4px_-4px_8px_var(--neo-shadow-light)]',
-        'hover:shadow-[6px_6px_12px_var(--neo-shadow-dark),-6px_-6px_12px_var(--neo-shadow-light)]',
-        // Click feedback: pressed inset
-        'active:shadow-[inset_4px_4px_8px_var(--neo-shadow-dark),inset_-4px_-4px_8px_var(--neo-shadow-light)] active:scale-[0.98]',
-        'transition-[transform,box-shadow,background-color] duration-200 ease-out',
+        'bg-card border border-border shadow-sm',
+        'hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5',
+        'active:scale-[0.98]',
+        'transition-all duration-200 ease-out',
         'min-h-[120px] p-3',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
         disabled && 'opacity-50 cursor-not-allowed',
-        disabled && 'active:shadow-[4px_4px_8px_var(--neo-shadow-dark),-4px_-4px_8px_var(--neo-shadow-light)] active:scale-100',
       )}
     >
       {ripples.map((r) => (
@@ -80,11 +76,11 @@ export function MenuItemCard({ item, onClick }: Props) {
       <div className="relative flex-1">
         <div className="text-sm font-medium text-[var(--foreground)] line-clamp-2">{item.displayName || item.name}</div>
         {item.sku && (
-          <div className="text-[10px] text-neo-muted mt-0.5 uppercase">{item.sku}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5 uppercase">{item.sku}</div>
         )}
       </div>
       <div className="relative mt-2 flex items-end justify-between gap-2">
-        <div className="text-sm font-semibold text-red-500 dark:text-red-400">
+        <div className="text-sm font-semibold text-primary">
           {formatIDR(item.priceCents)}
         </div>
         {!item.isAvailable && <Badge tone="danger">Habis</Badge>}

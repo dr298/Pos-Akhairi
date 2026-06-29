@@ -42,8 +42,8 @@ export function DialogContent({
       <div
         className={cn(
           'relative z-10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl',
-          'bg-[var(--neo-bg)] text-[var(--foreground)]',
-          'shadow-[8px_8px_16px_var(--neo-shadow-dark),-8px_-8px_16px_var(--neo-shadow-light)]',
+          'bg-card text-foreground',
+          'shadow-lg border border-border',
           'max-h-[90vh] overflow-y-auto',
           className,
         )}
@@ -66,7 +66,7 @@ export function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHe
   return <h2 className={cn('text-lg font-semibold', className)} {...props} />;
 }
 export function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('text-sm text-neo-muted', className)} {...props} />;
+  return <p className={cn('text-sm text-muted-foreground', className)} {...props} />;
 }
 export function DialogBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cn('p-4 space-y-4', className)} {...props} />;
@@ -89,11 +89,8 @@ export function DialogClose({ children, className, ...props }: React.ButtonHTMLA
       type="button"
       onClick={() => ctx?.setOpen(false)}
       className={cn(
-        'h-8 w-8 inline-flex items-center justify-center rounded-lg text-neo-muted',
-        'hover:bg-black/5 dark:hover:bg-white/5',
-        'shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]',
-        'active:shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]',
-        'transition-shadow duration-200',
+        'h-8 w-8 inline-flex items-center justify-center rounded-lg text-muted-foreground',
+        'hover:bg-muted',
         className,
       )}
       {...props}

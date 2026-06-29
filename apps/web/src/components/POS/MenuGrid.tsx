@@ -111,14 +111,14 @@ export function MenuGrid({ onAdd }: Props) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cari menu…"
-          className="flex h-10 w-full max-w-xs rounded-lg bg-[var(--neo-bg)] px-3 text-sm text-[var(--foreground)] placeholder:text-neo-muted focus:outline-none focus:ring-2 focus:ring-red-500/60 shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)] transition-shadow"
+          className="flex h-10 w-full max-w-xs rounded-xl bg-card border border-border px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-shadow"
         />
       </div>
       <Tabs value={activeCat} onValueChange={setActiveCat} className="flex-1 min-h-0 flex flex-col">
         <div className="max-h-[120px] overflow-y-auto pb-2">
-          <TabsList className="w-fit flex-wrap">
+          <TabsList className="w-fit flex-wrap bg-muted rounded-lg p-1">
             {categories.map((c) => (
-              <TabsTrigger key={c.id} value={c.id}>
+              <TabsTrigger key={c.id} value={c.id} className="data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground">
                 {c.name}
               </TabsTrigger>
             ))}
@@ -139,7 +139,7 @@ export function MenuGrid({ onAdd }: Props) {
                   {search ? 'Tidak ada hasil.' : 'Kategori kosong.'}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {list.map((it) => (
                     <MenuItemCard key={it.id} item={it} onClick={handleClick} />
                   ))}

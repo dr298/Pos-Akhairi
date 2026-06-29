@@ -73,10 +73,10 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-[var(--neo-bg)] shadow-[-4px_0_12px_var(--neo-shadow-dark),4px_0_12px_var(--neo-shadow-light)]">
-      <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
-        <div className="text-sm font-semibold text-[var(--foreground)]">
-          Keranjang {cart.itemCount > 0 && <span className="text-neo-muted">({cart.itemCount})</span>}
+    <div className="flex-1 min-h-0 flex flex-col bg-card border-l border-border shadow-md">
+      <div className="px-3 py-2 flex items-center justify-between border-b border-border">
+        <div className="text-sm font-semibold text-foreground">
+          Keranjang {cart.itemCount > 0 && <span className="text-muted-foreground">({cart.itemCount})</span>}
         </div>
         {cart.lines.length > 0 && (
           <Button size="sm" variant="ghost" onClick={cart.clear}>
@@ -87,11 +87,11 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
 
       <div className="flex-1 overflow-y-auto">
         {cart.lines.length === 0 ? (
-          <div className="p-6 text-center text-sm text-neo-muted">
+          <div className="p-6 text-center text-sm text-muted-foreground">
             Keranjang kosong. Tap menu untuk menambah.
           </div>
         ) : (
-          <ul className="divide-y divide-white/5 dark:divide-white/5">
+          <ul className="divide-y divide-border">
             {cart.lines.map((l) => {
               const unit = l.basePriceCents + l.modifiers.reduce((s, m) => s + m.priceDeltaCents, 0);
               const lineTotal = unit * l.quantity;
@@ -99,41 +99,41 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
                 <li key={l.lineId} className="p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm text-[var(--foreground)] truncate">{l.name}</div>
+                      <div className="text-sm text-foreground truncate">{l.name}</div>
                       {l.modifiers.length > 0 && (
-                        <div className="text-xs text-neo-muted mt-0.5">
+                        <div className="text-xs text-muted-foreground mt-0.5">
                           {l.modifiers.map((m) => m.nameSnapshot).join(' · ')}
                         </div>
                       )}
                       {l.notes && (
-                        <div className="text-xs text-neo-muted italic mt-0.5">"{l.notes}"</div>
+                        <div className="text-xs text-muted-foreground italic mt-0.5">"{l.notes}"</div>
                       )}
-                      <div className="text-xs text-neo-muted mt-1">
+                      <div className="text-xs text-muted-foreground mt-1">
                         {formatIDR(unit)} × {l.quantity}
                       </div>
                     </div>
-                    <div className="text-sm font-semibold text-[var(--foreground)]">
+                    <div className="text-sm font-semibold text-foreground">
                       {formatIDR(lineTotal)}
                     </div>
                   </div>
                   <div className="mt-2 flex items-center gap-2">
-                    {/* Quantity stepper — neomorphic raised with inset buttons */}
-                    <div className="inline-flex items-center rounded-lg overflow-hidden shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]">
+                    {/* Quantity stepper */}
+                    <div className="inline-flex items-center rounded-lg overflow-hidden border border-border">
                       <button
                         type="button"
                         onClick={() => cart.decrementLine(l.lineId)}
-                        className="h-8 w-8 text-[var(--foreground)] hover:bg-black/5 dark:hover:bg-white/5 active:shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)] transition-shadow"
+                        className="h-8 w-8 text-foreground bg-muted hover:bg-border rounded-none transition-colors"
                         aria-label="Kurangi"
                       >
                         −
                       </button>
-                      <span className="h-8 min-w-[2.25rem] px-2 inline-flex items-center justify-center text-sm text-[var(--foreground)]">
+                      <span className="h-8 min-w-[2.25rem] px-2 inline-flex items-center justify-center text-sm text-foreground">
                         {l.quantity}
                       </span>
                       <button
                         type="button"
                         onClick={() => cart.incrementLine(l.lineId)}
-                        className="h-8 w-8 text-[var(--foreground)] hover:bg-black/5 dark:hover:bg-white/5 active:shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)] transition-shadow"
+                        className="h-8 w-8 text-foreground bg-muted hover:bg-border rounded-none transition-colors"
                         aria-label="Tambah"
                       >
                         +
@@ -155,9 +155,9 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
         )}
       </div>
 
-      <div className="shrink-0 p-3 space-y-3 overflow-y-auto" style={{ borderTop: '1px solid rgba(128,128,128,0.1)' }}>
+      <div className="shrink-0 p-3 space-y-3 overflow-y-auto border-t border-border">
         <div>
-          <div className="text-xs text-neo-muted mb-1.5">Tipe Pesanan</div>
+          <div className="text-xs text-muted-foreground mb-1.5">Tipe Pesanan</div>
           <div className="grid grid-cols-3 gap-1.5">
             {ORDER_TYPES.map((t) => (
               <button
@@ -167,8 +167,8 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
                 className={cn(
                   'h-10 rounded-lg text-sm font-medium transition-all duration-200',
                   cart.orderType === t.value
-                    ? 'bg-red-600 text-white shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)]'
-                    : 'bg-[var(--neo-bg)] text-[var(--foreground)] shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)] hover:shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)] active:shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]',
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-card text-foreground border border-border hover:bg-muted transition-colors',
                 )}
               >
                 {t.label}
@@ -179,7 +179,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
 
         {cart.orderType === 'DINE_IN' && (
           <div>
-            <label className="text-xs text-neo-muted mb-1 block" htmlFor="table">
+            <label className="text-xs text-muted-foreground mb-1 block" htmlFor="table">
               Nomor Meja
             </label>
             <Input
@@ -192,7 +192,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
         )}
         {cart.orderType === 'TAKEOUT' && (
           <div>
-            <label className="text-xs text-neo-muted mb-1 block" htmlFor="cust">
+            <label className="text-xs text-muted-foreground mb-1 block" htmlFor="cust">
               Nama Pelanggan
             </label>
             <Input
@@ -205,7 +205,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
         )}
 
         <div>
-          <label className="text-xs text-neo-muted mb-1 block" htmlFor="notes">
+          <label className="text-xs text-muted-foreground mb-1 block" htmlFor="notes">
             Catatan
           </label>
           <Textarea
@@ -218,11 +218,11 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
 
         {/* Discount code */}
         <div>
-          <label className="text-xs text-neo-muted mb-1 block" htmlFor="discount">
+          <label className="text-xs text-muted-foreground mb-1 block" htmlFor="discount">
             Kode Diskon
           </label>
           {cart.discount ? (
-            <div className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]">
+            <div className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 bg-muted border border-border">
               <div className="min-w-0 flex-1">
                 <div className="text-sm text-emerald-300 truncate">
                   {cart.discount.name}{' '}
@@ -261,7 +261,7 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
         </div>
 
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between text-neo-muted">
+          <div className="flex justify-between text-muted-foreground">
             <span>Subtotal</span>
             <span>{formatIDR(cart.subtotalCents)}</span>
           </div>
@@ -272,25 +272,25 @@ export function Cart({ onCheckout, canCheckout, checkoutDisabledReason, busy }: 
             </div>
           )}
           {cart.taxRateBp > 0 && (
-            <div className="flex justify-between text-neo-muted">
+            <div className="flex justify-between text-muted-foreground">
               <span>Pajak ({(cart.taxRateBp / 100).toFixed(1)}%)</span>
               <span>{formatIDR(cart.taxCents)}</span>
             </div>
           )}
-          <div className="flex justify-between text-base font-semibold text-[var(--foreground)] pt-1" style={{ borderTop: '1px solid rgba(128,128,128,0.1)' }}>
+          <div className="flex justify-between text-base font-semibold text-foreground pt-1 border-t border-border">
             <span>Total</span>
             <span>{formatIDR(cart.totalCents)}</span>
           </div>
         </div>
 
         {checkoutDisabledReason && (
-          <div className="text-xs text-amber-400 bg-amber-950/30 rounded-lg px-2 py-1.5 shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]">
+          <div className="text-xs text-amber-400 bg-amber-950/30 rounded-lg px-2 py-1.5 border border-border">
             {checkoutDisabledReason}
           </div>
         )}
 
         <Button
-          size="xl"
+          size="lg"
           className="w-full"
           disabled={!canCheckout || busy}
           onClick={onCheckout}

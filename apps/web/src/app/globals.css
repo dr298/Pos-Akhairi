@@ -9,140 +9,152 @@
   to   { transform: scale(2.4); opacity: 0; }
 }
 
-:root {
-  /* ── Neomorphic Light Theme ── */
-  --background: #e0e5ec;
-  --foreground: #2d3748;
-  --primary: #dc2626;
-  --card: #e0e5ec;
-  --border: transparent;
-  --muted: #c8ced6;
-  --muted-foreground: #718096;
+/* Subtle gradient for page background */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 
-  /* Neomorphism shadows (light) */
-  --neo-shadow-dark: #a3b1c6;
-  --neo-shadow-light: #ffffff;
-  --neo-bg: #e0e5ec;
+:root {
+  /* ── Warm Dashboard Theme (Dribbble POS inspired) ── */
+  --background: #F5F4F4;
+  --foreground: #080808;
+  --primary: #FF3118;
+  --primary-hover: #E52D15;
+  --accent: #F1885F;
+  --accent-soft: #FDF0EC;
+  --card: #FFFFFF;
+  --card-hover: #FAFAFA;
+  --border: #E5E5E5;
+  --muted: #F0F0F0;
+  --muted-foreground: #5E5E5D;
+  --secondary-text: #AEAAA5;
+
+  /* Warm shadows (tinted, not pure black) */
+  --shadow-sm: 0 1px 3px rgba(8, 8, 8, 0.04), 0 1px 2px rgba(8, 8, 8, 0.03);
+  --shadow-md: 0 4px 12px rgba(8, 8, 8, 0.05), 0 2px 4px rgba(8, 8, 8, 0.03);
+  --shadow-lg: 0 8px 24px rgba(8, 8, 8, 0.06), 0 4px 8px rgba(8, 8, 8, 0.04);
+
+  /* Sidebar */
+  --sidebar-bg: #080808;
+  --sidebar-text: #AEAAA5;
+  --sidebar-active: #FF3118;
+  --sidebar-active-text: #FFFFFF;
+
+  /* Semantic colors */
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger: #DC2626;
+  --info: #3B82F6;
 }
 
 .dark {
-  /* ── Neomorphic Dark Theme ── */
-  --background: #1a1c2e;
-  --foreground: #d0d0e0;
-  --primary: #dc2626;
-  --card: #1a1c2e;
-  --border: transparent;
-  --muted: #222440;
-  --muted-foreground: #6a6a80;
+  /* ── Dark Theme ── */
+  --background: #111111;
+  --foreground: #F5F5F5;
+  --primary: #FF4D33;
+  --primary-hover: #FF3118;
+  --accent: #F1885F;
+  --accent-soft: #2A1F1A;
+  --card: #1A1A1A;
+  --card-hover: #222222;
+  --border: #2A2A2A;
+  --muted: #1F1F1F;
+  --muted-foreground: #888888;
+  --secondary-text: #666666;
 
-  /* Neomorphism shadows (dark) */
-  --neo-shadow-dark: #121322;
-  --neo-shadow-light: #222440;
-  --neo-bg: #1a1c2e;
+  /* Dark warm shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
+
+  /* Sidebar (dark mode same as light — sidebar is always dark) */
+  --sidebar-bg: #080808;
+  --sidebar-text: #888888;
+  --sidebar-active: #FF4D33;
+  --sidebar-active-text: #FFFFFF;
+
+  --success: #22C55E;
+  --warning: #FBBF24;
+  --danger: #EF4444;
+  --info: #60A5FA;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
   --color-border: var(--border);
-  --color-neo-shadow-dark: var(--neo-shadow-dark);
-  --color-neo-shadow-light: var(--neo-shadow-light);
-  --color-neo-bg: var(--neo-bg);
-  --color-neo-text: var(--foreground);
-  --color-neo-muted: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-text: var(--secondary-text);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
 }
 
 html, body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Neomorphic Utility Classes ── */
-
-/* Raised surface — cards, buttons at rest */
-.neo-raised {
-  background: var(--neo-bg);
-  box-shadow: 6px 6px 12px var(--neo-shadow-dark),
-              -6px -6px 12px var(--neo-shadow-light);
-  border: none;
+/* ── Card System ── */
+.card {
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
   border-radius: 12px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-lg);
 }
 
-/* Small raised — badges, small cards, sidebar items */
-.neo-raised-sm {
-  background: var(--neo-bg);
-  box-shadow: 3px 3px 6px var(--neo-shadow-dark),
-              -3px -3px 6px var(--neo-shadow-light);
-  border: none;
+.card-sm {
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
-/* Inset — inputs, pressed buttons, active tabs */
-.neo-inset {
-  background: var(--neo-bg);
-  box-shadow: inset 3px 3px 6px var(--neo-shadow-dark),
-              inset -3px -3px 6px var(--neo-shadow-light);
-  border: none;
-  border-radius: 12px;
+/* ── Accent Background ── */
+.accent-bg {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+  color: white;
+}
+.accent-bg-soft {
+  background: var(--accent-soft);
+  color: var(--foreground);
 }
 
-/* Small inset — inputs, small pressed elements */
-.neo-inset-sm {
-  background: var(--neo-bg);
-  box-shadow: inset 2px 2px 4px var(--neo-shadow-dark),
-              inset -2px -2px 4px var(--neo-shadow-light);
-  border: none;
-  border-radius: 8px;
-}
-
-/* Flat — subtle lift, tabs, kbd */
-.neo-flat {
-  background: var(--neo-bg);
-  box-shadow: 1px 1px 3px var(--neo-shadow-dark),
-              -1px -1px 3px var(--neo-shadow-light);
-  border: none;
-}
-
-/* Button pressed state */
-.neo-pressed {
-  box-shadow: inset 4px 4px 8px var(--neo-shadow-dark),
-              inset -4px -4px 8px var(--neo-shadow-light);
-}
-
-/* Primary accent button */
-.neo-accent {
-  background: var(--primary);
-  box-shadow: 4px 4px 8px var(--neo-shadow-dark),
-              -4px -4px 8px var(--neo-shadow-light);
-  border: none;
-}
-
-/* Dividers — neomorphic groove */
-.neo-divider {
-  border: none;
-  height: 2px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    var(--neo-shadow-dark),
-    var(--neo-shadow-light),
-    transparent
-  );
-  opacity: 0.5;
-}
-
-/* Scrollbar styling for neomorphic look */
+/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
+  background: var(--border);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover { opacity: 0.7; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* ── Selection ── */
+::selection {
+  background: var(--primary);
+  color: white;
+}
 
 /* Print-friendly tweaks */
 @media print {
@@ -150,7 +162,7 @@ html, body {
     background: white !important;
     color: black !important;
   }
-  .neo-raised, .neo-raised-sm, .neo-flat {
+  .card {
     box-shadow: none !important;
     border: 1px solid #ddd !important;
   }

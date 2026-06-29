@@ -6,12 +6,11 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        'flex h-10 w-full rounded-lg bg-[var(--neo-bg)] px-3 py-2 text-sm',
-        'text-[var(--foreground)] placeholder:text-neo-muted',
-        'shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]',
-        'focus:outline-none focus:shadow-[inset_4px_4px_8px_var(--neo-shadow-dark),inset_-4px_-4px_8px_var(--neo-shadow-light),0_0_0_2px_rgba(220,38,38,0.4)]',
-        'disabled:opacity-50',
-        'transition-shadow duration-200',
+        'flex h-10 w-full rounded-lg border bg-card px-3 py-2 text-sm text-foreground',
+        'placeholder:text-muted-foreground',
+        'border-border focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none',
+        'disabled:opacity-50 disabled:cursor-not-allowed',
+        'transition-colors duration-200',
         className,
       )}
       {...props}
@@ -25,12 +24,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        'flex min-h-[64px] w-full rounded-lg bg-[var(--neo-bg)] px-3 py-2 text-sm',
-        'text-[var(--foreground)] placeholder:text-neo-muted',
-        'shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]',
-        'focus:outline-none focus:shadow-[inset_4px_4px_8px_var(--neo-shadow-dark),inset_-4px_-4px_8px_var(--neo-shadow-light),0_0_0_2px_rgba(220,38,38,0.4)]',
-        'disabled:opacity-50 resize-none',
-        'transition-shadow duration-200',
+        'flex min-h-[64px] w-full rounded-lg border bg-card px-3 py-2 text-sm text-foreground',
+        'placeholder:text-muted-foreground',
+        'border-border focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none',
+        'disabled:opacity-50 disabled:cursor-not-allowed resize-none',
+        'transition-colors duration-200',
         className,
       )}
       {...props}

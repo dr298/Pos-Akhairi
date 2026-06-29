@@ -39,8 +39,7 @@ export function TabsList({ className, children }: { className?: string; children
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 p-1.5 rounded-xl bg-[var(--neo-bg)]',
-        'shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]',
+        'inline-flex items-center gap-1 p-1 rounded-lg bg-muted',
         'overflow-x-auto whitespace-nowrap',
         className,
       )}
@@ -70,14 +69,10 @@ export function TabsTrigger({
         'h-9 px-4 text-sm rounded-lg transition-all duration-200',
         active
           ? [
-              'bg-red-600 text-white font-medium',
-              'shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)]',
+              'bg-card text-foreground font-medium shadow-sm',
             ].join(' ')
           : [
-              'text-neo-muted hover:text-[var(--foreground)]',
-              'shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]',
-              'hover:shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)]',
-              'active:shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]',
+              'text-muted-foreground hover:text-foreground hover:bg-muted/50',
             ].join(' '),
         className,
       )}
