@@ -234,6 +234,8 @@ paymentRoutes.use('*', requireAuth);
 
 paymentRoutes.get('/providers', (c) => {
   const providers = list().map((p) => ({ name: p.name, methods: getMethodsFor(p.name) }));
+  // Manual Transfer is always available as a local payment method (no external provider)
+  providers.push({ name: 'MANUAL_TRANSFER', methods: ['MANUAL_TRANSFER'] });
   return ok(c, providers);
 });
 
@@ -241,6 +243,7 @@ function getMethodsFor(providerName: string): string[] {
   if (providerName === 'CASH') return ['CASH'];
   if (providerName === 'MIDTRANS') return ['QRIS', 'VIRTUAL_ACCOUNT', 'EWALLET'];
   if (providerName === 'XENDIT') return ['VIRTUAL_ACCOUNT', 'EWALLET', 'QRIS'];
+  if (providerName === 'MANUAL_TRANSFER') return ['MANUAL_TRANSFER'];
   return [];
 }
 
