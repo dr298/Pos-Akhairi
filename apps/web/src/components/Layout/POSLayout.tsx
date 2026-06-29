@@ -253,7 +253,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950 text-neutral-700 dark:text-neutral-300 text-sm">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--neo-bg)] text-neo-muted text-sm">
         Memuat…
       </div>
     );
@@ -289,13 +289,13 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="h-screen overflow-hidden flex bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 print:bg-white">
+    <div className="h-screen overflow-hidden flex bg-[var(--neo-bg)] text-[var(--foreground)] print:bg-white">
       {/* Sprint 20 — persistent left sidebar (md+). On mobile this is
           hidden; the drawer overlay (further down) is the mobile nav. */}
       <aside
         className={cn(
           'hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:z-30',
-          'bg-neutral-50 dark:bg-neutral-950 border-r border-neutral-200 dark:border-white/5',
+          'bg-[var(--neo-bg)] shadow-[4px_0_12px_var(--neo-shadow-dark),-4px_0_12px_var(--neo-shadow-light)]',
           'print:hidden transition-[width] duration-200',
           sidebarCollapsed ? 'md:w-16' : 'md:w-64',
         )}
@@ -319,7 +319,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <header
-          className="sticky top-0 z-20 border-b border-neutral-200 dark:border-white/5 bg-neutral-50 dark:bg-neutral-950/80 backdrop-blur-md print:hidden"
+          className="sticky top-0 z-20 bg-[var(--neo-bg)]/95 backdrop-blur-md print:hidden shadow-[0_4px_8px_var(--neo-shadow-dark),0_-4px_8px_var(--neo-shadow-light)]"
           style={{ fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
         >
           <div className="flex items-center justify-between gap-2 sm:gap-3 px-2 sm:px-5 h-14 flex-wrap">
@@ -330,7 +330,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={() => setDrawerOpen(true)}
-                className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-neutral-100 dark:bg-white/5 active:bg-neutral-200 dark:bg-white/10 transition-colors"
+                className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]"
                 aria-label="Open menu"
               >
                 <Icon name="menu" className="h-5 w-5" />
@@ -339,7 +339,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(c => !c)}
-                className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-neutral-100 dark:bg-white/5 active:bg-neutral-200 dark:bg-white/10 transition-colors"
+                className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 transition-colors shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]"
                 aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
@@ -359,7 +359,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
                 </span>
                 <span className="text-neutral-900 dark:text-neutral-100">POS</span>
               </Link>
-              <span className="hidden md:inline text-sm text-neutral-500 dark:text-neutral-400 font-medium">
+              <span className="hidden md:inline text-sm text-neo-muted font-medium">
                 {/* Sprint 20 — current page title, derived from the active
                     nav item label. Kept simple — just shows the parent
                     group label. */}
@@ -377,11 +377,11 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="w-full h-9 px-3 flex items-center gap-2 rounded-md bg-neutral-100 dark:bg-white/5 hover:bg-white/[0.07] border border-neutral-200 dark:border-white/5 text-sm text-neutral-500 transition-colors"
+              className="w-full h-9 px-3 flex items-center gap-2 rounded-lg text-sm text-neo-muted transition-shadow shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)] hover:shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]"
             >
               <Icon name="search" className="h-3.5 w-3.5" />
               <span className="flex-1 text-left">Cari menu, order, customer…</span>
-              <kbd className="hidden lg:inline text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-white/5 border border-neutral-300 dark:border-white/10 text-neutral-500 font-mono">⌘K</kbd>
+              <kbd className="hidden lg:inline text-[10px] px-1.5 py-0.5 rounded-lg text-neo-muted font-mono shadow-[1px_1px_2px_var(--neo-shadow-dark),-1px_-1px_2px_var(--neo-shadow-light)]">⌘K</kbd>
             </button>
           </div>
 
@@ -390,7 +390,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={toggle}
-              className="h-9 w-9 inline-flex items-center justify-center rounded-md text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-white/5 dark:text-neutral-300 dark:hover:bg-neutral-100 dark:bg-white/5 text-neutral-600 hover:bg-neutral-100 transition-colors"
+              className="h-9 w-9 inline-flex items-center justify-center rounded-lg text-neo-muted hover:bg-black/5 dark:hover:bg-white/5 transition-colors shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]"
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
             >
@@ -403,7 +403,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={toggleFullscreen}
-              className="h-9 w-9 inline-flex items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-white/5 transition-colors"
+              className="h-9 w-9 inline-flex items-center justify-center rounded-lg text-neo-muted hover:bg-black/5 dark:hover:bg-white/5 transition-colors shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]"
               aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
               title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
             >
@@ -411,7 +411,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             </button>
             <span className="hidden sm:inline-flex"><LanguageSwitcher /></span>
             <div className="hidden lg:flex flex-col items-end leading-tight">
-              <span className="text-xs tabular-nums text-neutral-800 dark:text-neutral-200 font-medium">
+              <span className="text-xs tabular-nums text-[var(--foreground)] font-medium">
                 {now ? formatTime(now) : '--:--:--'}
               </span>
               <span className="text-[10px] text-neutral-500">{now ? formatDate(now) : ''}</span>
@@ -422,22 +422,22 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={() => setUserMenuOpen(v => !v)}
-                className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-md hover:bg-neutral-100 dark:bg-white/5 transition-colors"
+                className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
               >
                 <span className="h-7 w-7 inline-flex items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-700 text-neutral-900 dark:text-white text-xs font-semibold">
                   {user.name?.charAt(0) ?? '?'}
                 </span>
                 <span className="hidden sm:flex flex-col items-start leading-tight min-w-0">
-                  <span className="text-xs text-neutral-900 dark:text-neutral-100 truncate max-w-[120px]">{user.name}</span>
-                  <span className="text-[10px] text-neutral-500">{user.role}</span>
+                  <span className="text-xs text-[var(--foreground)] truncate max-w-[120px]">{user.name}</span>
+                  <span className="text-[10px] text-neo-muted">{user.role}</span>
                 </span>
                 <Icon name="chevron-down" className="hidden sm:inline h-3 w-3 text-neutral-500" />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 z-40 min-w-[220px] bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-white/10 rounded-lg shadow-2xl py-1">
-                  <div className="px-3 py-2 border-b border-neutral-200 dark:border-white/5">
-                    <div className="text-xs text-neutral-900 dark:text-neutral-100 truncate">{user.name}</div>
-                    <div className="text-[10px] text-neutral-500 truncate">{user.email}</div>
+                <div className="absolute right-0 top-full mt-1 z-40 min-w-[220px] bg-[var(--neo-bg)] rounded-xl py-1 shadow-[8px_8px_16px_var(--neo-shadow-dark),-8px_-8px_16px_var(--neo-shadow-light)]">
+                  <div className="px-3 py-2" style={{borderBottom: '1px solid rgba(128,128,128,0.1)'}}>
+                    <div className="text-xs text-[var(--foreground)] truncate">{user.name}</div>
+                    <div className="text-[10px] text-neo-muted truncate">{user.email}</div>
                     <Badge tone="muted" className="mt-1 text-[10px]">{user.role}</Badge>
                   </div>
                   <Link
@@ -454,11 +454,11 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
                     <Icon name="cog" className="h-3.5 w-3.5" />
                     <span>Settings</span>
                   </Link>
-                  <div className="border-t border-neutral-200 dark:border-white/5 my-1" />
+                  <div className="my-1" style={{borderTop: '1px solid rgba(128,128,128,0.1)'}} />
                   <button
                     type="button"
                     onClick={logout}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-100 dark:bg-white/5 flex items-center gap-2 text-red-400 transition-colors"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2 text-red-400 transition-colors"
                   >
                     <Icon name="logout" className="h-3.5 w-3.5" />
                     <span>Keluar</span>
@@ -479,7 +479,7 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setDrawerOpen(false)}
             aria-label="Close menu"
           />
-          <aside className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-neutral-50 dark:bg-neutral-950 border-r border-neutral-300 dark:border-white/10 flex flex-col">
+          <aside className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-[var(--neo-bg)] flex flex-col shadow-[4px_0_16px_var(--neo-shadow-dark)]">
             {sidebarContent}
           </aside>
         </div>
@@ -493,8 +493,8 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setSearchOpen(false)}
           />
           <div className="absolute left-1/2 top-[20%] -translate-x-1/2 w-full max-w-lg px-4">
-            <div className="bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden">
-              <div className="flex items-center gap-2 px-4 h-12 border-b border-neutral-200 dark:border-white/5">
+            <div className="bg-[var(--neo-bg)] rounded-2xl overflow-hidden shadow-[8px_8px_16px_var(--neo-shadow-dark),-8px_-8px_16px_var(--neo-shadow-light)]">
+              <div className="flex items-center gap-2 px-4 h-12" style={{borderBottom: '1px solid rgba(128,128,128,0.1)'}}>
                 <Icon name="search" className="h-4 w-4 text-neutral-500" />
                 <input
                   autoFocus
@@ -509,18 +509,18 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
                     }
                   }}
                   placeholder="Cari menu, order, customer…"
-                  className="flex-1 bg-transparent text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 outline-none"
+                  className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder-neo-muted outline-none"
                 />
-                <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-white/5 border border-neutral-300 dark:border-white/10 text-neutral-500 font-mono">ESC</kbd>
+                <kbd className="text-[10px] px-1.5 py-0.5 rounded-lg text-neo-muted font-mono shadow-[1px_1px_2px_var(--neo-shadow-dark),-1px_-1px_2px_var(--neo-shadow-light)]">ESC</kbd>
               </div>
               <div className="max-h-80 overflow-y-auto py-1">
                 {searchQuery && searchResults.length === 0 && (
-                  <div className="px-4 py-8 text-center text-sm text-neutral-500">
+                  <div className="px-4 py-8 text-center text-sm text-neo-muted">
                     Tidak ada hasil untuk "{searchQuery}"
                   </div>
                 )}
                 {!searchQuery && (
-                  <div className="px-4 py-6 text-center text-sm text-neutral-500">
+                  <div className="px-4 py-6 text-center text-sm text-neo-muted">
                     Ketik untuk mencari di {ALL_ITEMS.filter(i => i.show(user.role)).length} menu
                   </div>
                 )}
@@ -533,11 +533,11 @@ export function POSLayout({ children }: { children: React.ReactNode }) {
                       setSearchOpen(false);
                       setSearchQuery('');
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-neutral-100 dark:bg-white/5 text-left transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 text-left transition-colors"
                   >
-                    <Icon name={item.icon} className="h-4 w-4 text-neutral-500" />
-                    <span className="flex-1 text-neutral-900 dark:text-neutral-100">{item.label}</span>
-                    <span className="text-[10px] text-neutral-500">{item.group}</span>
+                    <Icon name={item.icon} className="h-4 w-4 text-neo-muted" />
+                    <span className="flex-1 text-[var(--foreground)]">{item.label}</span>
+                    <span className="text-[10px] text-neo-muted">{item.group}</span>
                     {item.shortcut && (
                       <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-white/5 border border-neutral-300 dark:border-white/10 text-neutral-500 font-mono">
                         {item.shortcut}
@@ -581,7 +581,7 @@ function SidebarContent({
 }) {
   return (
     <>
-      <div className="flex items-center justify-between px-4 h-14 border-b border-neutral-200 dark:border-white/5 shrink-0">
+      <div className="flex items-center justify-between px-4 h-14 shrink-0" style={{borderBottom: '1px solid rgba(128,128,128,0.1)'}}>
         <div className="flex items-center gap-2 min-w-0">
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-red-600 text-neutral-900 dark:text-white text-sm font-bold shrink-0">
             BKJ
@@ -594,7 +594,7 @@ function SidebarContent({
           <button
             type="button"
             onClick={onNavClick}
-            className="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-neutral-100 dark:bg-white/5"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]"
             aria-label="Close"
           >
             <Icon name="x" className="h-5 w-5" />
@@ -605,7 +605,7 @@ function SidebarContent({
         {visibleGroups.map(group => (
           <div key={group.id} className="mb-3">
             {!collapsed && (
-              <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
+              <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider text-neo-muted font-semibold">
                 {group.label}
               </div>
             )}
@@ -623,8 +623,8 @@ function SidebarContent({
                     'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
                     collapsed && 'justify-center px-2',
                     active
-                      ? 'bg-neutral-200 dark:bg-white/10 text-neutral-900 dark:text-white border-l-2 border-red-500'
-                      : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-white/5 border-l-2 border-transparent',
+                      ? 'bg-[var(--neo-bg)] text-[var(--foreground)] font-medium shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]'
+                      : 'text-neo-muted hover:text-[var(--foreground)] shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)] hover:shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)]',
                   )}
                 >
                   <Icon name={item.icon} className="h-4 w-4 shrink-0" />
@@ -632,7 +632,7 @@ function SidebarContent({
                     <>
                       <span className="flex-1 truncate">{item.label}</span>
                       {item.shortcut && (
-                        <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-white/5 border border-neutral-300 dark:border-white/10 text-neutral-500 font-mono">
+                        <kbd className="text-[10px] px-1.5 py-0.5 rounded-lg text-neo-muted font-mono shadow-[1px_1px_2px_var(--neo-shadow-dark),-1px_-1px_2px_var(--neo-shadow-light)]">
                           {item.shortcut}
                         </kbd>
                       )}
@@ -644,17 +644,17 @@ function SidebarContent({
           </div>
         ))}
       </nav>
-      <div className="border-t border-neutral-200 dark:border-white/5 px-4 py-3 shrink-0">
+      <div className="px-4 py-3 shrink-0" style={{borderTop: '1px solid rgba(128,128,128,0.1)'}}>
         <div className="flex items-center gap-2">
           <span className="h-8 w-8 inline-flex items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-700 text-neutral-900 dark:text-white text-xs font-semibold shrink-0">
             {user.name?.charAt(0) ?? '?'}
           </span>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-neutral-900 dark:text-neutral-100 truncate">
+              <div className="text-sm text-[var(--foreground)] truncate">
                 {user.name}
               </div>
-              <div className="text-[10px] text-neutral-500">{user.role}</div>
+              <div className="text-[10px] text-neo-muted">{user.role}</div>
             </div>
           )}
           {collapsed ? (

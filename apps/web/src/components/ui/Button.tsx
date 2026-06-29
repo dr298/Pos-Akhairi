@@ -11,29 +11,58 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const variants: Record<Variant, string> = {
-  primary:
-    'bg-red-600 text-neutral-900 dark:text-white hover:bg-red-700 active:bg-red-800 disabled:bg-red-900 disabled:opacity-60',
-  secondary:
-    'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-200 dark:hover:bg-neutral-700 active:bg-neutral-300 dark:active:bg-neutral-600 disabled:opacity-60',
-  ghost:
-    'bg-transparent text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:bg-neutral-800 active:bg-neutral-300 dark:active:bg-neutral-700 disabled:opacity-60',
-  danger:
-    'bg-red-700 text-neutral-900 dark:text-white hover:bg-red-800 active:bg-red-900 disabled:opacity-60',
-  outline:
-    'bg-transparent text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:bg-neutral-800 active:bg-neutral-300 dark:active:bg-neutral-700 disabled:opacity-60',
+  // Neomorphic primary — raised accent
+  primary: [
+    'bg-red-600 text-white dark:text-white',
+    'shadow-[4px_4px_8px_var(--neo-shadow-dark),-4px_-4px_8px_var(--neo-shadow-light)]',
+    'hover:bg-red-500 hover:shadow-[6px_6px_12px_var(--neo-shadow-dark),-6px_-6px_12px_var(--neo-shadow-light)]',
+    'active:bg-red-700 shadow-[inset_3px_3px_6px_rgba(0,0,0,0.3),inset_-3px_-3px_6px_rgba(255,255,255,0.1)]',
+    'disabled:bg-red-900 disabled:shadow-none disabled:opacity-50',
+  ].join(' '),
+  // Neomorphic secondary — raised neutral
+  secondary: [
+    'bg-[var(--neo-bg)] text-[var(--foreground)]',
+    'shadow-[4px_4px_8px_var(--neo-shadow-dark),-4px_-4px_8px_var(--neo-shadow-light)]',
+    'hover:shadow-[6px_6px_12px_var(--neo-shadow-dark),-6px_-6px_12px_var(--neo-shadow-light)]',
+    'active:shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]',
+    'disabled:opacity-50 disabled:shadow-none',
+  ].join(' '),
+  // Ghost — no shadow, just bg tint on hover
+  ghost: [
+    'bg-transparent text-[var(--foreground)]',
+    'hover:bg-black/5 dark:hover:bg-white/5',
+    'active:bg-black/10 dark:active:bg-white/10',
+    'disabled:opacity-50',
+  ].join(' '),
+  // Danger — raised red
+  danger: [
+    'bg-red-700 text-white',
+    'shadow-[4px_4px_8px_var(--neo-shadow-dark),-4px_-4px_8px_var(--neo-shadow-light)]',
+    'hover:bg-red-600',
+    'active:shadow-[inset_3px_3px_6px_rgba(0,0,0,0.3),inset_-3px_-3px_6px_rgba(255,255,255,0.1)]',
+    'disabled:opacity-50 disabled:shadow-none',
+  ].join(' '),
+  // Outline — neomorphic inset-like
+  outline: [
+    'bg-[var(--neo-bg)] text-[var(--foreground)]',
+    'shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]',
+    'hover:shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]',
+    'active:shadow-[inset_4px_4px_8px_var(--neo-shadow-dark),inset_-4px_-4px_8px_var(--neo-shadow-light)]',
+    'disabled:opacity-50',
+  ].join(' '),
 };
 
 const sizes: Record<Size, string> = {
-  sm: 'h-8 px-3 text-xs rounded-md',
-  md: 'h-10 px-4 text-sm rounded-md',
-  lg: 'h-12 px-5 text-base rounded-lg',
-  xl: 'h-14 px-6 text-lg rounded-lg',
+  sm: 'h-8 px-3 text-xs rounded-lg',
+  md: 'h-10 px-4 text-sm rounded-lg',
+  lg: 'h-12 px-5 text-base rounded-xl',
+  xl: 'h-14 px-6 text-lg rounded-xl',
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', asChild, children, ...props }, ref) => {
     const classes = cn(
-      'inline-flex items-center justify-center gap-2 font-medium transition-colors select-none',
+      'inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 select-none',
       'focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60',
       'disabled:cursor-not-allowed',
       variants[variant],

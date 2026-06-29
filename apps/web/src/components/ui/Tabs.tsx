@@ -39,7 +39,8 @@ export function TabsList({ className, children }: { className?: string; children
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 p-1 rounded-md bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800',
+        'inline-flex items-center gap-1 p-1.5 rounded-xl bg-[var(--neo-bg)]',
+        'shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]',
         'overflow-x-auto whitespace-nowrap',
         className,
       )}
@@ -66,10 +67,18 @@ export function TabsTrigger({
       type="button"
       onClick={() => ctx.setValue(value)}
       className={cn(
-        'h-9 px-4 text-sm rounded-md transition-colors',
+        'h-9 px-4 text-sm rounded-lg transition-all duration-200',
         active
-          ? 'bg-red-600 text-neutral-900 dark:text-white'
-          : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-neutral-800',
+          ? [
+              'bg-red-600 text-white font-medium',
+              'shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)]',
+            ].join(' ')
+          : [
+              'text-neo-muted hover:text-[var(--foreground)]',
+              'shadow-[2px_2px_4px_var(--neo-shadow-dark),-2px_-2px_4px_var(--neo-shadow-light)]',
+              'hover:shadow-[3px_3px_6px_var(--neo-shadow-dark),-3px_-3px_6px_var(--neo-shadow-light)]',
+              'active:shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]',
+            ].join(' '),
         className,
       )}
     >
@@ -90,5 +99,5 @@ export function TabsContent({
   const ctx = React.useContext(TabsContext);
   if (!ctx) throw new Error('TabsContent must be inside <Tabs>');
   if (ctx.value !== value) return null;
-  return <div className={className}>{children}</div>;
+  return <div className={cn('pt-4', className)}>{children}</div>;
 }

@@ -10,25 +10,35 @@
 }
 
 :root {
-  /* Light mode (default) */
-  --background: #fafafa;
-  --foreground: #171717;
+  /* ── Neomorphic Light Theme ── */
+  --background: #e0e5ec;
+  --foreground: #2d3748;
   --primary: #dc2626;
-  --card: #ffffff;
-  --border: #e5e5e5;
-  --muted: #f5f5f5;
-  --muted-foreground: #525252;
+  --card: #e0e5ec;
+  --border: transparent;
+  --muted: #c8ced6;
+  --muted-foreground: #718096;
+
+  /* Neomorphism shadows (light) */
+  --neo-shadow-dark: #a3b1c6;
+  --neo-shadow-light: #ffffff;
+  --neo-bg: #e0e5ec;
 }
 
 .dark {
-  /* Dark mode overrides */
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  /* ── Neomorphic Dark Theme ── */
+  --background: #1a1c2e;
+  --foreground: #d0d0e0;
   --primary: #dc2626;
-  --card: #171717;
-  --border: #262626;
-  --muted: #171717;
-  --muted-foreground: #a3a3a3;
+  --card: #1a1c2e;
+  --border: transparent;
+  --muted: #222440;
+  --muted-foreground: #6a6a80;
+
+  /* Neomorphism shadows (dark) */
+  --neo-shadow-dark: #121322;
+  --neo-shadow-light: #222440;
+  --neo-bg: #1a1c2e;
 }
 
 @theme inline {
@@ -37,6 +47,11 @@
   --color-primary: var(--primary);
   --color-card: var(--card);
   --color-border: var(--border);
+  --color-neo-shadow-dark: var(--neo-shadow-dark);
+  --color-neo-shadow-light: var(--neo-shadow-light);
+  --color-neo-bg: var(--neo-bg);
+  --color-neo-text: var(--foreground);
+  --color-neo-muted: var(--muted-foreground);
 }
 
 html, body {
@@ -46,10 +61,97 @@ html, body {
   min-height: 100vh;
 }
 
-/* Print-friendly tweaks (Sprint 2) */
+/* ── Neomorphic Utility Classes ── */
+
+/* Raised surface — cards, buttons at rest */
+.neo-raised {
+  background: var(--neo-bg);
+  box-shadow: 6px 6px 12px var(--neo-shadow-dark),
+              -6px -6px 12px var(--neo-shadow-light);
+  border: none;
+  border-radius: 12px;
+}
+
+/* Small raised — badges, small cards, sidebar items */
+.neo-raised-sm {
+  background: var(--neo-bg);
+  box-shadow: 3px 3px 6px var(--neo-shadow-dark),
+              -3px -3px 6px var(--neo-shadow-light);
+  border: none;
+  border-radius: 8px;
+}
+
+/* Inset — inputs, pressed buttons, active tabs */
+.neo-inset {
+  background: var(--neo-bg);
+  box-shadow: inset 3px 3px 6px var(--neo-shadow-dark),
+              inset -3px -3px 6px var(--neo-shadow-light);
+  border: none;
+  border-radius: 12px;
+}
+
+/* Small inset — inputs, small pressed elements */
+.neo-inset-sm {
+  background: var(--neo-bg);
+  box-shadow: inset 2px 2px 4px var(--neo-shadow-dark),
+              inset -2px -2px 4px var(--neo-shadow-light);
+  border: none;
+  border-radius: 8px;
+}
+
+/* Flat — subtle lift, tabs, kbd */
+.neo-flat {
+  background: var(--neo-bg);
+  box-shadow: 1px 1px 3px var(--neo-shadow-dark),
+              -1px -1px 3px var(--neo-shadow-light);
+  border: none;
+}
+
+/* Button pressed state */
+.neo-pressed {
+  box-shadow: inset 4px 4px 8px var(--neo-shadow-dark),
+              inset -4px -4px 8px var(--neo-shadow-light);
+}
+
+/* Primary accent button */
+.neo-accent {
+  background: var(--primary);
+  box-shadow: 4px 4px 8px var(--neo-shadow-dark),
+              -4px -4px 8px var(--neo-shadow-light);
+  border: none;
+}
+
+/* Dividers — neomorphic groove */
+.neo-divider {
+  border: none;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--neo-shadow-dark),
+    var(--neo-shadow-light),
+    transparent
+  );
+  opacity: 0.5;
+}
+
+/* Scrollbar styling for neomorphic look */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { opacity: 0.7; }
+
+/* Print-friendly tweaks */
 @media print {
   body {
     background: white !important;
     color: black !important;
+  }
+  .neo-raised, .neo-raised-sm, .neo-flat {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
   }
 }

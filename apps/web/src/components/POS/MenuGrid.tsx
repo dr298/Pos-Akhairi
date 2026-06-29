@@ -111,7 +111,7 @@ export function MenuGrid({ onAdd }: Props) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cari menu…"
-          className="flex h-10 w-full max-w-xs rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500/60"
+          className="flex h-10 w-full max-w-xs rounded-lg bg-[var(--neo-bg)] px-3 text-sm text-[var(--foreground)] placeholder:text-neo-muted focus:outline-none focus:ring-2 focus:ring-red-500/60 shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)] transition-shadow"
         />
       </div>
       <Tabs value={activeCat} onValueChange={setActiveCat} className="flex-1 min-h-0 flex flex-col">

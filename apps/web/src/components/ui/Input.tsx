@@ -6,10 +6,12 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        'flex h-10 w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm',
-        'text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500',
-        'focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/60',
+        'flex h-10 w-full rounded-lg bg-[var(--neo-bg)] px-3 py-2 text-sm',
+        'text-[var(--foreground)] placeholder:text-neo-muted',
+        'shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]',
+        'focus:outline-none focus:shadow-[inset_4px_4px_8px_var(--neo-shadow-dark),inset_-4px_-4px_8px_var(--neo-shadow-light),0_0_0_2px_rgba(220,38,38,0.4)]',
         'disabled:opacity-50',
+        'transition-shadow duration-200',
         className,
       )}
       {...props}
@@ -23,10 +25,12 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        'flex min-h-[64px] w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm',
-        'text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500',
-        'focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/60',
+        'flex min-h-[64px] w-full rounded-lg bg-[var(--neo-bg)] px-3 py-2 text-sm',
+        'text-[var(--foreground)] placeholder:text-neo-muted',
+        'shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]',
+        'focus:outline-none focus:shadow-[inset_4px_4px_8px_var(--neo-shadow-dark),inset_-4px_-4px_8px_var(--neo-shadow-light),0_0_0_2px_rgba(220,38,38,0.4)]',
         'disabled:opacity-50 resize-none',
+        'transition-shadow duration-200',
         className,
       )}
       {...props}

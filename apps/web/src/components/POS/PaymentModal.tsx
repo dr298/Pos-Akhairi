@@ -145,8 +145,8 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
         <DialogHeader>
           <div>
             <DialogTitle>Pembayaran</DialogTitle>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
-              Total: <span className="text-neutral-900 dark:text-neutral-100 font-semibold">{formatIDR(totalCents)}</span>
+            <p className="text-sm text-neo-muted mt-0.5">
+              Total: <span className="text-[var(--foreground)] font-semibold">{formatIDR(totalCents)}</span>
             </p>
           </div>
           <DialogClose />
@@ -186,13 +186,13 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
                   Pas
                 </Button>
               </div>
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-1">
+              <div className="rounded-lg p-3 space-y-1 shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]">
                 <div className="flex justify-between text-sm">
-                  <span className="text-neutral-500 dark:text-neutral-400">Diterima</span>
-                  <span className="text-neutral-900 dark:text-neutral-100">{formatIDR(amountGivenCents)}</span>
+                  <span className="text-neo-muted">Diterima</span>
+                  <span className="text-[var(--foreground)]">{formatIDR(amountGivenCents)}</span>
                 </div>
                 <div className="flex justify-between text-base font-semibold">
-                  <span className="text-neutral-800 dark:text-neutral-200">Kembalian</span>
+                  <span className="text-[var(--foreground)]">Kembalian</span>
                   <span className={cn(changeCents >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                     {formatIDR(Math.max(0, changeCents))}
                   </span>
@@ -204,55 +204,55 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
             </TabsContent>
 
             <TabsContent value="QRIS" className="space-y-2">
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-lg p-3 space-y-2 text-sm shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]">
+                <p className="text-[var(--foreground)]">
                   QRIS via Midtrans — setelah klik <strong>Konfirmasi</strong>, order dibuat
                   dan QRIS akan ditampilkan di halaman sukses. Pembayaran terdeteksi
                   otomatis via webhook.
                 </p>
-                <p className="text-neutral-500 text-xs">
-                  Pastikan shift aktif dan terminal online.
+                <p className="text-neo-muted text-xs">
+                Pastikan shift aktif dan terminal online.
                 </p>
               </div>
             </TabsContent>
 
             <TabsContent value="VIRTUAL_ACCOUNT" className="space-y-2">
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-lg p-3 space-y-2 text-sm shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]">
+                <p className="text-[var(--foreground)]">
                   Virtual Account — nomor VA akan diterbitkan setelah konfirmasi.
                   Order otomatis terbayar saat pembayaran masuk.
                 </p>
-                <p className="text-neutral-500 text-xs">Provider: Midtrans / Xendit</p>
+                <p className="text-neo-muted text-xs">Provider: Midtrans / Xendit</p>
               </div>
             </TabsContent>
 
             <TabsContent value="EWALLET" className="space-y-2">
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-lg p-3 space-y-2 text-sm shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]">
+                <p className="text-[var(--foreground)]">
                   E-Wallet (GoPay / OVO / Dana) — pembayaran lewat Snap/Invoice
                   Midtrans atau Xendit.
                 </p>
-                <p className="text-neutral-500 text-xs">
+                <p className="text-neo-muted text-xs">
                   Customer menyelesaikan pembayaran di halaman provider.
                 </p>
               </div>
             </TabsContent>
 
             <TabsContent value="MANUAL_TRANSFER" className="space-y-3">
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-lg p-3 space-y-2 text-sm shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]">
+                <p className="text-[var(--foreground)]">
                   Transfer Manual — pilih rekening tujuan transfer di bawah.
                   Customer melakukan transfer ke rekening yang dipilih, lalu konfirmasi ke kasir.
                 </p>
-                <p className="text-neutral-500 text-xs">
+                <p className="text-neo-muted text-xs">
                   Setelah konfirmasi, order akan ditandai sebagai PAID.
                 </p>
               </div>
               <div>
-                <label className="text-[10px] uppercase text-neutral-500 mb-1 block">Rekening Tujuan</label>
+                <label className="text-[10px] uppercase text-neo-muted mb-1 block">Rekening Tujuan</label>
                 <select
                   id="bank-account-select"
-                  className="w-full border rounded px-2 py-2 text-sm dark:bg-neutral-800 dark:border-neutral-700"
+                  className="w-full rounded-lg px-2 py-2 text-sm bg-[var(--neo-bg)] text-[var(--foreground)] shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]"
                   value={selectedBankAccount}
                   onChange={(e) => setSelectedBankAccount(e.target.value)}
                 >
@@ -268,7 +268,7 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
           </Tabs>
 
           {pollError && (
-            <div className="text-xs text-amber-400 bg-amber-950/30 border border-amber-900/50 rounded-md px-2 py-1.5">
+            <div className="text-xs text-amber-400 bg-amber-950/30 rounded-lg px-2 py-1.5 shadow-[inset_2px_2px_4px_var(--neo-shadow-dark),inset_-2px_-2px_4px_var(--neo-shadow-light)]">
               {pollError}
             </div>
           )}
@@ -330,9 +330,9 @@ export function AwaitingPaymentPanel({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-white dark:bg-black/70 backdrop-blur-sm">
-      <div className="relative z-10 w-full sm:max-w-md rounded-t-2xl sm:rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 shadow-2xl p-5 space-y-4">
+      <div className="relative z-10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-[var(--neo-bg)] text-[var(--foreground)] shadow-[8px_8px_16px_var(--neo-shadow-dark),-8px_-8px_16px_var(--neo-shadow-light)] p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Menunggu Pembayaran</h2>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">Menunggu Pembayaran</h2>
           <Badge tone={pollStatus === 'polling' ? 'info' : pollStatus === 'paid' ? 'success' : 'danger'}>
             {pollStatus === 'polling'
               ? `Menunggu… ${elapsedSeconds}s`
@@ -341,40 +341,40 @@ export function AwaitingPaymentPanel({
                 : pollStatus.toUpperCase()}
           </Badge>
         </div>
-        <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-sm space-y-1">
+        <div className="rounded-lg p-3 text-sm space-y-1 shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]">
           <div className="flex justify-between">
-            <span className="text-neutral-500 dark:text-neutral-400">Order</span>
-            <span className="text-neutral-900 dark:text-neutral-100 font-semibold">
+            <span className="text-neo-muted">Order</span>
+            <span className="text-[var(--foreground)] font-semibold">
               {order?.orderNumber || '—'}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-neutral-500 dark:text-neutral-400">Metode</span>
-            <span className="text-neutral-900 dark:text-neutral-100">{METHOD_LABEL[method]}</span>
+            <span className="text-neo-muted">Metode</span>
+            <span className="text-[var(--foreground)]">{METHOD_LABEL[method]}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-neutral-500 dark:text-neutral-400">Total</span>
+            <span className="text-neo-muted">Total</span>
             <span className="text-emerald-400 font-semibold">{formatIDR(totalCents)}</span>
           </div>
         </div>
 
         {vaNumber && (
-          <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 text-center space-y-1">
-            <div className="text-xs text-neutral-500">Nomor Virtual Account</div>
-            <div className="text-2xl font-mono font-semibold tracking-wider text-neutral-900 dark:text-neutral-100">
+          <div className="rounded-lg p-4 text-center space-y-1 shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]">
+            <div className="text-xs text-neo-muted">Nomor Virtual Account</div>
+            <div className="text-2xl font-mono font-semibold tracking-wider text-[var(--foreground)]">
               {vaNumber}
             </div>
-            <div className="text-xs text-neutral-500">Salin nomor dan bayar lewat m-banking</div>
+            <div className="text-xs text-neo-muted">Salin nomor dan bayar lewat m-banking</div>
           </div>
         )}
 
         {qrString && !paymentUrl && (
-          <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 text-center space-y-2">
-            <div className="text-xs text-neutral-500">QRIS</div>
-            <pre className="text-[10px] text-neutral-500 dark:text-neutral-400 break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
+          <div className="rounded-lg p-4 text-center space-y-2 shadow-[inset_3px_3px_6px_var(--neo-shadow-dark),inset_-3px_-3px_6px_var(--neo-shadow-light)]">
+            <div className="text-xs text-neo-muted">QRIS</div>
+            <pre className="text-[10px] text-neo-muted break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
               {qrString}
             </pre>
-            <div className="text-xs text-neutral-500">Scan dengan e-wallet / m-banking</div>
+            <div className="text-xs text-neo-muted">Scan dengan e-wallet / m-banking</div>
           </div>
         )}
 
@@ -400,7 +400,7 @@ export function AwaitingPaymentPanel({
           </Button>
         </div>
 
-        <p className="text-[10px] text-neutral-500 text-center">
+        <p className="text-[10px] text-neo-muted text-center">
           Pembayaran akan terdeteksi otomatis. Tidak perlu refresh.
         </p>
       </div>
