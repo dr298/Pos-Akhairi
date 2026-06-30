@@ -87,10 +87,10 @@ export default function SalesReportPage() {
           menu: item.name || '-',
           qty,
           hargaSatuan: revenueCents / (qty || 1),
-          total: revenueCents / 100,
-          hppPerPcs: hppPerPcs / 100,
-          totalHpp: totalHppCents / 100,
-          profit: profitCents / 100,
+          total: revenueCents,
+          hppPerPcs,
+          totalHpp: totalHppCents,
+          profit: profitCents,
         });
       }
 
@@ -98,9 +98,9 @@ export default function SalesReportPage() {
       setSummary({
         totalOrders: rangeData.data?.totalOrders || 0,
         totalQty,
-        totalRevenue: totalRevenue / 100,
-        totalHpp: totalHpp / 100,
-        totalProfit: (totalRevenue - totalHpp) / 100,
+        totalRevenue,
+        totalHpp,
+        totalProfit: totalRevenue - totalHpp,
       });
     } catch (e) {
       console.error('Sales report load failed', e);
