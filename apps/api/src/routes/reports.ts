@@ -183,7 +183,7 @@ reportRoutes.get('/items', async (c) => {
     where: {
       order: { status: 'PAID', closedAt: { gte: start, lte: end } },
     },
-    _sum: { lineTotalCents: true, quantity: true },
+    _sum: { lineTotalCents: true, quantity: true, hppCentsUsed: true },
   });
   const menuRows = await prisma.menuItem.findMany({
     where: { id: { in: grouped.map((g) => g.menuItemId) } },
@@ -199,6 +199,7 @@ reportRoutes.get('/items', async (c) => {
         category: info?.category || null,
         qty: g._sum.quantity ?? 0,
         revenueCents: g._sum.lineTotalCents ?? 0,
+        hppPerPcs: (g._sum.hppCentsUsed ?? 0) / (g._sum.quantity || 1),
       };
     })
     .sort((a, b) => b.revenueCents - a.revenueCents);
