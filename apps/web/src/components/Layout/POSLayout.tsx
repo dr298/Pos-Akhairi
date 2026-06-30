@@ -48,7 +48,7 @@ const NAV: NavGroup[] = [
       { href: '/pos',              label: 'POS',          icon: 'cart',     match: p => p === '/pos',                show: () => true,        shortcut: 'O' },
       // Sprint 21 — sales order list. New alias at /pos/orders; the
       // /pos/history page still works for backward compat.
-      { href: '/pos/orders',       label: 'Sales Report', icon: 'history',  match: p => p === '/pos/orders' || p === '/pos/history' || p.startsWith('/pos/orders') && !p.includes('/['), show: () => true, shortcut: 'H' },
+      { href: '/pos/orders',       label: 'POS Report', icon: 'history',  match: p => p === '/pos/orders' || p === '/pos/history' || p.startsWith('/pos/orders') && !p.includes('/['), show: () => true, shortcut: 'H' },
 
       { href: '/pos/customers',         label: 'Customer',     icon: 'users',  match: p => p.startsWith('/pos/customers') && !p.includes('/customers/['), show: () => true, shortcut: 'P' },
       { href: '/pos/reservations',      label: 'Reservations', icon: 'calendar',match: p => p.startsWith('/pos/reservations'),     show: () => true, shortcut: 'R' },

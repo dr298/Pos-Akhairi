@@ -87,10 +87,19 @@ async function loadActiveShift(userId: string) {
 
 orderRoutes.get('/', async (c) => {
   const status = c.req.query('status');
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  const where: any = {
+    ...(status ? { status: status as any } : {}),
+    ...(from && to ? {
+      openedAt: {
+        gte: new Date(`${from}T00:00:00.000Z`),
+        lte: new Date(`${to}T23:59:59.999Z`),
+      },
+    } : {}),
+  };
   const orders = await prisma.order.findMany({
-    where: {
-      ...(status ? { status: status as any } : {}),
-    },
+    where,
     include: { items: true, payments: true },
     orderBy: { openedAt: 'desc' },
     take: 50,

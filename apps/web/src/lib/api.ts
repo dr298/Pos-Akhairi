@@ -566,7 +566,7 @@ export const api = {
       `/api/orders/${orderId}/pay-cash`,
       { method: 'POST', body: JSON.stringify({ amountGiven, method: method || 'CASH', bankAccount }) },
     ),
-  getOrders: () => request<{ data: Order[] }>('/api/orders'),
+  getOrders: (from?: string, to?: string) => request<{ data: Order[] }>(`/api/orders${from && to ? `?from=${from}&to=${to}` : ''}`),
   getOrder: (id: string) => request<{ data: Order }>(`/api/orders/${id}`),
   voidOrder: (id: string, reason: string) =>
     request<{ data: Order }>(`/api/orders/${id}/void`, {

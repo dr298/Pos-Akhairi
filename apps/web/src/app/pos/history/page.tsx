@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { api, type Order } from '@/lib/api';
@@ -24,35 +23,74 @@ const TYPE_LABEL: Record<string, string> = {
   TAKEAWAY: 'Takeout',
 };
 
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgoISO(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function HistoryPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Order | null>(null);
+  const [from, setFrom] = useState(daysAgoISO(7));
+  const [to, setTo] = useState(todayISO());
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.getOrders();
+      const res = await api.getOrders(from, to);
       setOrders((res.data || []).slice(0, 50));
     } catch (e: any) {
       toast.error(e?.message || 'Gagal memuat pesanan');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [from, to]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   return (
-    <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Riwayat Pesanan</h1>
-        <Button size="sm" variant="outline" onClick={refresh}>
-          Refresh
-        </Button>
+    <div className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full overflow-y-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">POS Report</h1>
       </div>
+
+      {/* Date range picker */}
+      <Card>
+        <CardContent className="pt-4 flex flex-wrap items-end gap-3">
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase text-neutral-500 mb-1">From</label>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="border rounded px-2 py-1 text-sm dark:bg-neutral-800 dark:border-neutral-700"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] uppercase text-neutral-500 mb-1">To</label>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="border rounded px-2 py-1 text-sm dark:bg-neutral-800 dark:border-neutral-700"
+            />
+          </div>
+          <Button onClick={refresh} disabled={loading} size="sm">
+            {loading ? 'Memuat...' : 'Terapkan'}
+          </Button>
+          <Button onClick={refresh} variant="outline" size="sm">
+            Refresh
+          </Button>
+        </CardContent>
+      </Card>
 
       {loading ? (
         <div className="text-sm text-neutral-500 dark:text-neutral-400">Memuat…</div>

@@ -185,21 +185,22 @@ reportRoutes.get('/items', async (c) => {
     },
     _sum: { lineTotalCents: true, quantity: true },
   });
-  const menuMap = new Map(
-    (
-      await prisma.menuItem.findMany({
-        where: { id: { in: grouped.map((g) => g.menuItemId) } },
-        select: { id: true, name: true },
-      })
-    ).map((m) => [m.id, m.name])
-  );
+  const menuRows = await prisma.menuItem.findMany({
+    where: { id: { in: grouped.map((g) => g.menuItemId) } },
+    select: { id: true, name: true, category: { select: { name: true } } },
+  });
+  const menuMap = new Map(menuRows.map((m) => [m.id, { name: m.name, category: m.category.name }]));
   const items = grouped
-    .map((g) => ({
-      menuItemId: g.menuItemId,
-      name: menuMap.get(g.menuItemId) || '(unknown)',
-      qty: g._sum.quantity ?? 0,
-      revenueCents: g._sum.lineTotalCents ?? 0,
-    }))
+    .map((g) => {
+      const info = menuMap.get(g.menuItemId);
+      return {
+        menuItemId: g.menuItemId,
+        name: info?.name || '(unknown)',
+        category: info?.category || null,
+        qty: g._sum.quantity ?? 0,
+        revenueCents: g._sum.lineTotalCents ?? 0,
+      };
+    })
     .sort((a, b) => b.revenueCents - a.revenueCents);
 
   return ok(c, { period: { from, to }, items });
@@ -497,6 +498,7 @@ reportRoutes.get('/z-report', async (c) => {
     shifts,
     voidRefunds,
     dailyClose: dailyClose ?? null,
+    generatedAt: new Date().toISOString(),
   };
   cacheSet(cacheKey, result, 60_000);
   return ok(c, result);
