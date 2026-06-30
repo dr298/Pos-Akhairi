@@ -39,7 +39,7 @@ export function TabsList({ className, children }: { className?: string; children
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 p-1 rounded-md bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800',
+        'inline-flex items-center gap-1 p-1 rounded-lg bg-muted',
         'overflow-x-auto whitespace-nowrap',
         className,
       )}
@@ -66,10 +66,14 @@ export function TabsTrigger({
       type="button"
       onClick={() => ctx.setValue(value)}
       className={cn(
-        'h-9 px-4 text-sm rounded-md transition-colors',
+        'h-9 px-4 text-sm rounded-lg transition-all duration-200',
         active
-          ? 'bg-red-600 text-neutral-900 dark:text-white'
-          : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:bg-neutral-800',
+          ? [
+              'bg-card text-foreground font-medium shadow-sm',
+            ].join(' ')
+          : [
+              'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+            ].join(' '),
         className,
       )}
     >
@@ -90,5 +94,5 @@ export function TabsContent({
   const ctx = React.useContext(TabsContext);
   if (!ctx) throw new Error('TabsContent must be inside <Tabs>');
   if (ctx.value !== value) return null;
-  return <div className={className}>{children}</div>;
+  return <div className={cn('pt-4', className)}>{children}</div>;
 }

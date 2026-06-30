@@ -21,7 +21,7 @@ export function LanguageSwitcher() {
         id="pos-locale-select"
         value={current}
         onChange={(e) => setLocale(e.target.value as Locale)}
-        className="h-8 px-2 text-xs rounded-md bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-red-500/60 cursor-pointer"
+        className="h-8 px-2 text-xs rounded-lg bg-card text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-red-500/60 cursor-pointer"
       >
         {SUPPORTED_LOCALES.map((l) => (
           <option key={l} value={l}>

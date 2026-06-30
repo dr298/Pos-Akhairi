@@ -87,10 +87,19 @@ async function loadActiveShift(userId: string) {
 
 orderRoutes.get('/', async (c) => {
   const status = c.req.query('status');
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  const where: any = {
+    ...(status ? { status: status as any } : {}),
+    ...(from && to ? {
+      openedAt: {
+        gte: new Date(`${from}T00:00:00.000Z`),
+        lte: new Date(`${to}T23:59:59.999Z`),
+      },
+    } : {}),
+  };
   const orders = await prisma.order.findMany({
-    where: {
-      ...(status ? { status: status as any } : {}),
-    },
+    where,
     include: { items: true, payments: true },
     orderBy: { openedAt: 'desc' },
     take: 50,
@@ -410,6 +419,13 @@ orderRoutes.post('/', async (c) => {
 // S1.5 — pay-cash (refactored S2.2 to use finalizeOrderPayment for inventory deduction)
 const payCashSchema = z.object({
   amountGiven: z.number().int().positive(),
+  method: z.enum(['CASH', 'MANUAL_TRANSFER']).optional().default('CASH'),
+  bankAccount: z.object({
+    id: z.string(),
+    bankName: z.string(),
+    accountName: z.string(),
+    accountNo: z.string(),
+  }).optional(),
 });
 
 orderRoutes.post('/:id/pay-cash', async (c) => {
@@ -420,7 +436,7 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
   if (!parsed.success) {
     return fail(c, 'ValidationError', 'Invalid payload', 400, parsed.error.issues);
   }
-  const { amountGiven } = parsed.data;
+  const { amountGiven, method: payMethod, bankAccount } = parsed.data;
 
   const order = await prisma.order.findUnique({ where: { id }, include: { payments: true } });
   if (!order) return fail(c, 'NotFound', 'Order not found', 404);
@@ -443,16 +459,17 @@ orderRoutes.post('/:id/pay-cash', async (c) => {
       orderId: order.id,
       userId: user.id,
       payment: {
-        provider: 'CASH',
-        method: 'CASH',
+        provider: payMethod === 'MANUAL_TRANSFER' ? 'BANK_TRANSFER' : 'CASH',
+        method: payMethod,
         externalId,
         amountCents: order.totalCents,
       },
       providerRaw: {
-        method: 'CASH',
+        method: payMethod,
         amountGiven,
         changeCents,
         cashierId: user.id,
+        ...(bankAccount && { bankAccount }),
       },
     });
     // Sprint 7.5 — payment metric. finalizer returns { order, payment,

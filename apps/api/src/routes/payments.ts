@@ -9,6 +9,7 @@ import {
   midtransSignature,
   type MidtransStatusResponse,
 } from '../payments/midtrans.js';
+import { getPaymentSetting } from '../services/settings.js';
 import { verifyXenditWebhook, type XenditInvoice } from '../payments/xendit.js';
 import { finalizeOrderPayment, type FinalizeMethod, type FinalizeProvider } from '../services/payment-finalize.js';
 import { logger } from '../logger.js';
@@ -18,14 +19,14 @@ export const paymentRoutes = new Hono<AppEnv>();
 // IMPORTANT: webhook routes are mounted WITHOUT requireAuth (handled per-route).
 
 // ---------- public: midtrans client key ----------
-paymentRoutes.get('/midtrans/client-key', (c) => {
-  return ok(c, midtransClientKey());
+paymentRoutes.get('/midtrans/client-key', async (c) => {
+  return ok(c, await midtransClientKey());
 });
 
 // ---------- public: xendit client key (minimal) ----------
-paymentRoutes.get('/xendit/public-config', (c) => {
+paymentRoutes.get('/xendit/public-config', async (c) => {
   return ok(c, {
-    publicKey: process.env.XENDIT_PUBLIC_KEY || null,
+    publicKey: await getPaymentSetting('XENDIT_PUBLIC_KEY') || null,
     env: process.env.NODE_ENV || 'development',
   });
 });
@@ -233,6 +234,8 @@ paymentRoutes.use('*', requireAuth);
 
 paymentRoutes.get('/providers', (c) => {
   const providers = list().map((p) => ({ name: p.name, methods: getMethodsFor(p.name) }));
+  // Manual Transfer is always available as a local payment method (no external provider)
+  providers.push({ name: 'MANUAL_TRANSFER', methods: ['MANUAL_TRANSFER'] });
   return ok(c, providers);
 });
 
@@ -240,6 +243,7 @@ function getMethodsFor(providerName: string): string[] {
   if (providerName === 'CASH') return ['CASH'];
   if (providerName === 'MIDTRANS') return ['QRIS', 'VIRTUAL_ACCOUNT', 'EWALLET'];
   if (providerName === 'XENDIT') return ['VIRTUAL_ACCOUNT', 'EWALLET', 'QRIS'];
+  if (providerName === 'MANUAL_TRANSFER') return ['MANUAL_TRANSFER'];
   return [];
 }
 

@@ -236,16 +236,27 @@ export default function OrderDetailPage() {
             <CardTitle className="text-base">Pembayaran</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
-            {order.payments.map((p) => (
-              <div key={p.id} className="flex justify-between border-b border-neutral-200 dark:border-neutral-800 last:border-0 py-1.5">
-                <span className="text-neutral-700 dark:text-neutral-300">
-                  {p.provider} · {p.method} · {p.status}
-                </span>
-                <span className={p.amountCents < 0 ? 'text-red-400' : 'text-neutral-900 dark:text-neutral-100'}>
-                  {formatIDR(Math.abs(p.amountCents))}
-                </span>
+            {order.payments.map((p) => {
+              const raw = (p.providerRaw as Record<string, unknown> | null) ?? {};
+              const ba = raw.bankAccount as { bankName?: string; accountName?: string; accountNo?: string } | undefined;
+              return (
+              <div key={p.id} className="border-b border-neutral-200 dark:border-neutral-800 last:border-0 py-1.5">
+                <div className="flex justify-between">
+                  <span className="text-neutral-700 dark:text-neutral-300">
+                    {p.method === 'MANUAL_TRANSFER' ? 'Transfer Manual' : p.method} · {p.status}
+                  </span>
+                  <span className={p.amountCents < 0 ? 'text-red-400' : 'text-neutral-900 dark:text-neutral-100'}>
+                    {formatIDR(Math.abs(p.amountCents))}
+                  </span>
+                </div>
+                {ba && (
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                    {ba.bankName} — {ba.accountNo} ({ba.accountName})
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}

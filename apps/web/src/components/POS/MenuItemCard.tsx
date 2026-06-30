@@ -52,19 +52,14 @@ export function MenuItemCard({ item, onClick }: Props) {
       onClick={handleClick}
       disabled={disabled}
       className={cn(
-        'group relative flex flex-col text-left rounded-lg border overflow-hidden',
-        // Theme-aware base surfaces (light/dark variants)
-        'border-neutral-200 dark:border-neutral-800',
-        'bg-white dark:bg-neutral-900',
-        'hover:bg-neutral-50 dark:hover:bg-neutral-800',
-        'hover:border-neutral-300 dark:hover:border-neutral-700',
-        // Click feedback: scale + tint
-        'active:scale-[0.96] active:bg-red-50 dark:active:bg-red-950/30',
-        'transition-[transform,background-color,border-color] duration-150 ease-out',
+        'group relative flex flex-col text-left rounded-xl overflow-hidden',
+        'bg-card border border-border shadow-sm',
+        'hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5',
+        'active:scale-[0.98]',
+        'transition-all duration-200 ease-out',
         'min-h-[120px] p-3',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
         disabled && 'opacity-50 cursor-not-allowed',
-        disabled && 'active:scale-100 hover:bg-white dark:hover:bg-neutral-900 hover:border-neutral-200 dark:hover:border-neutral-800',
       )}
     >
       {ripples.map((r) => (
@@ -79,13 +74,13 @@ export function MenuItemCard({ item, onClick }: Props) {
         />
       ))}
       <div className="relative flex-1">
-        <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100 line-clamp-2">{item.displayName || item.name}</div>
+        <div className="text-sm font-medium text-[var(--foreground)] line-clamp-2">{item.displayName || item.name}</div>
         {item.sku && (
-          <div className="text-[10px] text-neutral-500 mt-0.5 uppercase">{item.sku}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5 uppercase">{item.sku}</div>
         )}
       </div>
       <div className="relative mt-2 flex items-end justify-between gap-2">
-        <div className="text-sm font-semibold text-red-500 dark:text-red-400">
+        <div className="text-sm font-semibold text-primary">
           {formatIDR(item.priceCents)}
         </div>
         {!item.isAvailable && <Badge tone="danger">Habis</Badge>}

@@ -4,6 +4,7 @@ import type {
   PaymentResult,
   PaymentResultStatus,
 } from './types.js';
+import { getPaymentSetting } from '../services/settings.js';
 
 /**
  * Midtrans Snap provider.
@@ -25,18 +26,18 @@ const PROD_BASE = 'https://app.midtrans.com';
 const CORE_SANDBOX = 'https://api.sandbox.midtrans.com';
 const CORE_PROD = 'https://api.midtrans.com';
 
-function baseUrl(): { snap: string; core: string } {
-  const env = (process.env.MIDTRANS_ENV || 'sandbox').toLowerCase();
+async function baseUrl(): Promise<{ snap: string; core: string }> {
+  const env = (await getPaymentSetting('MIDTRANS_ENV') || 'sandbox').toLowerCase();
   if (env === 'production' || env === 'prod') {
     return { snap: PROD_BASE, core: CORE_PROD };
   }
   return { snap: SANDBOX_BASE, core: CORE_SANDBOX };
 }
 
-function serverKey(): string {
-  const key = process.env.MIDTRANS_SERVER_KEY;
+async function serverKey(): Promise<string> {
+  const key = await getPaymentSetting('MIDTRANS_SERVER_KEY');
   if (!key) {
-    throw new Error('MIDTRANS_SERVER_KEY environment variable is required');
+    throw new Error('MIDTRANS_SERVER_KEY is required (set via Settings table or env var)');
   }
   return key;
 }
@@ -48,8 +49,8 @@ function getWebOrigin(): string {
   return process.env.WEB_ORIGIN;
 }
 
-function basicAuthHeader(): string {
-  const key = serverKey();
+async function basicAuthHeader(): Promise<string> {
+  const key = await serverKey();
   // Midtrans uses HTTP Basic with server_key as username, empty password.
   return 'Basic ' + Buffer.from(key + ':').toString('base64');
 }
@@ -97,19 +98,20 @@ export async function midtransSignature(
   orderId: string,
   statusCode: string,
   grossAmount: string,
-  key: string = serverKey()
+  key?: string,
 ): Promise<string> {
   const crypto = await import('node:crypto');
+  const resolvedKey = key ?? await serverKey();
   return crypto
     .createHash('sha512')
-    .update(`${orderId}${statusCode}${grossAmount}${key}`)
+    .update(`${orderId}${statusCode}${grossAmount}${resolvedKey}`)
     .digest('hex');
 }
 
 export const midtransProvider: PaymentProvider = {
   name: 'MIDTRANS',
   async charge(req: PaymentRequest): Promise<PaymentResult> {
-    const { snap } = baseUrl();
+    const { snap } = await baseUrl();
     const body = {
       transaction_details: {
         order_id: req.orderId,
@@ -132,7 +134,7 @@ export const midtransProvider: PaymentProvider = {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        Authorization: basicAuthHeader(),
+        Authorization: await basicAuthHeader(),
       },
       body: JSON.stringify(body),
     });
@@ -149,12 +151,12 @@ export const midtransProvider: PaymentProvider = {
     };
   },
   async getStatus(externalId: string): Promise<PaymentResult> {
-    const { core } = baseUrl();
+    const { core } = await baseUrl();
     const res = await fetch(`${core}/v2/transactions/${encodeURIComponent(externalId)}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
-        Authorization: basicAuthHeader(),
+        Authorization: await basicAuthHeader(),
       },
     });
     if (!res.ok) {
@@ -169,12 +171,12 @@ export const midtransProvider: PaymentProvider = {
     };
   },
   async cancel(externalId: string): Promise<{ ok: boolean }> {
-    const { core } = baseUrl();
+    const { core } = await baseUrl();
     const res = await fetch(`${core}/v2/transactions/${encodeURIComponent(externalId)}/cancel`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
-        Authorization: basicAuthHeader(),
+        Authorization: await basicAuthHeader(),
       },
     });
     if (!res.ok) {
@@ -187,9 +189,9 @@ export const midtransProvider: PaymentProvider = {
   },
 };
 
-export function midtransClientKey(): { clientKey: string; env: string } {
+export async function midtransClientKey(): Promise<{ clientKey: string; env: string }> {
   return {
-    clientKey: process.env.MIDTRANS_CLIENT_KEY || '',
-    env: (process.env.MIDTRANS_ENV || 'sandbox').toLowerCase(),
+    clientKey: await getPaymentSetting('MIDTRANS_CLIENT_KEY'),
+    env: (await getPaymentSetting('MIDTRANS_ENV') || 'sandbox').toLowerCase(),
   };
 }

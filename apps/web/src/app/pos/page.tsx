@@ -247,11 +247,27 @@ export default function PosPage() {
     }
   }
 
-  async function handlePaymentConfirmNonCash(method: PaymentMethodKind): Promise<PaymentResult | null> {
+  async function handlePaymentConfirmNonCash(method: PaymentMethodKind, bankAccount?: { id: string; bankName: string; accountName: string; accountNo: string }): Promise<PaymentResult | null> {
     setPaying(true);
     try {
       const order = await createOrder();
-      const provider: PaymentProviderName = method === 'VIRTUAL_ACCOUNT' ? 'XENDIT' : 'MIDTRANS';
+      
+      // MANUAL_TRANSFER: mark as PAID directly without provider
+      if (method === 'MANUAL_TRANSFER') {
+        await api.payCash(order.id, order.totalCents, 'MANUAL_TRANSFER', bankAccount);
+        toast.success('Pembayaran manual transfer dikonfirmasi');
+        const bankParams = bankAccount
+          ? `&bankName=${encodeURIComponent(bankAccount.bankName)}&bankAccountNo=${encodeURIComponent(bankAccount.accountNo)}&bankAccountName=${encodeURIComponent(bankAccount.accountName)}`
+          : '';
+        router.push(
+          `/pos/success/${order.id}?orderNumber=${encodeURIComponent(order.orderNumber)}&total=${order.totalCents}&given=${order.totalCents}&change=0&method=MANUAL_TRANSFER${bankParams}`
+        );
+        cart.clear();
+        return null;
+      }
+      
+      // ponytail: hardcoded XENDIT — user uses Xendit-only. To re-enable multi-provider, add a provider picker to PaymentModal.
+      const provider: PaymentProviderName = 'XENDIT';
       const charge = await api.chargePayment({
         provider,
         orderId: order.id,

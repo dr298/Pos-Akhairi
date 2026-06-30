@@ -33,6 +33,9 @@ export default function SuccessPage() {
   const given = Number(searchParams.get('given') ?? '0');
   const change = Number(searchParams.get('change') ?? '0');
   const method = searchParams.get('method') ?? 'CASH';
+  const bankName = searchParams.get('bankName') ?? '';
+  const bankAccountNo = searchParams.get('bankAccountNo') ?? '';
+  const bankAccountName = searchParams.get('bankAccountName') ?? '';
   const { user } = useAuth();
 
   const [order, setOrder] = useState<Order | null>(null);
@@ -172,7 +175,7 @@ export default function SuccessPage() {
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Metode</span>
-              <span className="text-neutral-900 dark:text-neutral-100">{method}</span>
+              <span className="text-neutral-900 dark:text-neutral-100">{method === 'MANUAL_TRANSFER' ? 'Transfer Manual' : method}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-neutral-500 dark:text-neutral-400">Total</span>
@@ -180,6 +183,14 @@ export default function SuccessPage() {
                 {formatIDR(order?.totalCents ?? total)}
               </span>
             </div>
+            {method === 'MANUAL_TRANSFER' && bankName && (
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-500 dark:text-neutral-400">Rekening Tujuan</span>
+                <span className="text-neutral-900 dark:text-neutral-100 text-right">
+                  {bankName}<br/>No. {bankAccountNo}<br/>{bankAccountName}
+                </span>
+              </div>
+            )}
             {method === 'CASH' && (
               <>
                 <div className="flex justify-between">
@@ -277,6 +288,17 @@ export default function SuccessPage() {
           <span>Total</span>
           <span>{formatIDR(order?.totalCents ?? total)}</span>
         </div>
+        {method === 'MANUAL_TRANSFER' && bankName && (
+          <>
+            <div className="text-sm flex justify-between">
+              <span>Metode</span>
+              <span>Transfer Manual</span>
+            </div>
+            <div className="text-xs">
+              Rek: {bankName} No. {bankAccountNo}<br/>{bankAccountName}
+            </div>
+          </>
+        )}
         {method === 'CASH' && (
           <>
             <div className="text-sm flex justify-between">

@@ -9,47 +9,161 @@
   to   { transform: scale(2.4); opacity: 0; }
 }
 
+/* Subtle gradient for page background */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 :root {
-  /* Light mode (default) */
-  --background: #fafafa;
-  --foreground: #171717;
-  --primary: #dc2626;
-  --card: #ffffff;
-  --border: #e5e5e5;
-  --muted: #f5f5f5;
-  --muted-foreground: #525252;
+  /* ── Warm Dashboard Theme (Dribbble POS inspired) ── */
+  --background: #F5F4F4;
+  --foreground: #080808;
+  --primary: #FF3118;
+  --primary-hover: #E52D15;
+  --accent: #F1885F;
+  --accent-soft: #FDF0EC;
+  --card: #FFFFFF;
+  --card-hover: #FAFAFA;
+  --border: #E5E5E5;
+  --muted: #F0F0F0;
+  --muted-foreground: #5E5E5D;
+  --secondary-text: #AEAAA5;
+
+  /* Warm shadows (tinted, not pure black) */
+  --shadow-sm: 0 1px 3px rgba(8, 8, 8, 0.04), 0 1px 2px rgba(8, 8, 8, 0.03);
+  --shadow-md: 0 4px 12px rgba(8, 8, 8, 0.05), 0 2px 4px rgba(8, 8, 8, 0.03);
+  --shadow-lg: 0 8px 24px rgba(8, 8, 8, 0.06), 0 4px 8px rgba(8, 8, 8, 0.04);
+
+  /* Sidebar */
+  --sidebar-bg: #080808;
+  --sidebar-text: #AEAAA5;
+  --sidebar-active: #FF3118;
+  --sidebar-active-text: #FFFFFF;
+
+  /* Semantic colors */
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger: #DC2626;
+  --info: #3B82F6;
 }
 
 .dark {
-  /* Dark mode overrides */
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --primary: #dc2626;
-  --card: #171717;
-  --border: #262626;
-  --muted: #171717;
-  --muted-foreground: #a3a3a3;
+  /* ── Dark Theme ── */
+  --background: #111111;
+  --foreground: #F5F5F5;
+  --primary: #FF4D33;
+  --primary-hover: #FF3118;
+  --accent: #F1885F;
+  --accent-soft: #2A1F1A;
+  --card: #1A1A1A;
+  --card-hover: #222222;
+  --border: #2A2A2A;
+  --muted: #1F1F1F;
+  --muted-foreground: #888888;
+  --secondary-text: #666666;
+
+  /* Dark warm shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
+
+  /* Sidebar (dark mode same as light — sidebar is always dark) */
+  --sidebar-bg: #080808;
+  --sidebar-text: #888888;
+  --sidebar-active: #FF4D33;
+  --sidebar-active-text: #FFFFFF;
+
+  --success: #22C55E;
+  --warning: #FBBF24;
+  --danger: #EF4444;
+  --info: #60A5FA;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
   --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-text: var(--secondary-text);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
 }
 
 html, body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Print-friendly tweaks (Sprint 2) */
+/* ── Card System ── */
+.card {
+  background: var(--card);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.card-sm {
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* ── Accent Background ── */
+.accent-bg {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+  color: white;
+}
+.accent-bg-soft {
+  background: var(--accent-soft);
+  color: var(--foreground);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* ── Selection ── */
+::selection {
+  background: var(--primary);
+  color: white;
+}
+
+/* Print-friendly tweaks */
 @media print {
   body {
     background: white !important;
     color: black !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
   }
 }

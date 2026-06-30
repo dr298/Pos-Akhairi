@@ -100,7 +100,7 @@ const receiveSchema = z.object({
     .array(
       z.object({
         poItemId: z.string().min(1).max(50),
-        qtyReceived: z.number().int().nonnegative(),
+        qtyReceived: z.number().nonnegative(),
       }),
     )
     .min(1),
@@ -480,17 +480,25 @@ purchaseOrderRoutes.post(
       return fail(c, 'InvalidState', `Cannot receive PO in status ${po.status}`, 409);
     }
 
-    // Validate that every override targets a real PO item and is within
-    // (qtyReceived, qtyOrdered]. Skip items not in the override list.
+    // Load inventory items early so we can use names in error messages.
+    const invIds = po.items.map((i) => i.inventoryItemId);
+    const invItems = await prisma.inventoryItem.findMany({
+      where: { id: { in: invIds } },
+    });
+    const invMap = new Map(invItems.map((i) => [i.id, i]));
+
+    // Validate overrides: must target a real PO item, within (qtyReceived, qtyOrdered].
     for (const it of po.items) {
       if (!overrides.has(it.id)) continue;
       const q = overrides.get(it.id)!;
       const qtyOrdered = Number(it.qtyOrdered);
-      if (q < it.qtyReceived + 1) {
+      const currentReceived = Number(it.qtyReceived);
+      const invName = invMap.get(it.inventoryItemId)?.name ?? it.inventoryItemId;
+      if (q <= currentReceived) {
         return fail(
           c,
           'ValidationError',
-          `Item ${it.id}: qtyReceived must exceed current (${it.qtyReceived})`,
+          `"${invName}": qty diterima (${q}) harus lebih dari jumlah saat ini (${currentReceived})`,
           400,
         );
       }
@@ -498,26 +506,20 @@ purchaseOrderRoutes.post(
         return fail(
           c,
           'ValidationError',
-          `Item ${it.id}: qtyReceived (${q}) exceeds qtyOrdered (${qtyOrdered})`,
+          `"${invName}": qty diterima (${q}) melebihi qty dipesan (${qtyOrdered})`,
           400,
         );
       }
     }
 
-    // Load inventory items in bulk
-    const invIds = po.items.map((i) => i.inventoryItemId);
-    const invItems = await prisma.inventoryItem.findMany({
-      where: { id: { in: invIds } },
-    });
-    const invMap = new Map(invItems.map((i) => [i.id, i]));
-
     const result = await prisma.$transaction(async (tx) => {
       let allComplete = true;
       let anyReceived = false;
       for (const it of po.items) {
-        const q = overrides.get(it.id) ?? it.qtyReceived;
-        if (q === it.qtyReceived) continue; // unchanged
-        const inc = q - it.qtyReceived;
+        const currentReceived = Number(it.qtyReceived);
+        const q = overrides.get(it.id) ?? currentReceived;
+        if (q === currentReceived) continue; // unchanged
+        const inc = q - currentReceived;
         if (inc <= 0) continue;
         const inv = invMap.get(it.inventoryItemId);
         if (!inv) throw new Error(`Inventory item ${it.inventoryItemId} not found`);
@@ -565,7 +567,7 @@ purchaseOrderRoutes.post(
         where: { purchaseOrderId: po.id },
       });
       for (const it of refreshedItems) {
-        if (it.qtyReceived < Number(it.qtyOrdered)) {
+        if (Number(it.qtyReceived) < Number(it.qtyOrdered)) {
           allComplete = false;
         }
       }

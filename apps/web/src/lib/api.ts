@@ -94,6 +94,18 @@ export interface Modifier {
   priceDeltaCents: number;
 }
 
+export interface InventoryItem {
+  id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  quantity: string;
+  reorderPoint: string;
+  costPerUnit: string;
+  isActive: boolean;
+  createdAt?: string;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -385,8 +397,8 @@ export interface CustomerDetail extends Customer {
   loyaltyTransactions: LoyaltyTransaction[];
 }
 
-export type PaymentProviderName = 'CASH' | 'MIDTRANS' | 'XENDIT';
-export type PaymentMethodKind = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET';
+export type PaymentProviderName = 'CASH' | 'MIDTRANS' | 'XENDIT' | 'MANUAL_TRANSFER';
+export type PaymentMethodKind = 'CASH' | 'QRIS' | 'VIRTUAL_ACCOUNT' | 'EWALLET' | 'MANUAL_TRANSFER';
 
 export interface PaymentProviderInfo {
   name: PaymentProviderName;
@@ -433,6 +445,17 @@ export interface RefundRequest {
 }
 
 // ─── Endpoints ───────────────────────────────────────────────────────────────
+// Bank Account master data
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNo: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export const api = {
   // Auth
@@ -484,6 +507,9 @@ export const api = {
   getMenuItemRecipes: (id: string) =>
     request<{ data: any[] }>(`/api/menu/items/${id}/recipes`),
 
+  // Inventory items
+  getInventoryItems: () =>
+    request<{ data: InventoryItem[] }>('/api/inventory'),
   // Shifts
   getCurrentShift: () => request<{ data: Shift | null }>('/api/shifts/current'),
   openShift: (openingCash: number) =>
@@ -535,12 +561,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  payCash: (orderId: string, amountGiven: number) =>
+  payCash: (orderId: string, amountGiven: number, method?: 'CASH' | 'MANUAL_TRANSFER', bankAccount?: { id: string; bankName: string; accountName: string; accountNo: string }) =>
     request<{ data: { order: Order; payment: OrderPayment; changeCents: number; amountGiven: number; lowStockAlerts?: Array<{ itemId: string; name: string; currentStock: number; minStock: number }> } }>(
       `/api/orders/${orderId}/pay-cash`,
-      { method: 'POST', body: JSON.stringify({ amountGiven }) },
+      { method: 'POST', body: JSON.stringify({ amountGiven, method: method || 'CASH', bankAccount }) },
     ),
-  getOrders: () => request<{ data: Order[] }>('/api/orders'),
+  getOrders: (from?: string, to?: string) => request<{ data: Order[] }>(`/api/orders${from && to ? `?from=${from}&to=${to}` : ''}`),
   getOrder: (id: string) => request<{ data: Order }>(`/api/orders/${id}`),
   voidOrder: (id: string, reason: string) =>
     request<{ data: Order }>(`/api/orders/${id}/void`, {
@@ -1322,6 +1348,24 @@ export const api = {
     request<{ data: CashTransfer }>('/api/transfers', {
       method: 'POST',
       body: JSON.stringify(body),
+    }),
+
+  // Bank Accounts
+  listBankAccounts: () => request<{ data: { accounts: BankAccount[] } }>('/api/bank-accounts'),
+  listActiveBankAccounts: () => request<{ data: { accounts: BankAccount[] } }>('/api/bank-accounts/active'),
+  createBankAccount: (data: { bankName: string; accountName: string; accountNo: string; isActive?: boolean; sortOrder?: number }) =>
+    request<{ data: { account: BankAccount } }>('/api/bank-accounts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateBankAccount: (id: string, data: Partial<{ bankName: string; accountName: string; accountNo: string; isActive: boolean; sortOrder: number }>) =>
+    request<{ data: { account: BankAccount } }>(`/api/bank-accounts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteBankAccount: (id: string) =>
+    request<{ data: { deleted: boolean } }>(`/api/bank-accounts/${id}`, {
+      method: 'DELETE',
     }),
 };
 

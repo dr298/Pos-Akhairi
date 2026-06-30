@@ -11,16 +11,16 @@ import { formatIDR } from '@/lib/format';
 interface ZReport {
   date: string;
   summary: {
-    grossCents: number;
+    grossRevenueCents: number;
     discountCents: number;
     taxCents: number;
-    netCents: number;
-    paidOrders: number;
-    voidedOrders: number;
-    voidedCents: number;
-    refundedOrders: number;
-    refundedCents: number;
-    avgTicketCents: number;
+    netRevenueCents: number;
+    totalRevenueCents: number;
+    paidOrderCount: number;
+    voidCount: number;
+    voidAmountCents: number;
+    refundCount: number;
+    refundAmountCents: number;
   };
   paymentBreakdown: Record<string, { count: number; amountCents: number }>;
   orderTypeBreakdown: Record<string, { count: number; revenueCents: number }>;
@@ -28,9 +28,9 @@ interface ZReport {
   topItems: Array<{ menuItemId: string; name: string; qty: number; revenueCents: number }>;
   categoryBreakdown: Array<{ categoryId: string; name: string; qty: number; revenueCents: number }>;
   hourly: Array<{ hour: number; orders: number; revenueCents: number }>;
-  shiftReconciliation: Array<{
+  shifts: Array<{
     shiftId: string;
-    cashier: string;
+    user: { name: string };
     openedAt: string;
     closedAt: string | null;
     status: string;
@@ -39,12 +39,13 @@ interface ZReport {
     expectedCents: number | null;
     varianceCents: number | null;
   }>;
-  voidRefundLog: Array<{
+  voidRefunds: Array<{
     orderId: string;
     orderNumber: string;
     status: string;
     totalCents: number;
-    occurredAt: string | null;
+    voidedAt: string | null;
+    refundedAt: string | null;
   }>;
   dailyClose: { status: string; grossCents: number; netCents: number; closedAt: string } | null;
   generatedAt: string;
@@ -157,12 +158,12 @@ export default function ZReportPage() {
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
-            <Stat label="Gross" value={formatIDR(report.summary.grossCents)} sub={`${report.summary.paidOrders} orders`} />
+            <Stat label="Gross" value={formatIDR(report.summary.grossRevenueCents)} sub={`${report.summary.paidOrderCount} orders`} />
             <Stat label="Discount" value={formatIDR(report.summary.discountCents)} sub="-" />
             <Stat label="Tax (PPN)" value={formatIDR(report.summary.taxCents)} />
-            <Stat label="Net Sales" value={formatIDR(report.summary.netCents)} sub={`Avg ticket ${formatIDR(report.summary.avgTicketCents)}`} />
-            <Stat label="Void" value={`${report.summary.voidedOrders}`} sub={formatIDR(report.summary.voidedCents)} />
-            <Stat label="Refund" value={`${report.summary.refundedOrders}`} sub={formatIDR(report.summary.refundedCents)} />
+            <Stat label="Net Sales" value={formatIDR(report.summary.netRevenueCents)} sub={`Avg ticket ${formatIDR(report.summary.paidOrderCount > 0 ? Math.round(report.summary.totalRevenueCents / report.summary.paidOrderCount) : 0)}`} />
+            <Stat label="Void" value={`${report.summary.voidCount}`} sub={formatIDR(report.summary.voidAmountCents)} />
+            <Stat label="Refund" value={`${report.summary.refundCount}`} sub={formatIDR(report.summary.refundAmountCents)} />
             <Stat
               label="Daily Close"
               value={report.dailyClose ? report.dailyClose.status : '—'}
@@ -371,9 +372,9 @@ export default function ZReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {report.shiftReconciliation.map((s) => (
+                    {report.shifts.map((s) => (
                       <tr key={s.shiftId} className="border-t border-neutral-200 dark:border-neutral-800">
-                        <td className="py-1.5">{s.cashier}</td>
+                        <td className="py-1.5">{s.user?.name}</td>
                         <td><Badge tone={s.status === 'CLOSED' ? 'muted' : 'success'} className="text-[9px]">{s.status}</Badge></td>
                         <td className="text-right tabular-nums">{s.expectedCents != null ? formatIDR(s.expectedCents) : '—'}</td>
                         <td className="text-right tabular-nums">{s.closingCents != null ? formatIDR(s.closingCents) : '—'}</td>
@@ -382,7 +383,7 @@ export default function ZReportPage() {
                         </td>
                       </tr>
                     ))}
-                    {report.shiftReconciliation.length === 0 && (
+                    {report.shifts.length === 0 && (
                       <tr><td colSpan={5} className="text-center text-neutral-500 py-2">Tidak ada shift</td></tr>
                     )}
                   </tbody>
@@ -407,14 +408,14 @@ export default function ZReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {report.voidRefundLog.map((v) => (
+                    {report.voidRefunds.map((v) => (
                       <tr key={v.orderId} className="border-t border-neutral-200 dark:border-neutral-800">
                         <td className="py-1.5">{v.orderNumber}</td>
                         <td><Badge tone="danger" className="text-[9px]">{v.status}</Badge></td>
                         <td className="text-right tabular-nums">{formatIDR(v.totalCents)}</td>
                       </tr>
                     ))}
-                    {report.voidRefundLog.length === 0 && (
+                    {report.voidRefunds.length === 0 && (
                       <tr><td colSpan={3} className="text-center text-neutral-500 py-2">Tidak ada void/refund</td></tr>
                     )}
                   </tbody>

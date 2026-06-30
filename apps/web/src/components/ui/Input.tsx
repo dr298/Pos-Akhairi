@@ -6,10 +6,11 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        'flex h-10 w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm',
-        'text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500',
-        'focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/60',
-        'disabled:opacity-50',
+        'flex h-10 w-full rounded-lg border bg-card px-3 py-2 text-sm text-foreground',
+        'placeholder:text-muted-foreground',
+        'border-border focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none',
+        'disabled:opacity-50 disabled:cursor-not-allowed',
+        'transition-colors duration-200',
         className,
       )}
       {...props}
@@ -23,10 +24,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        'flex min-h-[64px] w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm',
-        'text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-500',
-        'focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/60',
-        'disabled:opacity-50 resize-none',
+        'flex min-h-[64px] w-full rounded-lg border bg-card px-3 py-2 text-sm text-foreground',
+        'placeholder:text-muted-foreground',
+        'border-border focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none',
+        'disabled:opacity-50 disabled:cursor-not-allowed resize-none',
+        'transition-colors duration-200',
         className,
       )}
       {...props}

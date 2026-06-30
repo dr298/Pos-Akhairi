@@ -185,21 +185,22 @@ reportRoutes.get('/items', async (c) => {
     },
     _sum: { lineTotalCents: true, quantity: true },
   });
-  const menuMap = new Map(
-    (
-      await prisma.menuItem.findMany({
-        where: { id: { in: grouped.map((g) => g.menuItemId) } },
-        select: { id: true, name: true },
-      })
-    ).map((m) => [m.id, m.name])
-  );
+  const menuRows = await prisma.menuItem.findMany({
+    where: { id: { in: grouped.map((g) => g.menuItemId) } },
+    select: { id: true, name: true, category: { select: { name: true } } },
+  });
+  const menuMap = new Map(menuRows.map((m) => [m.id, { name: m.name, category: m.category.name }]));
   const items = grouped
-    .map((g) => ({
-      menuItemId: g.menuItemId,
-      name: menuMap.get(g.menuItemId) || '(unknown)',
-      qty: g._sum.quantity ?? 0,
-      revenueCents: g._sum.lineTotalCents ?? 0,
-    }))
+    .map((g) => {
+      const info = menuMap.get(g.menuItemId);
+      return {
+        menuItemId: g.menuItemId,
+        name: info?.name || '(unknown)',
+        category: info?.category || null,
+        qty: g._sum.quantity ?? 0,
+        revenueCents: g._sum.lineTotalCents ?? 0,
+      };
+    })
     .sort((a, b) => b.revenueCents - a.revenueCents);
 
   return ok(c, { period: { from, to }, items });
@@ -497,6 +498,7 @@ reportRoutes.get('/z-report', async (c) => {
     shifts,
     voidRefunds,
     dailyClose: dailyClose ?? null,
+    generatedAt: new Date().toISOString(),
   };
   cacheSet(cacheKey, result, 60_000);
   return ok(c, result);
@@ -680,3 +682,72 @@ reportRoutes.get('/pnl', async (c) => {
   });
 });
 
+
+// Sales report export — CSV with date range + product breakdown.
+// GET /api/reports/sales-export?from=2026-06-26&to=2026-06-28
+reportRoutes.get('/sales-export', async (c) => {
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  if (!from || !to) return fail(c, 'ValidationError', 'from and to are required (YYYY-MM-DD)', 400);
+
+  const start = new Date(`${from}T00:00:00.000Z`);
+  const end = new Date(`${to}T23:59:59.999Z`);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    return fail(c, 'ValidationError', 'Invalid date range', 400);
+  }
+
+  // Get order items with category + cost
+  const orderItems = await prisma.orderItem.findMany({
+    where: {
+      order: { status: 'PAID', closedAt: { gte: start, lte: end } },
+    },
+    include: {
+      order: { select: { closedAt: true, totalCents: true } },
+      menuItem: { select: { name: true, costCents: true, category: { select: { name: true } } } },
+    },
+    orderBy: { order: { closedAt: 'asc' } },
+  });
+
+  const rows: (string | number)[][] = [];
+  rows.push(['Tanggal', 'Kategori', 'Menu', 'Qty', 'Harga Satuan', 'Total', 'HPP/pcs', 'Total HPP', 'Profit']);
+
+  let totalQty = 0;
+  let totalRevenue = 0;
+  let totalHpp = 0;
+  let totalProfit = 0;
+
+  for (const item of orderItems) {
+    const date = item.order.closedAt ? item.order.closedAt.toISOString().slice(0, 10) : '';
+    const category = item.menuItem?.category?.name || '-';
+    const menuName = item.menuItem?.name || item.nameSnapshot;
+    const qty = item.quantity;
+    const priceCents = item.priceCents;
+    const lineTotal = item.lineTotalCents;
+    const hppPerPcs = item.menuItem?.costCents || 0;
+    const totalHppCents = hppPerPcs * qty;
+    const profitCents = lineTotal - totalHppCents;
+
+    totalQty += qty;
+    totalRevenue += lineTotal;
+    totalHpp += totalHppCents;
+    totalProfit += profitCents;
+
+    rows.push([
+      date,
+      category,
+      menuName,
+      qty,
+      priceCents / 100,
+      lineTotal / 100,
+      hppPerPcs / 100,
+      totalHppCents / 100,
+      profitCents / 100,
+    ]);
+  }
+
+  // Total row
+  rows.push([]);
+  rows.push(['TOTAL', '', '', totalQty, '', totalRevenue / 100, '', totalHpp / 100, totalProfit / 100]);
+
+  return csvResponse(c, `sales-${from}-to-${to}.csv`, rows);
+});

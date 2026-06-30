@@ -9,6 +9,7 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { formatIDR } from '@/lib/format';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 type Tab = 'items' | 'categories';
 
@@ -37,6 +38,9 @@ export default function MenuManagementPage() {
   const [editCost, setEditCost] = useState('');
   const [editAvailable, setEditAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editRecipes, setEditRecipes] = useState<Array<{ inventoryItemId: string; quantity: string; unit: string }>>([]);
+  const [allInventoryItems, setAllInventoryItems] = useState<Array<{ id: string; sku: string; name: string; unit: string; costPerUnit: string }>>([]);
+  const [recipesLoading, setRecipesLoading] = useState(false);
 
   // New item modal
   const [creating, setCreating] = useState(false);
@@ -102,17 +106,42 @@ export default function MenuManagementPage() {
     return it.name.toLowerCase().includes(s) || (it.sku ?? '').toLowerCase().includes(s);
   });
 
-  const openEdit = (it: MenuItem) => {
+  const openEdit = async (it: MenuItem) => {
     setEditing(it);
     setEditPrice((it.priceCents / 100).toString());
     setEditCost(((it.costCents ?? 0) / 100).toString());
     setEditAvailable(it.isAvailable);
+    setEditRecipes([]);
+    setRecipesLoading(true);
+    try {
+      const [recipesRes, inventoryRes] = await Promise.all([
+        fetch(`/api/menu/items/${it.id}/recipes`, { credentials: 'include' }),
+        fetch(`/api/inventory`, { credentials: 'include' }),
+      ]);
+      if (recipesRes.ok) {
+        const recipesData = await recipesRes.json();
+        setEditRecipes((recipesData.data ?? []).map((r: any) => ({
+          inventoryItemId: r.inventoryItemId,
+          quantity: String(r.quantity ?? ''),
+          unit: r.unit ?? r.inventoryItem?.unit ?? '',
+        })));
+      }
+      if (inventoryRes.ok) {
+        const invData = await inventoryRes.json();
+        setAllInventoryItems(invData.data?.items ?? []);
+      }
+    } catch {
+      // silent — recipes/inventory load failure is non-blocking
+    } finally {
+      setRecipesLoading(false);
+    }
   };
 
   const saveEdit = async () => {
     if (!editing) return;
     setSaving(true);
     setError(null);
+    const id = editing.id;
     try {
       const priceCents = Math.round(parseFloat(editPrice) * 100);
       const costCents = Math.round(parseFloat(editCost || '0') * 100);
@@ -120,13 +149,34 @@ export default function MenuManagementPage() {
         setError('Harga tidak valid');
         return;
       }
-      await api.updateMenuItem(editing.id, {
+      await api.updateMenuItem(id, {
         priceCents,
         costCents,
         isAvailable: editAvailable,
       } as any);
       setInfo(`Harga ${editing.name} diperbarui`);
+      try {
+        const validRecipes = editRecipes.filter(r => r.inventoryItemId);
+        if (validRecipes.length > 0 || true) {
+          const res = await fetch(`/api/menu/items/${id}/recipes`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipes: validRecipes.map(r => ({
+                inventoryItemId: r.inventoryItemId,
+                quantity: parseFloat(r.quantity) || 0,
+                unit: r.unit,
+              })),
+            }),
+          });
+          if (res.ok) toast.success('Resep berhasil disimpan');
+        }
+      } catch {
+        toast.error('Gagal menyimpan resep');
+      }
       setEditing(null);
+      setEditRecipes([]);
       await loadItems();
       setTimeout(() => setInfo(null), 2000);
     } catch (e) {
@@ -402,8 +452,74 @@ export default function MenuManagementPage() {
                 />
                 Tersedia untuk dijual
               </label>
+              {/* Resep (BOM) Section */}
+              <div className="border-t border-neutral-700 pt-3 mt-1">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-neutral-300">Resep (BOM)</h4>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditRecipes([...editRecipes, { inventoryItemId: '', quantity: '', unit: '' }])}
+                    disabled={recipesLoading}
+                  >
+                    + Tambah bahan
+                  </Button>
+                </div>
+                {recipesLoading ? (
+                  <p className="text-xs text-neutral-500">Loading resep…</p>
+                ) : editRecipes.length === 0 ? (
+                  <p className="text-xs text-neutral-500 italic">Belum ada resep. Klik "Tambah bahan" untuk menambah.</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {editRecipes.map((row, idx) => (
+                      <div key={idx} className="flex gap-1.5 items-center">
+                        <select
+                          value={row.inventoryItemId}
+                          disabled={!!row.inventoryItemId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const item = allInventoryItems.find(i => i.id === val);
+                            setEditRecipes(editRecipes.map((r, i) => i === idx ? {
+                              ...r,
+                              inventoryItemId: val,
+                              unit: item?.unit ?? r.unit,
+                            } : r));
+                          }}
+                          className="flex-1 min-w-0 bg-neutral-800 border border-neutral-700 text-neutral-300 text-xs rounded px-2 py-1.5 disabled:opacity-50"
+                        >
+                          <option value="">Pilih bahan…</option>
+                          {allInventoryItems.map(item => (
+                            <option key={item.id} value={item.id}>
+                              {item.name} ({item.unit})
+                            </option>
+                          ))}
+                        </select>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Qty"
+                          value={row.quantity}
+                          onChange={(e) => {
+                            setEditRecipes(editRecipes.map((r, i) => i === idx ? { ...r, quantity: e.target.value } : r));
+                          }}
+                          className="w-16 text-xs"
+                        />
+                        <span className="text-xs text-neutral-500 w-10 text-right shrink-0">{row.unit || '—'}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditRecipes(editRecipes.filter((_, i) => i !== idx))}
+                          className="text-neutral-500 hover:text-red-400 text-xs px-1 shrink-0"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>
+                <Button variant="outline" onClick={() => { setEditing(null); setEditRecipes([]); }} disabled={saving}>
                   Batal
                 </Button>
                 <Button onClick={saveEdit} disabled={saving}>
@@ -418,42 +534,26 @@ export default function MenuManagementPage() {
       {/* Create modal */}
       {creating && (
         <div className="fixed inset-0 bg-white dark:bg-black/70 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
+          <Card className="w-full max-w-lg">
             <CardHeader>
-              <CardTitle>Menu Baru</CardTitle>
+              <CardTitle>Tambah Menu Baru</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Nama *</label>
-                <Input
-                  value={newItem.name}
-                  onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">SKU *</label>
-                <Input
-                  value={newItem.sku}
-                  onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Harga (Rp) *</label>
+                  <label className="text-xs text-slate-400 block mb-1">Nama *</label>
                   <Input
-                    type="number"
-                    step="100"
-                    value={newItem.priceCents}
-                    onChange={(e) => setNewItem({ ...newItem, priceCents: e.target.value })}
+                    placeholder="Contoh: Mie Basic"
+                    value={newItem.name}
+                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Modal (Rp)</label>
+                  <label className="text-xs text-slate-400 block mb-1">SKU *</label>
                   <Input
-                    type="number"
-                    step="100"
-                    value={newItem.costCents}
-                    onChange={(e) => setNewItem({ ...newItem, costCents: e.target.value })}
+                    placeholder="Contoh: MKB-001"
+                    value={newItem.sku}
+                    onChange={(e) => setNewItem({ ...newItem, sku: e.target.value })}
                   />
                 </div>
               </div>
@@ -472,20 +572,43 @@ export default function MenuManagementPage() {
                   ))}
                 </select>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Harga (Rp) *</label>
+                  <Input
+                    type="number"
+                    step="100"
+                    placeholder="25000"
+                    value={newItem.priceCents}
+                    onChange={(e) => setNewItem({ ...newItem, priceCents: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Modal (Rp)</label>
+                  <Input
+                    type="number"
+                    step="100"
+                    placeholder="10000"
+                    value={newItem.costCents}
+                    onChange={(e) => setNewItem({ ...newItem, costCents: e.target.value })}
+                  />
+                </div>
+              </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Deskripsi</label>
                 <Textarea
+                  placeholder="Deskripsi menu (opsional)"
                   value={newItem.description}
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                   rows={2}
                 />
               </div>
-              <div className="flex gap-2 justify-end pt-2">
+              <div className="flex gap-2 justify-end pt-1 border-t border-slate-800">
                 <Button variant="outline" onClick={() => setCreating(false)} disabled={creatingItem}>
                   Batal
                 </Button>
                 <Button onClick={createItem} disabled={creatingItem}>
-                  {creatingItem ? 'Creating…' : 'Buat'}
+                  {creatingItem ? 'Menyimpan…' : 'Buat Menu'}
                 </Button>
               </div>
             </CardContent>

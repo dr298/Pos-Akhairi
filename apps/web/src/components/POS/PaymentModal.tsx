@@ -28,13 +28,14 @@ interface Props {
   /** Cash-only path: caller creates the order and calls pay-cash. */
   onConfirmCash: (amountGivenCents: number) => Promise<PaymentResult | null>;
   /** Non-cash path: caller creates the order and calls chargePayment. */
-  onConfirmNonCash: (method: PaymentMethodKind) => Promise<PaymentResult | null>;
+  onConfirmNonCash: (method: PaymentMethodKind, bankAccount?: { id: string; bankName: string; accountName: string; accountNo: string }) => Promise<PaymentResult | null>;
   busy?: boolean;
 }
 
 const QUICK_AMOUNTS_IDR = [20000, 50000, 100000, 200000, 500000];
 
 const METHOD_LABEL: Record<PaymentMethodKind, string> = {
+  MANUAL_TRANSFER: 'Transfer',
   CASH: 'Tunai',
   QRIS: 'QRIS',
   VIRTUAL_ACCOUNT: 'Virtual Account',
@@ -46,7 +47,9 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
   const [providers, setProviders] = useState<PaymentProviderInfo[]>([]);
   const [input, setInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [pollError, setPollError] = useState<string | null>(null);
+    const [pollError, setPollError] = useState<string | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<Array<{id: string; bankName: string; accountName: string; accountNo: string}>>([]);
+  const [selectedBankAccount, setSelectedBankAccount] = useState('');
 
   // The non-cash flow has a separate "awaiting payment" sub-state, owned by
   // the parent. We expose the same modal throughout and only close once the
@@ -71,9 +74,19 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
         if (!cancelled) {
           setProviders([
             { name: 'CASH', methods: ['CASH'] },
+            { name: 'MANUAL_TRANSFER', methods: ['MANUAL_TRANSFER'] },
             { name: 'MIDTRANS', methods: ['QRIS', 'VIRTUAL_ACCOUNT', 'EWALLET'] },
           ]);
         }
+      }
+    })();
+    // Load bank accounts for MANUAL_TRANSFER
+    (async () => {
+      try {
+        const res = await api.listActiveBankAccounts();
+        if (!cancelled) setBankAccounts(res.data.accounts);
+      } catch {
+        // Ignore
       }
     })();
     return () => {
@@ -105,6 +118,15 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
       } finally {
         setSubmitting(false);
       }
+    } else if (tab === 'MANUAL_TRANSFER') {
+      if (!selectedBankAccount) return;
+      setSubmitting(true);
+      try {
+        const acc = bankAccounts.find((a) => a.id === selectedBankAccount);
+        await onConfirmNonCash('MANUAL_TRANSFER', acc);
+      } finally {
+        setSubmitting(false);
+      }
     } else {
       setSubmitting(true);
       try {
@@ -123,15 +145,15 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
         <DialogHeader>
           <div>
             <DialogTitle>Pembayaran</DialogTitle>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
-              Total: <span className="text-neutral-900 dark:text-neutral-100 font-semibold">{formatIDR(totalCents)}</span>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Total: <span className="text-[var(--foreground)] font-semibold">{formatIDR(totalCents)}</span>
             </p>
           </div>
           <DialogClose />
         </DialogHeader>
         <DialogBody>
           <Tabs value={tab} onValueChange={(v) => !isSubmitting && setTab(v as PaymentMethodKind)}>
-            <TabsList className="w-full grid grid-cols-4">
+            <TabsList className="w-full grid grid-cols-5">
               {availableMethods.map((m) => (
                 <TabsTrigger key={m} value={m} className="text-xs px-2">
                   {METHOD_LABEL[m] || m}
@@ -164,13 +186,13 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
                   Pas
                 </Button>
               </div>
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-1">
+              <div className="rounded-lg p-3 space-y-1 bg-accent-soft border border-accent/20">
                 <div className="flex justify-between text-sm">
-                  <span className="text-neutral-500 dark:text-neutral-400">Diterima</span>
-                  <span className="text-neutral-900 dark:text-neutral-100">{formatIDR(amountGivenCents)}</span>
+                  <span className="text-muted-foreground">Diterima</span>
+                  <span className="text-[var(--foreground)]">{formatIDR(amountGivenCents)}</span>
                 </div>
                 <div className="flex justify-between text-base font-semibold">
-                  <span className="text-neutral-800 dark:text-neutral-200">Kembalian</span>
+                  <span className="text-[var(--foreground)]">Kembalian</span>
                   <span className={cn(changeCents >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                     {formatIDR(Math.max(0, changeCents))}
                   </span>
@@ -182,43 +204,71 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
             </TabsContent>
 
             <TabsContent value="QRIS" className="space-y-2">
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-lg p-3 space-y-2 text-sm bg-accent-soft border border-accent/20">
+                <p className="text-[var(--foreground)]">
                   QRIS via Midtrans — setelah klik <strong>Konfirmasi</strong>, order dibuat
                   dan QRIS akan ditampilkan di halaman sukses. Pembayaran terdeteksi
                   otomatis via webhook.
                 </p>
-                <p className="text-neutral-500 text-xs">
-                  Pastikan shift aktif dan terminal online.
+                <p className="text-muted-foreground text-xs">
+                Pastikan shift aktif dan terminal online.
                 </p>
               </div>
             </TabsContent>
 
             <TabsContent value="VIRTUAL_ACCOUNT" className="space-y-2">
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-lg p-3 space-y-2 text-sm bg-accent-soft border border-accent/20">
+                <p className="text-[var(--foreground)]">
                   Virtual Account — nomor VA akan diterbitkan setelah konfirmasi.
                   Order otomatis terbayar saat pembayaran masuk.
                 </p>
-                <p className="text-neutral-500 text-xs">Provider: Midtrans / Xendit</p>
+                <p className="text-muted-foreground text-xs">Provider: Midtrans / Xendit</p>
               </div>
             </TabsContent>
 
             <TabsContent value="EWALLET" className="space-y-2">
-              <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 space-y-2 text-sm">
-                <p className="text-neutral-700 dark:text-neutral-300">
+              <div className="rounded-lg p-3 space-y-2 text-sm bg-accent-soft border border-accent/20">
+                <p className="text-[var(--foreground)]">
                   E-Wallet (GoPay / OVO / Dana) — pembayaran lewat Snap/Invoice
                   Midtrans atau Xendit.
                 </p>
-                <p className="text-neutral-500 text-xs">
+                <p className="text-muted-foreground text-xs">
                   Customer menyelesaikan pembayaran di halaman provider.
                 </p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="MANUAL_TRANSFER" className="space-y-3">
+              <div className="rounded-lg p-3 space-y-2 text-sm bg-accent-soft border border-accent/20">
+                <p className="text-[var(--foreground)]">
+                  Transfer Manual — pilih rekening tujuan transfer di bawah.
+                  Customer melakukan transfer ke rekening yang dipilih, lalu konfirmasi ke kasir.
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Setelah konfirmasi, order akan ditandai sebagai PAID.
+                </p>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase text-muted-foreground mb-1 block">Rekening Tujuan</label>
+                <select
+                  id="bank-account-select"
+                  className="w-full rounded-lg px-2 py-2 text-sm bg-muted text-[var(--foreground)] border border-border"
+                  value={selectedBankAccount}
+                  onChange={(e) => setSelectedBankAccount(e.target.value)}
+                >
+                  <option value="" disabled>Pilih rekening...</option>
+                  {bankAccounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.bankName} — {acc.accountNo} ({acc.accountName})
+                    </option>
+                  ))}
+                </select>
               </div>
             </TabsContent>
           </Tabs>
 
           {pollError && (
-            <div className="text-xs text-amber-400 bg-amber-950/30 border border-amber-900/50 rounded-md px-2 py-1.5">
+            <div className="text-xs text-amber-400 bg-muted rounded-lg px-2 py-1.5 border border-border">
               {pollError}
             </div>
           )}
@@ -229,7 +279,7 @@ export function PaymentModal({ open, onOpenChange, totalCents, onConfirmCash, on
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isSubmitting || (tab === 'CASH' && !sufficient)}
+            disabled={isSubmitting || (tab === 'CASH' && !sufficient) || (tab === 'MANUAL_TRANSFER' && !selectedBankAccount)}
           >
             {isSubmitting ? 'Memproses…' : tab === 'CASH' ? 'Konfirmasi Tunai' : 'Buat Pembayaran'}
           </Button>
@@ -280,9 +330,9 @@ export function AwaitingPaymentPanel({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-white dark:bg-black/70 backdrop-blur-sm">
-      <div className="relative z-10 w-full sm:max-w-md rounded-t-2xl sm:rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 shadow-2xl p-5 space-y-4">
+      <div className="relative z-10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-card text-[var(--foreground)] shadow-lg p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Menunggu Pembayaran</h2>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">Menunggu Pembayaran</h2>
           <Badge tone={pollStatus === 'polling' ? 'info' : pollStatus === 'paid' ? 'success' : 'danger'}>
             {pollStatus === 'polling'
               ? `Menunggu… ${elapsedSeconds}s`
@@ -291,40 +341,40 @@ export function AwaitingPaymentPanel({
                 : pollStatus.toUpperCase()}
           </Badge>
         </div>
-        <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3 text-sm space-y-1">
+        <div className="rounded-lg p-3 text-sm space-y-1 bg-accent-soft border border-accent/20">
           <div className="flex justify-between">
-            <span className="text-neutral-500 dark:text-neutral-400">Order</span>
-            <span className="text-neutral-900 dark:text-neutral-100 font-semibold">
+            <span className="text-muted-foreground">Order</span>
+            <span className="text-[var(--foreground)] font-semibold">
               {order?.orderNumber || '—'}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-neutral-500 dark:text-neutral-400">Metode</span>
-            <span className="text-neutral-900 dark:text-neutral-100">{METHOD_LABEL[method]}</span>
+            <span className="text-muted-foreground">Metode</span>
+            <span className="text-[var(--foreground)]">{METHOD_LABEL[method]}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-neutral-500 dark:text-neutral-400">Total</span>
+            <span className="text-muted-foreground">Total</span>
             <span className="text-emerald-400 font-semibold">{formatIDR(totalCents)}</span>
           </div>
         </div>
 
         {vaNumber && (
-          <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 text-center space-y-1">
-            <div className="text-xs text-neutral-500">Nomor Virtual Account</div>
-            <div className="text-2xl font-mono font-semibold tracking-wider text-neutral-900 dark:text-neutral-100">
+          <div className="rounded-lg p-4 text-center space-y-1 bg-accent-soft border border-accent/20">
+            <div className="text-xs text-muted-foreground">Nomor Virtual Account</div>
+            <div className="text-2xl font-mono font-semibold tracking-wider text-[var(--foreground)]">
               {vaNumber}
             </div>
-            <div className="text-xs text-neutral-500">Salin nomor dan bayar lewat m-banking</div>
+            <div className="text-xs text-muted-foreground">Salin nomor dan bayar lewat m-banking</div>
           </div>
         )}
 
         {qrString && !paymentUrl && (
-          <div className="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 text-center space-y-2">
-            <div className="text-xs text-neutral-500">QRIS</div>
-            <pre className="text-[10px] text-neutral-500 dark:text-neutral-400 break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
+          <div className="rounded-lg p-4 text-center space-y-2 bg-accent-soft border border-accent/20">
+            <div className="text-xs text-muted-foreground">QRIS</div>
+            <pre className="text-[10px] text-muted-foreground break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
               {qrString}
             </pre>
-            <div className="text-xs text-neutral-500">Scan dengan e-wallet / m-banking</div>
+            <div className="text-xs text-muted-foreground">Scan dengan e-wallet / m-banking</div>
           </div>
         )}
 
@@ -350,7 +400,7 @@ export function AwaitingPaymentPanel({
           </Button>
         </div>
 
-        <p className="text-[10px] text-neutral-500 text-center">
+        <p className="text-[10px] text-muted-foreground text-center">
           Pembayaran akan terdeteksi otomatis. Tidak perlu refresh.
         </p>
       </div>
